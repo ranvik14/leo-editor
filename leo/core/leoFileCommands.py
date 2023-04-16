@@ -7,6 +7,7 @@ from __future__ import annotations
 import binascii
 from collections import defaultdict
 from contextlib import contextmanager
+from datetime import datetime
 import difflib
 import hashlib
 import io
@@ -186,7 +187,7 @@ class FastRead:
         fc.descendentExpandedList = expanded
         fc.descendentMarksList = marked
     #@+node:ekr.20180606041211.1: *4* fast.resolveUa
-    def resolveUa(self, attr: Any, val: Any, kind: str = None) -> str:  # Kind is for unit testing.
+    def resolveUa(self, attr: Any, val: Any, kind: str = None) -> Any:  # Kind is for unit testing.
         """Parse an unknown attribute in a <v> or <t> element."""
         try:
             val = g.toEncodedString(val)
@@ -391,7 +392,7 @@ class FastRead:
         """
         Recreate a file from a JSON string s, and return its hidden vnode.
         """
-        v, g_element = self.readWithJsonTree(path=None, s=s)
+        v, unused = self.readWithJsonTree(path=None, s=s)
         if not v:  # #1510.
             return None
         #
@@ -411,7 +412,7 @@ class FastRead:
             return None, None
 
         try:
-            g_element = d.get('globals', {})
+            g_element = d.get('globals', {})  # globals is optional
             v_elements = d.get('vnodes')
             t_elements = d.get('tnodes')
             gnx2ua: Dict = defaultdict(dict)
@@ -617,7 +618,7 @@ class FileCommands:
         self.gnxDict: Dict[str, VNode] = {}  # Keys are gnx strings. Values are vnodes.
         self.vnodesDict: Dict[str, Any] = {}  # keys are gnx strings; values are ignored
     #@+node:ekr.20210316042224.1: *3* fc: Commands
-    #@+node:ekr.20031218072017.2012: *4* fc.writeAtFileNodes
+    #@+node:ekr.20031218072017.2012: *4* write-at-file-nodes
     @cmd('write-at-file-nodes')
     def writeAtFileNodes(self, event: Event = None) -> None:
         """Write all @file nodes in the selected outline."""
@@ -626,15 +627,7 @@ class FileCommands:
         c.init_error_dialogs()
         c.atFileCommands.writeAll(all=True)
         c.raise_error_dialogs(kind='write')
-    #@+node:ekr.20031218072017.3050: *4* fc.write-outline-only
-    @cmd('write-outline-only')
-    def writeOutlineOnly(self, event: Event = None) -> None:
-        """Write the entire outline without writing any derived files."""
-        c = self.c
-        c.endEditing()
-        self.writeOutline(fileName=self.mFileName)
-
-    #@+node:ekr.20031218072017.1666: *4* fc.writeDirtyAtFileNodes
+    #@+node:ekr.20031218072017.1666: *4* write-dirty-at-file-nodes
     @cmd('write-dirty-at-file-nodes')
     def writeDirtyAtFileNodes(self, event: Event = None) -> None:
         """Write all changed @file Nodes."""
@@ -643,13 +636,68 @@ class FileCommands:
         c.init_error_dialogs()
         c.atFileCommands.writeAll(dirty=True)
         c.raise_error_dialogs(kind='write')
-    #@+node:ekr.20031218072017.2013: *4* fc.writeMissingAtFileNodes
+    #@+node:ekr.20031218072017.2013: *4* write-missing-at-file-nodes
     @cmd('write-missing-at-file-nodes')
     def writeMissingAtFileNodes(self, event: Event = None) -> None:
         """Write all @file nodes for which the corresponding external file does not exist."""
         c = self.c
         c.endEditing()
         c.atFileCommands.writeMissing(c.p)
+    #@+node:ekr.20031218072017.3050: *4* write-outline-only
+    @cmd('write-outline-only')
+    def writeOutlineOnly(self, event: Event = None) -> None:
+        """Write the entire outline without writing any derived files."""
+        c = self.c
+        c.endEditing()
+        self.writeOutline(fileName=self.mFileName)
+
+    #@+node:ekr.20230406053535.1: *4* write-zip-archive
+    @cmd('write-zip-archive')
+    def writeZipArchive(self, event: Event = None) -> None:
+        """
+        Write a .zip file containing this .leo file and all external files.
+
+        Write to os.environ['LEO_ARCHIVE'] or the directory containing this .leo file.
+        """
+        c = self.c
+        leo_file = c.fileName()
+        if not leo_file:
+            print('Please save this outline first')
+            return
+
+        # Compute the timestamp.
+        timestamp = datetime.now().timestamp()
+        time = datetime.fromtimestamp(timestamp)
+        time_s = time.strftime('%Y-%m-%d-%H-%M-%S')
+
+        # Compute archive_name.
+        archive_name = None
+        try:
+            directory = os.environ['LEO_ARCHIVE']
+            if not os.path.exists(directory):
+                g.es_print(f"Not found: {directory!r}")
+                archive_name = rf"{directory}{os.sep}{g.shortFileName(leo_file)}-{time_s}.zip"
+        except KeyError:
+            pass
+        if not archive_name:
+            archive_name = rf"{leo_file}-{time_s}.zip"
+
+        # Write the archive.
+        try:
+            n = 1
+            with zipfile.ZipFile(archive_name, 'w') as f:
+                f.write(leo_file)
+                for p in c.all_unique_positions():
+                    if p.isAnyAtFileNode():
+                        fn = c.fullPath(p)
+                        if os.path.exists(fn):
+                            n += 1
+                            f.write(fn)
+            print(f"Wrote {archive_name} containing {n} file{g.plural(n)}")
+        except Exception:
+            g.es_print(f"Error writing {archive_name}")
+            g.es_exception()
+
     #@+node:ekr.20210316034350.1: *3* fc: File Utils
     #@+node:ekr.20031218072017.3047: *4* fc.createBackupFile
     def createBackupFile(self, fileName: str) -> Tuple[bool, str]:
@@ -1702,7 +1750,7 @@ class FileCommands:
         try:
             self.usingClipboard = True
             if self.c.config.getBool('json-outline-clipboard', default=False):
-                d = self.leojs_file(p or self.c.p)
+                d = self.leojs_outline_dict(p or self.c.p)
                 s = json.dumps(d, indent=2, cls=SetJSONEncoder)
             else:
                 self.outputFile = io.StringIO()
@@ -1713,6 +1761,27 @@ class FileCommands:
                 self.putPostlog()
                 s = self.outputFile.getvalue()
                 self.outputFile = None
+        finally:  # Restore
+            self.descendentTnodeUaDictList = tua
+            self.descendentVnodeUaDictList = vua
+            self.gnxDict = gnxDict
+            self.vnodesDict = vnodesDict
+            self.usingClipboard = False
+        return s
+    #@+node:felix.20230326001957.1: *5* fc.outline_to_clipboard_json_string
+    def outline_to_clipboard_json_string(self, p: Position = None) -> str:
+        """
+        Return a JSON string suitable for pasting to the clipboard.
+        """
+        # Save
+        tua = self.descendentTnodeUaDictList
+        vua = self.descendentVnodeUaDictList
+        gnxDict = self.gnxDict
+        vnodesDict = self.vnodesDict
+        try:
+            self.usingClipboard = True
+            d = self.leojs_outline_dict(p or self.c.p)  # Checks for illegal ua's
+            s = json.dumps(d, indent=2, cls=SetJSONEncoder)
         finally:  # Restore
             self.descendentTnodeUaDictList = tua
             self.descendentVnodeUaDictList = vua
@@ -1763,7 +1832,7 @@ class FileCommands:
             return False
         try:
             # Create the dict corresponding to the JSON.
-            d = self.leojs_file()
+            d = self.leojs_outline_dict()  # Checks for illegal ua's
             # Convert the dict to JSON.
             json_s = json.dumps(d, indent=2, cls=SetJSONEncoder)
             # Write bytes.
@@ -1779,40 +1848,50 @@ class FileCommands:
         except Exception:
             self.handleWriteLeoFileException(fileName, backupName, f)
             return False
-    #@+node:ekr.20210316095706.1: *6* fc.leojs_file
-    def leojs_file(self, p: Position = None) -> Dict[str, Any]:
+    #@+node:ekr.20210316095706.1: *6* fc.leojs_outline_dict
+    def leojs_outline_dict(self, p: Position = None) -> Dict[str, Any]:
         """Return a dict representing the outline."""
         c = self.c
         uas = {}
         # holds all gnx found so far, to exclude adding headlines of already defined gnx.
         gnxSet: Set[str] = set()
-
-        if self.usingClipboard:  # write the current tree.
+        if self.usingClipboard:  # write the currently selected subtree ONLY.
             # Node to be root of tree to be put on clipboard
             sp = p or c.p  # Selected Position: sp
             # build uas dict
             for p in sp.self_and_subtree():
                 if hasattr(p.v, 'unknownAttributes') and len(p.v.unknownAttributes.keys()):
-                    uas[p.v.gnx] = p.v.unknownAttributes
+                    try:
+                        json.dumps(p.v.unknownAttributes, skipkeys=True, cls=SetJSONEncoder)  # If this test passes ok
+                        uas[p.v.gnx] = p.v.unknownAttributes  # Valid UA's as-is. UA's are NOT encoded.
+                    except TypeError:
+                        g.trace(f"Can not serialize uA for {p.h}", g.callers(6))
+                        g.printObj(p.v.unknownAttributes)
+
             # result for specific starting p
             result = {
                     'leoHeader': {'fileFormat': 2},
-                    'globals': self.leojs_globals(),
                     'vnodes': [
                         self.leojs_vnode(sp, gnxSet)
                     ],
                     'tnodes': {p.v.gnx: p.v._bodyString for p in sp.self_and_subtree() if p.v._bodyString}
                 }
 
-        else:  # write everything
+        else:  # write everything from the top node 'c.rootPosition()'
             # build uas dict
             for v in c.all_unique_nodes():
                 if hasattr(v, 'unknownAttributes') and len(v.unknownAttributes.keys()):
-                    uas[v.gnx] = v.unknownAttributes
+                    try:
+                        # If this passes, the (unencoded) uAs are valid json.
+                        json.dumps(v.unknownAttributes, skipkeys=True, cls=SetJSONEncoder)
+                        uas[v.gnx] = v.unknownAttributes
+                    except TypeError:
+                        g.trace(f"Can not serialize uA for {v.h}", g.callers(6))
+                        g.printObj(v.unknownAttributes)
+
             # result for whole outline
             result = {
                     'leoHeader': {'fileFormat': 2},
-                    'globals': self.leojs_globals(),
                     'vnodes': [
                         self.leojs_vnode(p, gnxSet) for p in c.rootPosition().self_and_siblings()
                     ],
@@ -1820,21 +1899,22 @@ class FileCommands:
                         v.gnx: v._bodyString for v in c.all_unique_nodes() if (v._bodyString and v.isWriteBit())
                     }
                 }
-
+        self.leojs_globals()  # Call only to set db like non-json save file.
         # uas could be empty. Only add it if needed
         if uas:
             result["uas"] = uas
 
-        self.currentPosition = p or c.p
-        self.setCachedBits()
+        if not self.usingClipboard:
+            self.currentPosition = p or c.p
+            self.setCachedBits()
         return result
     #@+node:ekr.20210316092313.1: *6* fc.leojs_globals (sets window_position)
-    def leojs_globals(self) -> Dict[str, Any]:
+    def leojs_globals(self) -> Optional[Dict[str, Any]]:
         """Put json representation of Leo's cached globals."""
         c = self.c
         width, height, left, top = c.frame.get_window_info()
         if 1:  # Write to the cache, not the file.
-            d: Dict[str, str] = {}
+            d = None
             c.db['body_outline_ratio'] = str(c.frame.ratio)
             c.db['body_secondary_ratio'] = str(c.frame.secondary_ratio)
             c.db['window_position'] = str(top), str(left), str(height), str(width)
@@ -2093,11 +2173,13 @@ class FileCommands:
         self.put("<preferences/>\n")
     #@+node:ekr.20031218072017.1246: *5* fc.putProlog
     def putProlog(self) -> None:
-        """Put the prolog of the xml file."""
-        tag = 'http://leoeditor.com/namespaces/leo-python-editor/1.1'
+        """
+        Put the prolog of the xml file.
+        """
+        tag = 'http://leo-editor.github.io/leo-editor/namespaces/leo-python-editor/1.1'
         self.putXMLLine()
         # Put "created by Leo" line.
-        self.put('<!-- Created by Leo: http://leoeditor.com/leo_toc.html -->\n')
+        self.put('<!-- Created by Leo: https://leo-editor.github.io/leo-editor/leo_toc.html -->\n')
         self.putStyleSheetLine()
         # Put the namespace
         self.put(f'<leo_file xmlns:leo="{tag}" >\n')

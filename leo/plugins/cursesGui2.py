@@ -14,13 +14,14 @@ The ``--gui=curses`` command-line option enables this plugin.
 - This is beta-level code. Be prepared to recover from data loss. Testing
   on files under git control gives you diffs and easy reverts.
 
-- There are many limitations: see http://leoeditor.com/console-gui.html
+- There are many limitations: see
+  https://leo-editor.github.io/leo-editor/console-gui.html
 
 Please report any problem here:
 https://github.com/leo-editor/leo-editor/issues/488
 
 Devs, please read:
-http://leoeditor.com/console-gui.html#developing-the-cursesgui2-plugin
+https://leo-editor.github.io/leo-editor/console-gui.html#developing-the-cursesgui2-plugin
 """
 #@-<< cursesGui2 docstring >>
 #@+<< cursesGui2 imports >>
@@ -2004,16 +2005,14 @@ class LeoCursesGui(leoGui.LeoGui):
             self.set_focus_fail.append(widget)
             g.trace('Fail\n%r\n%r' % (widget, w))
     #@+node:ekr.20170514060742.1: *4* CGui.Fonts
-    def getFontFromParams(self, family: str, size: str, slant: str, weight: str, defaultSize: int=12) -> None:
+    def getFontFromParams(self,
+        family: str, size: str, slant: str, weight: str, defaultSize: int = 12, tag: str = '',
+    ) -> None:
         return None
     #@+node:ekr.20170504052119.1: *4* CGui.isTextWrapper
     def isTextWrapper(self, w: Wrapper) -> bool:
         """Return True if w is a Text widget suitable for text-oriented commands."""
         return bool(w and getattr(w, 'supportsHighLevelInterface', None))
-    #@+node:ekr.20170504052042.1: *4* CGui.oops
-    def oops(self) -> None:
-        """Ignore do-nothing methods."""
-        g.pr("CursesGui oops:", g.callers(4), "should be overridden in subclass")
     #@+node:ekr.20170612063102.1: *4* CGui.put_help
     def put_help(self, c: Cmdr, s: str, short_title: str) -> None:
         """Put a help message in a dialog."""
@@ -2286,14 +2285,8 @@ class CoreFrame(leoFrame.LeoFrame):
     def minimizeAll(self, event: Event=None) -> None:
         pass
 
-    def oops(self) -> None:
-        """Ignore do-nothing methods."""
-        g.pr("CoreFrame oops:", g.callers(4), "should be overridden in subclass")
-
     def resizePanesToRatio(self, ratio: float, secondary_ratio: float) -> None:
         """Resize splitter1 and splitter2 using the given ratios."""
-        # self.divideLeoSplitter1(ratio)
-        # self.divideLeoSplitter2(secondary_ratio)
 
     def resizeToScreen(self, event: Event=None) -> None:
         pass
@@ -2426,16 +2419,9 @@ class CoreLog(leoFrame.LeoLog):
 class CoreMenu(leoMenu.LeoMenu):
 
     def __init__(self, c: Cmdr) -> None:
-
         dummy_frame = g.Bunch(c=c)
         super().__init__(dummy_frame)
         self.c = c
-
-    def oops(self) -> None:
-        """Ignore do-nothing methods."""
-        # g.pr("CoreMenu oops:", g.callers(4), "should be overridden in subclass")
-
-
 #@+node:ekr.20170501024424.1: *3* class CoreTree (leoFrame.LeoTree)
 class CoreTree(leoFrame.LeoTree):
     """

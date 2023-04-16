@@ -35,12 +35,13 @@ try:
     import websockets
 except Exception:
     websockets = None
-# Make sure leo-editor folder is on sys.path.
+# Make sure the parent of the leo directory is on sys.path.
 core_dir = os.path.dirname(__file__)
 leo_path = os.path.normpath(os.path.join(core_dir, '..', '..'))
 assert os.path.exists(leo_path), repr(leo_path)
 if leo_path not in sys.path:
-    sys.path.append(leo_path)
+    sys.path.insert(0, leo_path)
+del core_dir, leo_path
 # Leo
 from leo.core.leoCommands import Commands as Cmdr  # noqa
 from leo.core.leoNodes import Position, VNode  # noqa
@@ -278,7 +279,7 @@ class ServerExternalFilesController(ExternalFilesController):
     def idle_check_at_file_node(self, c: Cmdr, p: Position) -> None:
         """Check the @<file> node at p for external changes."""
         trace = False
-        path = g.fullPath(c, p)
+        path = c.fullPath(p)
         has_changed = self.has_changed(path)
         if trace:
             g.trace('changed', has_changed, p.h)
@@ -1536,6 +1537,7 @@ class LeoServer:
                     g.chdir(fileName)  # TODO : IS THIS NEEDED
                     s = '@nocolor\n' + s  # TODO : MAKE THIS UNDOABLE !
                     p = c.insertHeadline(op_name=undoType)
+                    # New node does not need c.setHeadString. p.setHeadString is ok.
                     p.setHeadString('@read-file-into-node ' + fileName)
                     p.setBodyString(s)
             except Exception as err:
@@ -2110,11 +2112,11 @@ class LeoServer:
         gc = c.gotoCommands
         line = param.get('line', 1)
         try:
-            junk_p, junk_offset, found = gc.find_file_line(n=int(line))
+            p, junk_offset = gc.find_file_line(n=int(line))
         except Exception as e:
-            raise ServerError(f"{tag}: Running clone find operation gave exception: {e}")
+            raise ServerError(f"{tag}: Running goto-global-line gave exception: {e}")
         focus = self._get_focus()
-        return self._make_response({"found": found, "focus": focus})
+        return self._make_response({"found": bool(p), "focus": focus})
     #@+node:felix.20210621233316.33: *5* server.clone_find_tag
     def clone_find_tag(self, param: Param) -> Response:
         """Run Leo's clone-find-tag command and return results."""
@@ -2999,11 +3001,11 @@ class LeoServer:
         oldH: str = p.h
         if h == oldH:
             return self._make_response()
-        bunch = u.beforeChangeNodeContents(p)
-        p.setDirty()
+        bunch = u.beforeChangeHeadline(p)
+        c.setHeadString(p, h)  # c.setHeadString fixes the headline revert bug of p.initHeadString(h)
         c.setChanged()
-        p.h = h
-        u.afterChangeNodeContents(p, 'Change Headline', bunch)
+        p.setDirty()
+        u.afterChangeHeadline(p, 'Change Headline', bunch)
         return self._make_response()
     #@+node:felix.20210621233316.63: *5* server.set_selection
     def set_selection(self, param: Param) -> Response:
@@ -3469,9 +3471,9 @@ class LeoServer:
             # 'search-forward',
             'search-return-to-origin',
 
-            'set-find-everywhere',
-            'set-find-node-only',
-            'set-find-suboutline-only',
+            # 'set-find-everywhere',
+            # 'set-find-node-only',
+            # 'set-find-suboutline-only',
             'set-replace-string',
             'set-search-string',
 

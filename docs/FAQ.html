@@ -4,7 +4,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
     <title>FAQ &#8212; Leo 6.7.2 documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
@@ -49,7 +49,8 @@
 <h1>FAQ<a class="headerlink" href="#faq" title="Permalink to this heading">¶</a></h1>
 <p>This is Leo’s Frequently Asked Questions document.</p>
 <nav class="contents local" id="contents">
-<span id="index-0"></span><ul class="simple">
+<span id="index-0"></span><p class="topic-title">Contents</p>
+<ul class="simple">
 <li><p><a class="reference internal" href="#getting-leo" id="id4">Getting Leo</a></p>
 <ul>
 <li><p><a class="reference internal" href="#where-can-i-get-official-releases-of-leo" id="id5">Where can I get official releases of Leo?</a></p></li>
@@ -1145,8 +1146,10 @@ say, python/Lib/site-packages.</p>
 </section>
 <section id="what-is-a-reference-leo-file">
 <h3><a class="toc-backref" href="#id64" role="doc-backlink">What is a reference .leo file?</a><a class="headerlink" href="#what-is-a-reference-leo-file" title="Permalink to this heading">¶</a></h3>
-<p>Leo’s repository contains <strong>reference .leo files</strong>. These reference files should contain nothing but &#64;file nodes. Reference files should change only when new external files get added to the project.</p>
-<p>Leo’s <a class="reference external" href="https://github.com/leo-editor/leo-editor">git repository</a> and Leo distributions contain two reference files: LeoPyRef.leo  and leoGuiPluginsRef.leo. Developers should use local copies of reference files for their own work. For example, instead of using LeoPyRef.leo directly, I use a copy called LeoPy.leo.</p>
+<p><cite>leoeditor/leo/core</cite> contains a <strong>reference .leo file</strong>: <strong>LeoPyRef.leo</strong>.</p>
+<p>This file should change only when adding new external files to Leo.</p>
+<p>Developers should use a local copy of LeoPyRef.leo (conventionally called
+<strong>leoPy.leo</strong>) for their own work.</p>
 </section>
 <section id="why-do-files-sometimes-change-when-switching-branches">
 <h3><a class="toc-backref" href="#id65" role="doc-backlink">Why do files sometimes change when switching branches?</a><a class="headerlink" href="#why-do-files-sometimes-change-when-switching-branches" title="Permalink to this heading">¶</a></h3>
@@ -1561,7 +1564,7 @@ Scripts can call this method directly if desired.</p></li>
     <span class="p">)</span>
 </pre></div>
 </div>
-<p>Then run “pip –editable install . “ in the same folder. Foo.exe will be created in C:pythonxxScripts. As long as that folder is in path you can use foo like any other command line program. Furthermore the “editable” parameter means we can continue to edit and change foo.py and the changes are always live.</p>
+<p>Then run “pip –editable install . ” in the same folder. Foo.exe will be created in C:pythonxxScripts. As long as that folder is in path you can use foo like any other command line program. Furthermore the “editable” parameter means we can continue to edit and change foo.py and the changes are always live.</p>
 <p>Yeah! No more “pushd ..pathtodatafolder &amp;&amp; python ..pathtocodefoo.py
 –do-stuff-here …” for me. :)</p>
 </section>
@@ -2176,8 +2179,8 @@ The default is UTF-8 (case not important).</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 1997-2023, Edward K. Ream.
-      Last updated on January 24, 2023.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.2.
+      Last updated on April 07, 2023.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.3.
     </div>
   </body>
 </html>

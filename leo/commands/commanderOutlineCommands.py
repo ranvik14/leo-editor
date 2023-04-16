@@ -37,59 +37,11 @@ def copyOutline(self: Self, event: Event = None) -> str:
 #@+node:ekr.20220314071523.1: *3* c_oc.copyOutlineAsJson & helpers
 @g.commander_command('copy-node-as-json')
 def copyOutlineAsJSON(self: Self, event: Event = None) -> Optional[str]:
-    """Copy the selected outline to the clipboard in json format."""
+    """Copy the selected outline as JSON to the clipboard"""
     # Copying an outline has no undo consequences.
-    #@+others  # Define helper functions
-    #@+node:ekr.20220314072801.1: *4* function: json_globals
-    def json_globals(c: Cmdr) -> Dict[str, Any]:
-        """Put json representation of Leo's cached globals."""
-        width, height, left, top = c.frame.get_window_info()
-        return {
-            'body_outline_ratio': c.frame.ratio,
-            'body_secondary_ratio': c.frame.secondary_ratio,
-            'globalWindowPosition': {
-                'height': height,
-                'left': left,
-                'top': top,
-                'width': width,
-            },
-        }
-    #@+node:ekr.20220314073155.1: *4* function: json_vnode
-    def json_vnode(v: VNode) -> Dict[str, Any]:
-        return {
-            'gnx': v.fileIndex,
-            'vh': v._headString,
-            'status': v.statusBits,
-            'children': [json_vnode(child) for child in v.children]
-        }
-    #@+node:ekr.20220314071805.1: *4* function: outline_to_json
-    def outline_to_json(c: Cmdr) -> str:
-        """Return the JSON representation of c."""
-        positions = list(c.p.self_and_subtree())
-        uas_dict: Dict[str, Any] = {}
-        for p in positions:
-            if p.u:
-                try:
-                    uas_dict[p.v.gnx] = json.dumps(p.u, skipkeys=True)
-                except TypeError:
-                    g.trace(f"Can not serialize uA for {p.h}", g.callers(6))
-                    # g.printObj(p.u)
-        d = {
-            'leoHeader': {'fileFormat': 2},
-            'globals': json_globals(c),
-            'tnodes': {
-                p.v.gnx: p.v._bodyString for p in positions
-            },
-            'uas': uas_dict,
-            'vnodes': [
-                json_vnode(c.p.v)
-            ],
-        }
-        return json.dumps(d, indent=2, sort_keys=False)
-    #@-others
     c = self
     c.endEditing()
-    s = outline_to_json(c)
+    s = c.fileCommands.outline_to_clipboard_json_string()
     g.app.paste_c = c
     if g.app.inBridge:
         return s
@@ -1180,7 +1132,7 @@ def insertHeadline(
 
 @g.commander_command('insert-as-first-child')
 def insertNodeAsFirstChild(self: Self, event: Event = None) -> Optional[Position]:
-    """Insert a node as the last last of the previous node."""
+    """Insert a node as the first child of the previous node."""
     c = self
     return insertHeadlineHelper(c, event=event, as_first_child=True)
 
@@ -1750,44 +1702,46 @@ def toggleSparseMove(self: Self, event: Event = None) -> None:
     if not g.unitTesting:
         g.blue(f"sparse-move: {c.sparse_move}")
 #@+node:ekr.20080425060424.1: ** c_oc.Sort commands
+#@+node:felix.20230318172503.1: *3* c_oc.reverseSortChildren
+@g.commander_command('reverse-sort-children')
+def reverseSortChildren(
+    self: Self,
+    event: Event = None,
+    key: str = None
+) -> None:
+    """Sort the children of a node in reverse order."""
+    self.sortChildren(key=key, reverse=True)  # as reverse, Fixes #3188
+#@+node:felix.20230318172511.1: *3* c_oc.reverseSortSiblings
+@g.commander_command('reverse-sort-siblings')
+def reverseSortSiblings(
+    self: Self,
+    event: Event = None,
+    key: str = None
+) -> None:
+    """Sort the siblings of a node in reverse order."""
+    self.sortSiblings(key=key, reverse=True)  # as reverse, Fixes #3188
 #@+node:ekr.20050415134809: *3* c_oc.sortChildren
 @g.commander_command('sort-children')
 def sortChildren(
     self: Self,
     event: Event = None,
-    key: Callable = None,  # Not used in Leo's core.
-    p: Position = None,  # Not used in Leo's core.
-    reverse: bool = False,  # Not used in Leo's core.
+    key: Callable = None,
+    reverse: bool = False
 ) -> None:
-
-    """Sort the children of p."""
-    c, u = self, self.undoer
-    if not p:
-        p = c.p
-    if not p:
-        return
-
-    def lowerKey(v: VNode) -> str:
-        return v.h.lower()
-
-    c.endEditing()
-    oldChildren: List[VNode] = p.v.children[:]
-    newChildren: List[VNode] = sorted(p.v.children, key=key or lowerKey, reverse=reverse)
-    if p.v.children == newChildren:
-        return
-    c.setChanged()
-    p.v.children = newChildren
-    u.afterSortChildren(oldChildren, newChildren)
-    p.setDirty()
-    c.redraw(p)
+    """Sort the children of a node."""
+    # This method no longer supports the 'cmp' keyword arg.
+    c, p = self, self.p
+    if p and p.hasChildren():
+        c.sortSiblings(p=p.firstChild(), sortChildren=True, key=key, reverse=reverse)
 #@+node:ekr.20050415134809.1: *3* c_oc.sortSiblings
 @g.commander_command('sort-siblings')
 def sortSiblings(
     self: Self,
-    event: Event = None,
-    key: Callable = None,  # Not used in Leo's core.
-    p: Position = None,  # Required.
-    reverse: bool = False,  # Not used in Leo's core.
+    event: Event = None,  # cmp keyword is no longer supported.
+    key: Callable = None,
+    p: Position = None,
+    sortChildren: bool = False,
+    reverse: bool = False,
 ) -> None:
     """Sort the siblings of a node."""
     c, u = self, self.undoer
@@ -1796,27 +1750,44 @@ def sortSiblings(
     if not p:
         return
 
-    def lowerKey(v: VNode) -> str:
-        return v.h.lower()
-
     oldP, newP = p.copy(), p.copy()
     c.endEditing()
+    undoType = 'Sort Children' if sortChildren else 'Sort Siblings'
+    if reverse:
+        undoType = 'Reverse ' + undoType
     parent_v = p._parentVnode()
-    oldSiblings = parent_v.children[:]
-    newSiblings: List[VNode] = sorted(parent_v.children, key=key or lowerKey, reverse=reverse)
-    if oldSiblings == newSiblings:
+    oldChildren = parent_v.children[:]
+    newChildren = parent_v.children[:]
+    if key is None:
+
+        def lowerKey(self: Self) -> str:
+            return self.h.lower()
+
+        key = lowerKey
+
+    newChildren.sort(key=key, reverse=reverse)  # type:ignore
+    if oldChildren == newChildren:
         return
+    # 2010/01/20. Fix bug 510148.
     c.setChanged()
-    parent_v.children = newSiblings
+    bunch = u.beforeSort(p, undoType, oldChildren, newChildren, sortChildren)
+    # A copy, so its not the undo bead's oldChildren. Fixes #3205
+    parent_v.children = newChildren[:]
+    u.afterSort(p, bunch)
     # Sorting destroys position p, and possibly the root position.
     # Only the child index of new position changes!
-    for i, v in enumerate(newSiblings):
+    for i, v in enumerate(newChildren):
         if v.gnx == oldP.v.gnx:
             newP._childIndex = i
             break
-    u.afterSortSiblings(oldP, newP, oldSiblings, newSiblings)
-    newP.setDirty()
-    c.redraw(newP)
+
+    if newP.parent():
+        newP.parent().setDirty()
+
+    if sortChildren:
+        c.redraw(newP.parent())
+    else:
+        c.redraw(newP)
 #@+node:ekr.20070420092425: ** def cantMoveMessage
 def cantMoveMessage(c: Cmdr) -> None:
     h = c.rootPosition().h

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Created by Leo: http://leoeditor.com/leo_toc.html -->
-<leo_file xmlns:leo="http://leoeditor.com/namespaces/leo-python-editor/1.1" >
+<!-- Created by Leo: https://leo-editor.github.io/leo-editor/leo_toc.html -->
+<leo_file xmlns:leo="http://leo-editor.github.io/leo-editor/namespaces/leo-python-editor/1.1" >
 <leo_header file_format="2"/>
 <globals/>
 <preferences/>
@@ -121,6 +121,7 @@
 </v>
 <v t="ekr.20071213061923.2"><vh>@bool rst3-generate-rst = True</vh></v>
 </v>
+<v t="ekr.20041119041304.1"><vh>@string relative-path-base-directory = .</vh></v>
 </v>
 <v t="ekr.20200226104131.1"><vh>Future settings</vh>
 <v t="ekr.20190926110217.1"><vh>@string adoc-base-directory = None</vh></v>
@@ -311,13 +312,13 @@
 <v t="ekr.20140912075503.19274"><vh>@color splitter-bg = white</vh></v>
 <v t="ekr.20140915194122.23418"><vh>@color splitter-handle-bg = @LightSteelBlue1</vh></v>
 <v t="ekr.20140912075503.19275"><vh>@color splitter-border-fg = white</vh></v>
-<v t="ekr.20140912075503.19276"><vh>@color splitter-border-style = solid</vh></v>
+<v t="ekr.20140912075503.19276"><vh>@string splitter-border-style = solid</vh></v>
 <v t="ekr.20180317172528.1"><vh>@color splitter-hover-bg = @LightSteelBlue1</vh></v>
 </v>
 <v t="ekr.20140912075503.19345"><vh>Status area colors</vh>
 <v t="ekr.20140912075503.19346"><vh>@color status-bg = lightgrey</vh></v>
 <v t="ekr.20150711073509.1"><vh>@color status-fg = black</vh></v>
-<v t="ekr.20140912075503.19348"><vh>@color status-border-style = solid</vh></v>
+<v t="ekr.20140912075503.19348"><vh>@string status-border-style = solid</vh></v>
 <v t="ekr.20140912075503.19349"><vh>@color status-border-color = darkgrey</vh></v>
 </v>
 <v t="ekr.20150626061905.1"><vh>Status area colors for searches</vh>
@@ -485,11 +486,8 @@
 </v>
 </v>
 <v t="ekr.20140912075503.19359"><vh>screencast.py plugin</vh>
-<v t="ekr.20140912075503.19360"><vh>@string screencast-bg = yellow</vh></v>
-<v t="ekr.20140912075503.19361"><vh>@string screencast-font-family = Times New Roman</vh></v>
-<v t="ekr.20140912075503.19362"><vh>@string screencaset-font-size = 18pt</vh></v>
-<v t="ekr.20140912075503.19363"><vh>@string screencast-font-weight = normal</vh></v>
-<v t="ekr.20140912075503.19364"><vh>@string screencaset-font-style = normal</vh></v>
+<v t="ekr.20140912075503.19360"><vh>@color screencast-bg = yellow</vh></v>
+<v t="ekr.20230316031838.1"><vh>@font screencast</vh></v>
 </v>
 </v>
 </v>
@@ -661,7 +659,6 @@
 <v t="ekr.20230113102630.1"><vh>@string gnx-kind = none</vh></v>
 <v t="ekr.20181018113812.1"><vh>@string initial-chooser-directory = None</vh></v>
 <v t="ekr.20170718054951.1"><vh>@string log-timestamp-format = %H:%M:%S</vh></v>
-<v t="ekr.20041119041304.1"><vh>@string relative-path-base-directory = .</vh></v>
 <v t="ekr.20181018113813.1"><vh>@string script-file-path = None</vh></v>
 <v t="ekr.20170706103843.1"><vh>Checking files</vh>
 <v t="ekr.20071110153046"><vh>@bool at-auto-warns-about-leading-whitespace = True</vh></v>
@@ -1031,8 +1028,6 @@
 <v t="ekr.20131213135427.22152"><vh>@item file-&amp;insert</vh></v>
 </v>
 <v t="ekr.20131213135427.21841"><vh>@menu &amp;Read/Write Files</vh>
-<v t="ekr.20131213135427.21842"><vh>@@@item check-derived-file</vh></v>
-<v t="ekr.20131213135427.21843"><vh>@@@item check-leo-file</vh></v>
 <v t="ekr.20131213135427.21844"><vh>@item file-compare-two-leo-files</vh></v>
 <v t="ekr.20131213135427.21845"><vh>@item -</vh></v>
 <v t="ekr.20131213135427.21846"><vh>@item read-outline-only</vh></v>
@@ -2133,7 +2128,7 @@
 <v t="ekr.20190325050733.7"><vh>@color generic.strong = solarized-blue</vh></v>
 <v t="ekr.20190325050733.8"><vh>@color generic.subheading = solarized-magenta</vh></v>
 <v t="ekr.20190325050733.9"><vh>@color keyword = solarized-blue</vh></v>
-<v t="ekr.20190325050733.10"><vh>@color name = white</vh></v>
+<v t="ekr.20190325050733.10"><vh>@color name = solarized-red</vh></v>
 <v t="ekr.20190325050733.11"><vh>@color name.class = white</vh></v>
 <v t="ekr.20190325050733.12"><vh>@color name.decorator = solarized-orange</vh></v>
 <v t="ekr.20190325050733.13"><vh>@color name.entity = solarized-blue</vh></v>
@@ -2157,7 +2152,7 @@
 </v>
 <v t="ekr.20060828110551.2"><vh>php</vh>
 <v t="ekr.20060828110551.3"><vh>@color php-operator-color = DodgerBlue1</vh></v>
-<v t="ekr.20060828145228.1"><vh>@font php keyword fonts</vh></v>
+<v t="ekr.20060828145228.1"><vh>@font php.keyword</vh></v>
 </v>
 <v t="ekr.20080703111151.18"><vh>Forth fonts, colors &amp; settings</vh>
 <v t="ekr.20080703111151.21"><vh>@color forth-keyword3-color = black</vh></v>
@@ -2170,10 +2165,10 @@
 <v t="ekr.20080705064822.6"><vh>@data forth-italic-words</vh></v>
 <v t="ekr.20080705064822.7"><vh>@data forth-string-word-pairs</vh></v>
 <v t="ekr.20080705064822.5"><vh>@data forth-words</vh></v>
-<v t="ekr.20080703111151.17"><vh>@font forth keyword2_font</vh></v>
-<v t="ekr.20080703111151.12"><vh>@font forth keyword3_font</vh></v>
-<v t="ekr.20080703111151.14"><vh>@font forth keyword4_font</vh></v>
-<v t="ekr.20080703111151.15"><vh>@font forth keyword5_font</vh></v>
+<v t="ekr.20080703111151.17"><vh>@font forth.keyword2</vh></v>
+<v t="ekr.20080703111151.12"><vh>@font forth.keyword3</vh></v>
+<v t="ekr.20080703111151.14"><vh>@font forth.keyword4</vh></v>
+<v t="ekr.20080703111151.15"><vh>@font forth.keyword5</vh></v>
 </v>
 </v>
 <v t="ekr.20111004182631.15533"><vh>Options</vh>
@@ -2205,6 +2200,7 @@
 <v t="ekr.20110601103939.19339"><vh>@bool single-click-auto-edits-headline = False</vh></v>
 <v t="ekr.20061007211759"><vh>@bool sparse-move-outline-left = False</vh></v>
 <v t="ekr.20060122105527.7"><vh>@bool stayInTreeAfterSelect = True</vh></v>
+<v t="ekr.20230327033157.1"><vh>@bool use-mouse-expand-gestures = False </vh></v>
 <v t="ekr.20061002115414.1"><vh>@float outline-nav-extend-delay = 2.0</vh></v>
 <v t="chris.20180324074923.1"><vh>@int icon-height = 16</vh></v>
 <v t="ekr.20171121100639.1"><vh>Declutter</vh>
@@ -3458,7 +3454,12 @@ aquamarine1</t>
 <t tx="ekr.20060827102902.1"></t>
 <t tx="ekr.20060827102902.2"></t>
 <t tx="ekr.20060828110551"></t>
-<t tx="ekr.20060828110551.1">Valid settings for _style strings are None, normal, bold, italic, bold-italic.</t>
+<t tx="ekr.20060828110551.1">Valid settings for _style strings are None, normal, bold, italic, bold-italic.
+
+New in Leo 6.7.3:
+
+@font settings for particular languages must have the form @font &lt;language-name&gt;.&lt;tag&gt;
+where &lt;tag&gt; is one of the tags in the default_font_dict in leoColor.py.</t>
 <t tx="ekr.20060828110551.2"></t>
 <t tx="ekr.20060828110551.3"></t>
 <t tx="ekr.20060828145228.1"># php_keyword1_font_family = None
@@ -5489,8 +5490,6 @@ minibuffer-find-mode    use-find-dialog     mode: Ctrl-F puts focus in
 <t tx="ekr.20131213135427.21838">Save A &amp;Copy...</t>
 <t tx="ekr.20131213135427.21839">&amp;Revert To Saved</t>
 <t tx="ekr.20131213135427.21841"></t>
-<t tx="ekr.20131213135427.21842"></t>
-<t tx="ekr.20131213135427.21843"></t>
 <t tx="ekr.20131213135427.21844">&amp;Compare Leo Files...</t>
 <t tx="ekr.20131213135427.21845"></t>
 <t tx="ekr.20131213135427.21846"></t>
@@ -8850,10 +8849,6 @@ do at first. All other font settings are defined in terms of the basic fonts.</t
 <t tx="ekr.20140912075503.19358"></t>
 <t tx="ekr.20140912075503.19359"></t>
 <t tx="ekr.20140912075503.19360"></t>
-<t tx="ekr.20140912075503.19361"></t>
-<t tx="ekr.20140912075503.19362"></t>
-<t tx="ekr.20140912075503.19363"></t>
-<t tx="ekr.20140912075503.19364"></t>
 <t tx="ekr.20140912075503.19365">These must be @string settings, even though they do affect colors.</t>
 <t tx="ekr.20140912075503.19366"></t>
 <t tx="ekr.20140912075503.19367"></t>
@@ -11689,8 +11684,11 @@ False: Use the default stylesheet at leo/plugins/viewrendered3.
 .*test_
 .*Test
 </t>
-<t tx="ekr.20230104151508.1"># Additional headlines that are never considered dubious.
+<t tx="ekr.20230104151508.1"># Additional headlines that are never considered dubious by the check-nodes command.
 # Headlines must match exactly.
+
+# The most natural place for this node is in the .leo file to be checked,
+# *not* myLeoSettings.leo.
 
 </t>
 <t tx="ekr.20230112123841.1">This setting tells what the rst3 should do when writing changed files.
@@ -11747,6 +11745,16 @@ date;;={|{x=time.asctime()}|}
 # hellow=hello
 
 </t>
+<t tx="ekr.20230316031838.1">screencast_family = Times New Roman
+screencast_size = 18pt
+screencast_weight = normal
+screencaset_style = normal
+</t>
+<t tx="ekr.20230327033157.1">True: expand/contract nodes when the mouse hovers over the outline:
+    &lt;CTRL-hover&gt;: expand.
+    &lt;SHIFT-hover&gt;: contract.
+    
+False: do nothing when the mouse hovers over nodes.</t>
 <t tx="felix.20220506230435.1">True: (Legacy) The goto-first-visible-node and goto-first-visible-node commands collapse all nodes that are not ancestors of the target node that is selected.
 
 False: (Recommended) The commands act as simple navigation commands, and do not change the outline state.</t>

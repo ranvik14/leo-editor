@@ -4,7 +4,7 @@
 #@+node:ekr.20090502071837.4: ** << leoRst docstring >>
 """Support for restructured text (rST), adapted from rst3 plugin.
 
-For full documentation, see: http://leoeditor.com/rstplugin3.html
+For full documentation, see: https://leo-editor.github.io/leo-editor/tutorial-rst3.html
 
 To generate documents from rST files, Python's docutils_ module must be
 installed. The code will use the SilverCity_ syntax coloring package if is is
@@ -163,7 +163,7 @@ class RstCommands:
         print(f"{old_h} => {p.h}")
     #@+node:ekr.20090511055302.5793: *4* rst.rst3 command & helpers
     @cmd('rst3')
-    def rst3(self, event: Event = None) -> None:
+    def rst3(self, event: Event = None) -> int:
         """Write all @rst nodes."""
         t1 = time.time()
         self.n_intermediate = self.n_docutils = 0
@@ -174,6 +174,7 @@ class RstCommands:
             f"{self.n_intermediate:4} intermediate file{g.plural(self.n_intermediate)}\n"
             f"{self.n_docutils:4} docutils file{g.plural(self.n_docutils)}\n"
             f"in {t2 - t1:4.2f} sec.")
+        return self.n_intermediate
     #@+node:ekr.20230113050522.1: *5* rst.do_actions & helper
     def do_actions(self) -> None:
         """Handle actions specified by @string rst3-action."""

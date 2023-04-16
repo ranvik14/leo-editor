@@ -73,8 +73,8 @@ class TestAtFile(LeoUnitTest):
             c = bridge.openLeoFile(c.fileName())
             p1 = c.rootPosition()
             self.assertEqual(p1.h, "@file 1_renamed")
-    #@+node:ekr.20210421035527.1: *3* TestAtFile.test_bug_1889
-    def test_bug_1889(self):
+    #@+node:ekr.20210421035527.1: *3* TestAtFile.test_bug_1889_tilde_in_at_path
+    def test_bug_1889_tilde_in_at_path(self):
         # Test #1889: Honor ~ in ancestor @path nodes.
         # Create a new outline with @file node and save it
         bridge = self.bridge()
@@ -86,8 +86,20 @@ class TestAtFile(LeoUnitTest):
             child = root.insertAsLastChild()
             child.h = '@file test_bug_1889.py'
             child.b = '@language python\n# test #1889'
-            path = g.fullPath(c, child)
+            path = c.fullPath(child)
             assert '~' not in path, repr(path)
+    #@+node:ekr.20230410082517.1: *3* TestAtFile.test_bug_3270_at_path
+    def test_bug_3270_at_path(self):
+        #  @path c:/temp/leo
+        #    @file at_file_test.py.
+        c = self.c
+        root = c.rootPosition()
+        root.h = '@path c:/temp/leo'
+        child = root.insertAsLastChild()
+        child.h = '@file at_file_test.py'
+        path = c.fullPath(child)
+        expected = 'c:/temp/leo/at_file_test.py'
+        self.assertTrue(path, expected)
     #@+node:ekr.20210901140645.13: *3* TestAtFile.test_checkPythonSyntax
     def test_checkPythonSyntax(self):
 
@@ -980,7 +992,7 @@ class TestFastAtRead(LeoUnitTest):
         contents = contents.replace('#@', '# @')
         x.read_into_root(contents, path='test', root=root)
         s = c.atFileCommands.atFileToString(root, sentinels=True)
-        ### g.printObj(contents2, tag='contents2')
+        # g.printObj(contents2, tag='contents2')
         self.assertEqual(contents, s, 'Test 2: -b')
     #@+node:ekr.20211101154632.1: *3* TestFastAtRead.test_html_doc_part
     def test_html_doc_part(self):
@@ -1029,7 +1041,7 @@ class TestFastAtRead(LeoUnitTest):
             #ATverbatim
             #AT+node (should be protected by verbatim)
             #AT-leo
-        ''').replace('AT', '@') ### .replace('LB', '<<')
+        ''').replace('AT', '@') # .replace('LB', '<<')
         #@-<< define contents >>
         #@+<< define expected_body >>
         #@+node:ekr.20211106070035.1: *4* << define expected_body >> (test_verbatim)

@@ -4,7 +4,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
     <title>Glossary &#8212; Leo 6.7.2 documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
@@ -49,6 +49,7 @@
 <h1>Glossary<a class="headerlink" href="#glossary" title="Permalink to this heading">¶</a></h1>
 <p>This is a short glossary of important terms in Leo’s world. For more information about terms, look in the index for links to discussions in other places, especially in <a class="reference external" href="tutorial.html">Leo’s Tutorial</a> and <a class="reference external" href="directives.html">Leo’s Reference</a>.</p>
 <nav class="contents local" id="contents">
+<p class="topic-title">Contents</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="#id1" id="id2">&#64;</a></p></li>
 <li><p><a class="reference internal" href="#a-c" id="id3">A - C</a></p></li>
@@ -378,12 +379,10 @@ See <a class="reference external" href="writingPlugins.html">Writing plugins and
 the node.</p>
 </div></blockquote>
 <p id="index-62">Reference .leo file</p>
-<p>Leo’s <a class="reference external" href="https://github.com/leo-editor/leo-editor">git repository</a> and Leo distributions contain two reference
-files: LeoPyRef.leo and leoGuiPluginsRef.leo. These reference files
-should contain nothing but &#64;file nodes and should change only when new
-external files get added to the project. Developers should use <em>local
-copies</em> of reference files for their own work. For example, instead of
-using LeoPyRef.leo directly, I use a copy called LeoPy.leo.</p>
+<p><cite>leoeditor/leo/core</cite> contains a <strong>reference .leo file</strong>: <strong>LeoPyRef.leo</strong>.
+This file should change only when adding new external files to Leo.
+Developers should use a local copy of LeoPyRef.leo (conventionally called
+<strong>leoPy.leo</strong>) for their own work.</p>
 <p>reStructuredText (rST)</p>
 <blockquote>
 <div><p>A simple, yet powerful markup language for creating .html, or LaTeX output
@@ -530,8 +529,8 @@ nodes may add additional information to the view.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 1997-2023, Edward K. Ream.
-      Last updated on January 24, 2023.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.2.
+      Last updated on April 07, 2023.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.3.
     </div>
   </body>
 </html>

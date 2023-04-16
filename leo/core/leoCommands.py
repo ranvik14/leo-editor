@@ -13,7 +13,7 @@ import tabnanny
 import tempfile
 import time
 import tokenize
-from typing import Any, Dict, Callable, Generator, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Callable, Generator, Iterable, List, Optional, Set, Tuple, Union
 from typing import TYPE_CHECKING
 from leo.core import leoGlobals as g
 # The leoCommands ctor now does most leo.core.leo* imports,
@@ -652,19 +652,19 @@ class Commands:
         regex = get_setting_for_language('exec-script-patterns')
         # Set the directory, if possible.
         if p.isAnyAtFileNode():
-            path = g.fullPath(c, p)
+            path = c.fullPath(p)
             directory = os.path.dirname(path)
         else:
             directory = None
         c.general_script_helper(command, ext, language,
             directory=directory, regex=regex, root=p)
-    #@+node:tom.20230221151635.1: *3* @cmd c.execute-external-file
+    #@+node:tom.20230308193758.1: *3* @cmd c.execute-external-file
     #@@language python
     @cmd('execute-external-file')
     def execute_external_file(self, event: Event = None) -> None:
         r"""
         #@+<< docstring >>
-        #@+node:tom.20230221151635.2: *4* << docstring >>
+        #@+node:tom.20230308193758.2: *4* << docstring >>
         Run external files.
 
         If there is an @language directive in the top node of the file,
@@ -696,8 +696,8 @@ class Commands:
 
             # Map language names to processor names or paths
             PROCESSORS
-            .lua: lua
-            .ruby: C:\Ruby27-x64\bin\ruby.exe
+            lua: lua
+            ruby: C:\Ruby27-x64\bin\ruby.exe
 
             # Optionally specify a Linux terminal here (e.g., konsole)
             TERMINAL
@@ -715,7 +715,10 @@ class Commands:
         c = self
         MAP_SETTING_NODE = 'run-external-processor-map'
         #@+others
-        #@+node:tom.20230221151635.3: *4* SETTINGS_HELP
+        #@+node:tom.20230313002434.1: *4* Declarations
+        PREFERRED_TERMINALS = ('konsole', 'xfce4-terminal', 'mate-terminal',
+                               'gnome-terminal', 'xterm')
+        #@+node:tom.20230308193758.3: *4* SETTINGS_HELP
         SETTINGS_HELP = r'''The data in the @data node body must have a
         PROCESSORS and an EXTENSIONS section, plus an optional TERMINAL
         section, looking like this example:
@@ -737,7 +740,7 @@ class Commands:
 
         Blank lines and lines starting with a "#" are ignored.
         '''
-        #@+node:tom.20230221151635.4: *4* extension map
+        #@+node:tom.20230308193758.4: *4* extension map
         LANGUAGE_EXTENSION_MAP = {
         '.cmd': 'batch',
         '.bat': 'batch',  # We'll get confused if a Linux program uses a .bat extension
@@ -748,15 +751,16 @@ class Commands:
         '.pyw': 'python',
         'rb': 'ruby',
         }
-        #@+node:tom.20230221151635.5: *4* processor map
+        #@+node:tom.20230308193758.5: *4* processor map
         PROCESSORS = {
         'batch': 'cmd.exe',
         'julia': 'julia',
         'lua': 'lua',
         'powershell': 'powershell',
         'ruby': 'ruby',
+        'shellscript': 'bash',
         }
-        #@+node:tom.20230221151635.6: *4* get_external_maps
+        #@+node:tom.20230308193758.6: *4* get_external_maps
         def get_external_maps() -> Tuple[Dict, Dict, str]:
             r"""Return processor, extension maps for @data node.
 
@@ -771,8 +775,8 @@ class Commands:
 
                 # Map language names to processor names or paths
                 PROCESSORS
-                .lua: lua
-                .ruby: C:\Ruby27-x64\bin\ruby.exe
+                lua: lua
+                ruby: C:\Ruby27-x64\bin\ruby.exe
 
                 # Specify a particular Linux terminal to use
                 # e.g, /usr/bin/konsole
@@ -792,30 +796,31 @@ class Commands:
             processor_map: Dict[str, str] = {}
             extension_map: Dict[str, str] = {}
             active_map = None
-            block: str = None
             terminal: str = ''
+            found_term = False
             TERM = 'TERMINAL'
             for line in data:
                 if not line or line.startswith('#'):
                     continue
                 line = line.split('#', 1)[0]  # Allow in-line trailing comments
-                if 'PROCESSORS' in line:
-                    active_map = processor_map
-                elif 'EXTENSIONS' in line:
+                if 'EXTENSIONS' in line:
                     active_map = extension_map
+                elif 'PROCESSORS' in line:
+                    active_map = processor_map
                 elif TERM in line:
                     active_map = None
-                    block = TERM
-                elif active_map:
+                    found_term = True
+                elif found_term:
+                    terminal = line
+                    break  # Don't process any lines after this
+                else:
                     # Line format: a: b
                     keyval = line.split(':', 1)
                     key = keyval[0].strip()
                     val = keyval[1].strip()
                     active_map[key] = val
-                elif block == TERM:
-                    terminal = line
             return processor_map, extension_map, terminal
-        #@+node:tom.20230221151635.7: *4* getExeKind
+        #@+node:tom.20230308193758.7: *4* getExeKind
         def getExeKind(pos: Position, ext: str) -> str:
             """Return the executable kind of the external file.
 
@@ -836,7 +841,7 @@ class Commands:
 
             return language
 
-        #@+node:tom.20230221151635.8: *4* getProcessor
+        #@+node:tom.20230308193758.8: *4* getProcessor
         def getProcessor(language: str, path: str, extension: str) -> str:
             """Return the name or path of a program able to run our external program."""
             processor = ''
@@ -856,7 +861,7 @@ class Commands:
                 if not proc:
                     processor = ''
             return processor
-        #@+node:tom.20230221151635.9: *4* Get Windows File Associations
+        #@+node:tom.20230308193758.9: *4* Get Windows File Associations
         def get_win_assoc(extension: str) -> str:
             """Return Windows association for given file extension, or ''.
 
@@ -891,7 +896,7 @@ class Commands:
                 return ''
             prog_str = ftype_str.split('=')[1]
             return prog_str.split('"')[1]
-        #@+node:tom.20230221151635.10: *4* getShell
+        #@+node:tom.20230308193758.10: *4* getShell
         def getShell() -> str:
             # Prefer bash unless it is not present - we know its options' names
             shell = 'bash'
@@ -900,11 +905,13 @@ class Commands:
                 # Need bare shell name, not whole path
                 shell = os.environ['SHELL'].split('/')[-1]
             return shell
-        #@+node:tom.20230221151635.11: *4* getTerminal
+        #@+node:tom.20230308193758.11: *4* getTerminal
         #@+others
-        #@+node:tom.20230221151635.12: *5* getTerminalFromDirectory
+        #@+node:tom.20230308193758.12: *5* getTerminalFromDirectory
         def getTerminalFromDirectory(dir: str) -> str:
-            BAD_NAMES = ('xdg-terminal', 'setterm', 'ppmtoterm', 'koi8rxterm')
+            BAD_NAMES = ('xdg-terminal', 'setterm', 'ppmtoterm',
+                         'koi8rxterm', 'rofi-sensible-terminal',
+                         'x-terminal-emulator')
             TERM_STRINGS = ('*-terminal', '*term')
             # pylint: disable=subprocess-run-check
             for ts in TERM_STRINGS:
@@ -915,8 +922,8 @@ class Commands:
                     bare_term = t.split('/')[-1]
                     if bare_term not in BAD_NAMES:
                         return t
-            return None
-        #@+node:tom.20230221151635.13: *5* getCommonTerminal
+            return ''
+        #@+node:tom.20230308193758.13: *5* getCommonTerminal
         def getCommonTerminal(names: Union[str, List, Tuple]) -> str:
             """Return a terminal name given candidate names.
 
@@ -938,11 +945,11 @@ class Commands:
         #@-others
 
         def getTerminal() -> str:
-            return (getTerminalFromDirectory('/usr/bin')
+            return (getCommonTerminal(PREFERRED_TERMINALS)
+                    or getTerminalFromDirectory('/usr/bin')
                     or getTerminalFromDirectory('/bin')
-                    or getCommonTerminal(('konsole', 'xterm'))
                     )
-        #@+node:tom.20230221151635.14: *4* getTermExecuteCmd
+        #@+node:tom.20230308193758.14: *4* getTermExecuteCmd
         def getTermExecuteCmd(terminal: str) -> str:
             """Given a terminal's name, find the command line arg to launch a program.
 
@@ -953,7 +960,7 @@ class Commands:
             EXECUTESTR = 'execute'
 
             #@+others
-            #@+node:tom.20230221151635.15: *5* get_help_message
+            #@+node:tom.20230308193758.15: *5* get_help_message
             def get_help_message(terminal: str, help_cmd: str) -> str:
                 cmd = f'{terminal} {help_cmd}'
                 # pylint: disable=subprocess-run-check
@@ -963,7 +970,7 @@ class Commands:
                     # g.es('error:', proc.stderr.decode('utf-8'))
                     return ''
                 return msg
-            #@+node:tom.20230221151635.16: *5* find_ex_arg
+            #@+node:tom.20230308193758.16: *5* find_ex_arg
             def find_ex_arg(help_msg: str) -> str:
                 for line in help_msg.splitlines():
                     if '--command' in line:
@@ -992,14 +999,14 @@ class Commands:
             else:
                 arg = '-e ' if 'xterm' in terminal else '-x '
             return arg
-        #@+node:tom.20230221151635.17: *4* checkShebang
+        #@+node:tom.20230308193758.17: *4* checkShebang
         def checkShebang(path: str) -> bool:
             """Return True if file begins with a shebang line, else False."""
             path = g.os_path_expanduser(path)
             with open(path, encoding='utf-8') as f:
                 first_line = f.readline()
             return first_line.startswith('#!')
-        #@+node:tom.20230221151635.18: *4* runFile
+        #@+node:tom.20230308193758.18: *4* runFile
         def runfile(fullpath: str, processor: str, terminal: str) -> None:
             direc: str = os.path.expanduser(os.path.dirname(fullpath))
             if g.isWindows:
@@ -1049,12 +1056,14 @@ class Commands:
             _, ext = os.path.splitext(path)
 
             # Check terminal from MAP_SETTING_NODE setting
-            if terminal:
+            setting_terminal = terminal
+            if setting_terminal:
                 terminal = which(terminal)
                 if not terminal:
-                    g.es('Cannot find terminal specified in setting - trying an alternative')
+                    g.es(f'Cannot find terminal specified in setting: {setting_terminal}')
+                    g.es('Trying an alternative')
 
-            path = g.fullPath(c, root)
+            path = c.fullPath(root)
             path = g.os_path_finalize(path)
             language = getExeKind(root, ext)
             processor = getProcessor(language, path, ext)
@@ -2247,6 +2256,24 @@ class Commands:
             g.es_exception()
             raise
     #@+node:ekr.20171123200644.1: *3* c.Convenience methods
+    #@+node:ekr.20230402232100.1: *4* c.fullPath
+    def fullPath(self, p: Position, simulate: bool = False) -> str:
+        """
+        Return the full path (including fileName) in effect at p. Neither the
+        path nor the fileName will be created if it does not exist.
+        """
+        c = self
+        # Search p and p's parents.
+        for p in p.self_and_parents(copy=False):
+            aList = g.get_directives_dict_list(p)
+            path = c.scanAtPathDirectives(aList)
+            fn = p.h if simulate else p.anyAtFileNodeName()  # Use p.h for unit tests.
+            if fn:
+                # Fix #102: expand path expressions.
+                fn = c.expand_path_expression(fn)  # #1341.
+                fn = os.path.expanduser(fn)  # 1900.
+                return g.os_path_finalize_join(path, fn)
+        return ''
     #@+node:ekr.20171123135625.39: *4* c.getTime
     def getTime(self, body: bool = True) -> str:
         c = self
@@ -2432,7 +2459,7 @@ class Commands:
         for p in p.self_and_parents(copy=False):
             name = p.anyAtFileNodeName()
             if name:
-                return g.fullPath(c, p)  # #1914.
+                return c.fullPath(p)  # #1914.
         return ''
     #@+node:ekr.20171123135625.32: *4* c.hasAmbiguousLanguage
     def hasAmbiguousLanguage(self, p: Position) -> int:
@@ -2487,7 +2514,7 @@ class Commands:
             "lang-dict":    lang_dict,  # Leo 6.4: New.
             "lineending":   d.get('lineending'),
             "pagewidth":    d.get('pagewidth'),
-            "path":         d.get('path'), # Redundant: or g.getBaseDirectory(c),
+            "path":         d.get('path'),
             "tabwidth":     d.get('tabwidth'),
             "wrap":         d.get('wrap'),
         }
@@ -2500,18 +2527,7 @@ class Commands:
         """
         c = self
         c.scanAtPathDirectivesCount += 1  # An important statistic.
-        # Step 1: Compute the starting path.
-        # The correct fallback directory is the absolute path to the base.
-        if c.openDirectory:  # Bug fix: 2008/9/18
-            base = c.openDirectory
-        else:
-            base = c.config.getString('relative-path-base-directory')
-            if base and base == "!":
-                base = g.app.loadDir
-            elif base and base == ".":
-                base = c.openDirectory
-            else:
-                base = None  # Settings error.
+        base = c.openDirectory
         base = c.expand_path_expression(base)  # #1341.
         base = g.os_path_expanduser(base)  # #1889.
         absbase = g.os_path_finalize_join(g.app.loadDir, base)  # #1341.
@@ -2524,17 +2540,17 @@ class Commands:
             if path is not None:  # retain empty paths for warnings.
                 # Convert "path" or <path> to path.
                 path = g.stripPathCruft(path)
+                # Silently ignore empty @path directives.
                 if path and not warning:
                     path = c.expand_path_expression(path)  # #1341.
                     path = g.os_path_expanduser(path)  # #1889.
                     paths.append(path)
-                # We will silently ignore empty @path directives.
         # Add absbase and reverse the list.
         paths.append(absbase)
         paths.reverse()
         # Step 3: Compute the full, effective, absolute path.
-        path = g.os_path_finalize_join(*paths)  # #1341.
-        return path or g.getBaseDirectory(c)  # 2010/10/22: A useful default.
+        path = g.os_path_finalize_join(*paths)
+        return path
     #@+node:ekr.20171123201514.1: *3* c.Executing commands & scripts
     #@+node:ekr.20110605040658.17005: *4* c.check_event
     def check_event(self, event: Event) -> None:
@@ -2733,19 +2749,16 @@ class Commands:
             Return the node corresponding to line n of external file given by path.
             """
             if path == root_path:
-                p, offset, found = c.gotoCommands.find_file_line(n, root)
+                p, offset = c.gotoCommands.find_file_line(n, root)
             else:
                 # Find an @<file> node with the given path.
-                found = False
                 for p in c.all_positions():
                     if p.isAnyAtFileNode():
-                        norm_path = os.path.normpath(g.fullPath(c, p))
+                        norm_path = os.path.normpath(c.fullPath(p))
                         if path == norm_path:
-                            p, offset, found = c.gotoCommands.find_file_line(n, p)
+                            p, offset = c.gotoCommands.find_file_line(n, p)
                             break
-            if found:
-                return p, offset
-            return root, n
+            return (p, offset) if p else (root, n)
         #@-others
         # Compile and check the regex.
         if regex:
@@ -2768,7 +2781,7 @@ class Commands:
             with os.fdopen(fd, 'w') as f:
                 f.write(script)
         else:
-            root_path = g.fullPath(c, root)
+            root_path = c.fullPath(root)
         # Compute the final command.
         if '<FILE>' in command:
             final_command = command.replace('<FILE>', root_path)
@@ -2978,68 +2991,20 @@ class Commands:
         return path
     #@+node:ekr.20190921130036.1: *3* c.expand_path_expression
     def expand_path_expression(self, s: str) -> str:
-        """Expand all {{anExpression}} in c's context."""
-        c = self
+        """
+        Apply Python's *standard* os.path tools to s:
+
+        - os.path.expanduser: https://docs.python.org/3/library/os.path.html#os.path.expanduser
+        - os.path.expandvars: https://docs.python.org/3/library/os.path.html#os.path.expandvars
+
+        Do *not* call os.path.abspath, os.path.normpath, or g.os_path_normslashes.
+        """
         if not s:
             return ''
-        s = g.toUnicode(s)
-        # find and replace repeated path expressions
-        previ, aList = 0, []
-        while previ < len(s):
-            i = s.find('{{', previ)
-            j = s.find('}}', previ)
-            if -1 < i < j:
-                # Add anything from previous index up to '{{'
-                if previ < i:
-                    aList.append(s[previ:i])
-                # Get expression and find substitute
-                exp = s[i + 2 : j].strip()
-                if exp:
-                    try:
-                        s2 = c.replace_path_expression(exp)
-                        aList.append(s2)
-                    except Exception:
-                        g.es(f"Exception evaluating {{{{{exp}}}}} in {s.strip()}")
-                        g.es_exception()
-                # Prepare to search again after the last '}}'
-                previ = j + 2
-            else:
-                # Add trailing fragment (fragile in case of mismatched '{{'/'}}')
-                aList.append(s[previ:])
-                break
-        val = ''.join(aList)
-        if g.isWindows:
-            val = val.replace('\\', '/')
-        return val
-    #@+node:ekr.20190921130036.2: *4* c.replace_path_expression
-    replace_errors: List[str] = []
-
-    def replace_path_expression(self, expr: Any) -> str:
-        """ local function to replace a single path expression."""
-        c = self
-        d = {
-            'c': c,
-            'g': g,
-            # 'getString': c.config.getString,
-            'p': c.p,
-            'os': os,
-            'sep': os.sep,
-            'sys': sys,
-        }
-        # #1338: Don't report errors when called by g.getUrlFromNode.
-        try:
-            # pylint: disable=eval-used
-            path = eval(expr, d)
-            return g.toUnicode(path, encoding='utf-8')
-        except Exception as e:
-            message = (
-                f"{c.shortFileName()}: {c.p.h}\n"
-                f"expression: {expr!s}\n"
-                f"     error: {e!s}")
-            if message not in self.replace_errors:
-                self.replace_errors.append(message)
-                g.trace(message)
-            return expr
+        path = g.toUnicode(s)
+        path = os.path.expanduser(path)
+        path = os.path.expandvars(path)
+        return path
     #@+node:ekr.20171124101444.1: *3* c.File
     #@+node:ekr.20200305104646.1: *4* c.archivedPositionToPosition (new)
     def archivedPositionToPosition(self, s: str) -> Position:
@@ -4507,6 +4472,77 @@ class Commands:
             c.selectPosition(c.rootPosition())
         return undodata
 
+    #@+node:ekr.20091211111443.6265: *4* c.doBatchOperations & helpers
+    def doBatchOperations(self, aList: List = None) -> None:
+        # Validate aList and create the parents dict
+        if aList is None:
+            aList = []
+        ok, d = self.checkBatchOperationsList(aList)
+        if not ok:
+            g.error('do-batch-operations: invalid list argument')
+            return
+        for v in list(d.keys()):
+            aList2 = d.get(v, [])
+            if aList2:
+                aList.sort()
+    #@+node:ekr.20091211111443.6266: *5* c.checkBatchOperationsList
+    def checkBatchOperationsList(self, aList: List) -> Tuple[bool, Dict]:
+        ok = True
+        d: Dict[VNode, List[Any]] = {}
+        for z in aList:
+            try:
+                op, p, n = z
+                ok = (op in ('insert', 'delete') and
+                    isinstance(p, leoNodes.position) and isinstance(n, int))
+                if ok:
+                    aList2 = d.get(p.v, [])
+                    data = n, op
+                    aList2.append(data)
+                    d[p.v] = aList2
+            except ValueError:
+                ok = False
+            if not ok:
+                break
+        return ok, d
+    #@+node:ekr.20230307155313.1: *4* c.find_b & find_h
+    #@+node:ekr.20230307155313.4: *5* c.find_b
+    def find_b(self,
+        regex: re.Pattern,
+        flags: re.RegexFlag = re.IGNORECASE,
+        it: Iterable[Position] = None,
+    ) -> List[Position]:
+        """
+        Return list of all Positions whose body matches the regex at least once.
+        """
+        c = self
+        if it is None:
+            it = c.all_positions()
+        try:
+            pattern = re.compile(regex, flags)
+            return [p.copy() for p in it if any(m for m in re.finditer(pattern, p.b))]
+        except Exception:
+            g.es_error('Exception in c.find_b')
+            g.es_exception()
+            return []
+    #@+node:ekr.20230307155313.3: *5* c.find_h
+    def find_h(self,
+        regex: re.Pattern,
+        flags: re.RegexFlag = re.IGNORECASE,
+        it: Iterable[Position] = None,
+    ) -> List[Position]:
+        """
+        Return list of all Positions whose headline matches the regex.
+        """
+        c = self
+        if it is None:
+            it = c.all_positions()
+        try:
+            pattern = re.compile(regex, flags)
+            return [z.copy() for z in it if re.match(pattern, z.h)]
+        except Exception:
+            g.es_error('Exception in c.find_h')
+            g.es_exception()
+            return []
     #@+node:vitalije.20200318161844.1: *4* c.undoableDeletePositions
     def undoableDeletePositions(self, aList: List) -> None:
         """
@@ -4541,38 +4577,6 @@ class Commands:
             undoHelper=undo,
             redoHelper=redo,
         ))
-    #@+node:ekr.20091211111443.6265: *4* c.doBatchOperations & helpers
-    def doBatchOperations(self, aList: List = None) -> None:
-        # Validate aList and create the parents dict
-        if aList is None:
-            aList = []
-        ok, d = self.checkBatchOperationsList(aList)
-        if not ok:
-            g.error('do-batch-operations: invalid list argument')
-            return
-        for v in list(d.keys()):
-            aList2 = d.get(v, [])
-            if aList2:
-                aList.sort()
-    #@+node:ekr.20091211111443.6266: *5* c.checkBatchOperationsList
-    def checkBatchOperationsList(self, aList: List) -> Tuple[bool, Dict]:
-        ok = True
-        d: Dict[VNode, List[Any]] = {}
-        for z in aList:
-            try:
-                op, p, n = z
-                ok = (op in ('insert', 'delete') and
-                    isinstance(p, leoNodes.position) and isinstance(n, int))
-                if ok:
-                    aList2 = d.get(p.v, [])
-                    data = n, op
-                    aList2.append(data)
-                    d[p.v] = aList2
-            except ValueError:
-                ok = False
-            if not ok:
-                break
-        return ok, d
     #@+node:ekr.20171124155725.1: *3* c.Settings
     #@+node:ekr.20171114114908.1: *4* c.registerReloadSettings
     def registerReloadSettings(self, obj: Any) -> None:
@@ -4602,11 +4606,15 @@ class Commands:
         c.configurables = list(set(c.configurables))
         c.configurables.sort(key=lambda obj: obj.__class__.__name__.lower())
         for obj in c.configurables:
-            func = getattr(obj, 'reloadSettings', None)
+            func = (
+                getattr(obj, 'reloadSettings', None)
+                or getattr(obj, 'reload_settings', None)  # An official alias.
+            )
             if func:
                 # pylint: disable=not-callable
                 try:
                     func()
+                    g.doHook("after-reload-settings", c=c)
                 except Exception:
                     g.es_exception()
                     c.configurables.remove(obj)

@@ -593,19 +593,17 @@ class EmergencyDialog:
         self.root.wait_window(self.top)
     #@-others
 #@+node:ekr.20120123143207.10223: *3* class g.GeneralSetting
-# Important: The startup code uses this class,
-# so it is convenient to define it in leoGlobals.py.
-
-
 class GeneralSetting:
     """A class representing any kind of setting except shortcuts."""
+    # Important: The startup code uses this class,
+    # so it is convenient to define it in leoGlobals.py.
 
     def __init__(
         self,
         kind: str,
         encoding: str = None,
         ivar: str = None,
-        setting: str = None,
+        source: str = None,
         val: Any = None,
         path: str = None,
         tag: str = 'setting',
@@ -616,7 +614,7 @@ class GeneralSetting:
         self.kind = kind
         self.path = path
         self.unl = unl
-        self.setting = setting
+        self.source = source  # Only @font sets this.
         self.val = val
         self.tag = tag
 
@@ -624,8 +622,9 @@ class GeneralSetting:
         # Better for g.printObj.
         val = str(self.val).replace('\n', ' ')
         return (
-            f"GS: {g.shortFileName(self.path):20} "
-            f"{self.kind:7} = {g.truncate(val, 50)}")
+            f"GS: path: {g.shortFileName(self.path or '')} "
+            f"source: {self.source or ''} "
+            f"kind: {self.kind:} val: {val}")
 
     dump = __repr__
     __str__ = __repr__
@@ -2710,6 +2709,9 @@ def objToString(obj: Any, indent: int = 0, tag: str = None, width: int = 120) ->
     """
     if not isinstance(obj, str):
         result = pprint.pformat(obj, indent=indent, width=width)
+        # Put opening/closing delims on separate lines.
+        if result.count('\n') > 0 and result[0] in '([{' and result[-1] in ')]}':
+            result = f"{result[0]}\n{result[1:-2]}\n{result[-1]}"
     elif '\n' not in obj:
         result = repr(obj)
     else:
@@ -3510,28 +3512,21 @@ def ensure_extension(name: str, ext: str) -> str:
     theFile, old_ext = g.os_path_splitext(name)
     if not name:
         return name  # don't add to an empty name.
-    if old_ext in ('.db', '.leo'):
+    if old_ext in ('.db', '.leo', '.leojs'):
         return name
     if old_ext and old_ext == ext:
         return name
     return name + ext
-#@+node:ekr.20150403150655.1: *3* g.fullPath
+#@+node:ekr.20150403150655.1: *3* g.fullPath (deprecated)
 def fullPath(c: Cmdr, p: Position, simulate: bool = False) -> str:
     """
-    Return the full path (including fileName) in effect at p. Neither the
-    path nor the fileName will be created if it does not exist.
+    Return the full path (including fileName) in effect at p.
+
+    Create neither the path nor the fileName.
+
+    This function is deprecated. Use c.fullPath(p) instead.
     """
-    # Search p and p's parents.
-    for p in p.self_and_parents(copy=False):
-        aList = g.get_directives_dict_list(p)
-        path = c.scanAtPathDirectives(aList)
-        fn = p.h if simulate else p.anyAtFileNodeName()  # Use p.h for unit tests.
-        if fn:
-            # Fix #102: expand path expressions.
-            fn = c.expand_path_expression(fn)  # #1341.
-            fn = os.path.expanduser(fn)  # 1900.
-            return g.os_path_finalize_join(path, fn)  # #1341.
-    return ''
+    return c.fullPath(p, simulate)
 #@+node:ekr.20190327192721.1: *3* g.get_files_in_directory
 def get_files_in_directory(directory: str, kinds: List = None, recursive: bool = True) -> List[str]:
     """
@@ -3562,30 +3557,14 @@ def get_files_in_directory(directory: str, kinds: List = None, recursive: bool =
         g.es_exception()
         return []
 #@+node:ekr.20031218072017.1264: *3* g.getBaseDirectory
-# Handles the conventions applying to the "relative-path-base- directory" configuration option.
-
 def getBaseDirectory(c: Cmdr) -> str:
-    """Convert '!' or '.' to proper directory references."""
-    if not c:
-        return ''  # No relative base given.
-    base = c.config.getString('relative-path-base-directory')
-    if base and base == "!":
-        base = app.loadDir
-    elif base and base == ".":
-        base = c.openDirectory
-    else:
-        return ''  # Settings error.
-    if not base:
-        return ''
-    if g.os_path_isabs(base):
-        # Set c.chdir_to_relative_path as needed.
-        if not hasattr(c, 'chdir_to_relative_path'):
-            c.chdir_to_relative_path = c.config.getBool('chdir-to-relative-path')
-        # Call os.chdir if requested.
-        if c.chdir_to_relative_path:
-            os.chdir(base)
-        return base  # base need not exist yet.
-    return ''  # No relative base given.
+    """
+    This function is deprectated.
+
+    Previously it convert '!' or '.' to proper directory references using
+    @string relative-path-base-directory.
+    """
+    return ''
 #@+node:ekr.20170223093758.1: *3* g.getEncodingAt
 def getEncodingAt(p: Position, s: bytes = None) -> str:
     """
@@ -3631,7 +3610,7 @@ or do g.app.db['LEO_EDITOR'] = "gvim"''',
 def init_dialog_folder(c: Cmdr, p: Position, use_at_path: bool = True) -> str:
     """Return the most convenient folder to open or save a file."""
     if c and p and use_at_path:
-        path = g.fullPath(c, p)
+        path = c.fullPath(p)
         if path:
             dir_ = g.os_path_dirname(path)
             if dir_ and g.os_path_exists(dir_):
@@ -5865,7 +5844,7 @@ def es_exception(*args: Sequence, **kwargs: Sequence) -> None:
     # val is the second argument to the raise statement.
     typ, val, tb = sys.exc_info()
     for line in traceback.format_exception(typ, val, tb):
-        print(line)
+        g.es_print_error(line)
 #@+node:ekr.20061015090538: *3* g.es_exception_type
 def es_exception_type(c: Cmdr = None, color: str = "red") -> None:
     # exctype is a Exception class object; value is the error message.
@@ -6375,13 +6354,8 @@ def os_path_abspath(path: str) -> str:
     """Convert a path to an absolute path."""
     if not path:
         return ''
-    if '\x00' in path:
-        g.trace('NULL in', repr(path), g.callers())
-        path = path.replace('\x00', '')  # Fix Python 3 bug on Windows 10.
     path = os.path.abspath(path)
-    # os.path.normpath does the *reverse* of what we want.
-    if g.isWindows:
-        path = path.replace('\\', '/')
+    path = g.os_path_normslashes(path)
     return path
 #@+node:ekr.20031218072017.2147: *3* g.os_path_basename
 def os_path_basename(path: str) -> str:
@@ -6389,9 +6363,7 @@ def os_path_basename(path: str) -> str:
     if not path:
         return ''
     path = os.path.basename(path)
-    # os.path.normpath does the *reverse* of what we want.
-    if g.isWindows:
-        path = path.replace('\\', '/')
+    path = g.os_path_normslashes(path)
     return path
 #@+node:ekr.20031218072017.2148: *3* g.os_path_dirname
 def os_path_dirname(path: str) -> str:
@@ -6399,53 +6371,38 @@ def os_path_dirname(path: str) -> str:
     if not path:
         return ''
     path = os.path.dirname(path)
-    # os.path.normpath does the *reverse* of what we want.
-    if g.isWindows:
-        path = path.replace('\\', '/')
+    path = g.os_path_normslashes(path)
     return path
 #@+node:ekr.20031218072017.2149: *3* g.os_path_exists
 def os_path_exists(path: str) -> bool:
     """Return True if path exists."""
-    if not path:
-        return False
-    if '\x00' in path:
-        g.trace('NULL in', repr(path), g.callers())
-        path = path.replace('\x00', '')  # Fix Python 3 bug on Windows 10.
-    return os.path.exists(path)
+    return os.path.exists(path) if path else False
 #@+node:ekr.20080921060401.13: *3* g.os_path_expanduser
 def os_path_expanduser(path: str) -> str:
-    """wrap os.path.expanduser"""
+    """
+    wrap os.path.expanduser.
+    """
     if not path:
         return ''
-    result = os.path.normpath(os.path.expanduser(path))
-    # os.path.normpath does the *reverse* of what we want.
-    if g.isWindows:
-        path = path.replace('\\', '/')
-    return result
+    path = os.path.expanduser(path)
+    path = os.path.normpath(path)
+    path = g.os_path_normslashes(path)
+    return path
 #@+node:ekr.20080921060401.14: *3* g.os_path_finalize
 def os_path_finalize(path: str) -> str:
     """
     Expand '~', then return os.path.normpath, os.path.abspath of the path.
     There is no corresponding os.path method
     """
-    if '\x00' in path:
-        g.trace('NULL in', repr(path), g.callers())
-        path = path.replace('\x00', '')  # Fix Python 3 bug on Windows 10.
     path = os.path.expanduser(path)  # #1383.
     path = os.path.abspath(path)
     path = os.path.normpath(path)
-    # os.path.normpath does the *reverse* of what we want.
-    if g.isWindows:
-        path = path.replace('\\', '/')
+    path = g.os_path_normslashes(path)
     # calling os.path.realpath here would cause problems in some situations.
     return path
 #@+node:ekr.20140917154740.19483: *3* g.os_path_finalize_join
 def os_path_finalize_join(*args: Any, **keys: Any) -> str:
-    """
-    Join and finalize.
-
-    **keys may contain a 'c' kwarg, used by g.os_path_join.
-    """
+    """Join and finalize."""
     path = g.os_path_join(*args, **keys)
     path = g.os_path_finalize(path)
     return path
@@ -6477,35 +6434,13 @@ def os_path_isfile(path: str) -> bool:
 #@+node:ekr.20031218072017.2154: *3* g.os_path_join
 def os_path_join(*args: Any, **keys: Any) -> str:
     """
-    Join paths, like os.path.join, with enhancements:
-
-    A '!!' arg prepends g.app.loadDir to the list of paths.
-    A '.'  arg prepends c.openDirectory to the list of paths,
-           provided there is a 'c' kwarg.
+    Wrap os.path.join.
     """
-    c = keys.get('c')
     uargs = [z for z in args if z]
     if not uargs:
         return ''
-    # Note:  This is exactly the same convention as used by getBaseDirectory.
-    if uargs[0] == '!!':
-        uargs[0] = g.app.loadDir
-    elif uargs[0] == '.':
-        c = keys.get('c')
-        if c and c.openDirectory:
-            uargs[0] = c.openDirectory
-    try:
-        path = os.path.join(*uargs)
-    except TypeError:
-        g.trace(uargs, args, keys, g.callers())
-        raise
-    # May not be needed on some Pythons.
-    if '\x00' in path:
-        g.trace('NULL in', repr(path), g.callers())
-        path = path.replace('\x00', '')  # Fix Python 3 bug on Windows 10.
-    # os.path.normpath does the *reverse* of what we want.
-    if g.isWindows:
-        path = path.replace('\\', '/')
+    path = os.path.join(*uargs)
+    path = g.os_path_normslashes(path)
     return path
 #@+node:ekr.20031218072017.2156: *3* g.os_path_normcase
 def os_path_normcase(path: str) -> str:
@@ -6513,23 +6448,24 @@ def os_path_normcase(path: str) -> str:
     if not path:
         return ''
     path = os.path.normcase(path)
-    if g.isWindows:
-        path = path.replace('\\', '/')
+    path = g.os_path_normslashes(path)
     return path
+
 #@+node:ekr.20031218072017.2157: *3* g.os_path_normpath
 def os_path_normpath(path: str) -> str:
     """Normalize the path."""
     if not path:
         return ''
     path = os.path.normpath(path)
-    # os.path.normpath does the *reverse* of what we want.
-    if g.isWindows:
-        path = path.replace('\\', '/').lower()  # #2049: ignore case!
+    path = g.os_path_normslashes(path)
     return path
 #@+node:ekr.20180314081254.1: *3* g.os_path_normslashes
 def os_path_normslashes(path: str) -> str:
+    """
+    Convert backslashes to slashes (Windows only).
 
-    # os.path.normpath does the *reverse* of what we want.
+    os.path.normpath does the *reverse* of what we want.
+    """
     if g.isWindows and path:
         path = path.replace('\\', '/')
     return path
@@ -6542,9 +6478,7 @@ def os_path_realpath(path: str) -> str:
     if not path:
         return ''
     path = os.path.realpath(path)
-    # os.path.normpath does the *reverse* of what we want.
-    if g.isWindows:
-        path = path.replace('\\', '/')
+    path = g.os_path_normslashes(path)
     return path
 #@+node:ekr.20031218072017.2158: *3* g.os_path_split
 def os_path_split(path: str) -> Tuple[str, str]:
@@ -6887,7 +6821,8 @@ def findNodeByPath(c: Cmdr, path: str) -> Optional[Position]:
     path = g.os_path_normpath(path)  # #2049. Do *not* use os.path.normpath.
     for p in c.all_positions():
         if p.isAnyAtFileNode():
-            if path == g.os_path_normpath(g.fullPath(c, p)):  # #2049. Do *not* use os.path.normpath.
+            # #2049. Do *not* use os.path.normpath.
+            if path == g.os_path_normpath(c.fullPath(p)):
                 return p
     return None
 #@+node:ekr.20210303123423.1: *4* g.findNodeInChildren
@@ -7101,19 +7036,19 @@ def run_unit_tests(tests: str = None, verbose: bool = False) -> None:
     """
     if 'site-packages' in __file__:
         # Add site-packages to sys.path.
-        parent_dir = g.os_path_finalize_join(g.app.loadDir, '..', '..')
+        parent_dir = os.path.normpath(os.path.join(g.app.loadDir, '..', '..'))
         if parent_dir.endswith('site-packages'):
             if parent_dir not in sys.path:
                 g.trace(f"Append {parent_dir!r} to sys.path")
-                sys.path.append(parent_dir)
+                sys.path.insert(0, parent_dir)
         else:
             g.trace('Can not happen: wrong parent directory', parent_dir)
             return
         # Run tests in site-packages/leo
-        os.chdir(g.os_path_finalize_join(g.app.loadDir, '..'))
+        os.chdir(os.path.normpath(os.path.join(g.app.loadDir, '..')))
     else:
         # Run tests in leo-editor.
-        os.chdir(g.os_path_finalize_join(g.app.loadDir, '..', '..'))
+        os.chdir(os.path.normpath(os.path.join(g.app.loadDir, '..', '..')))
     verbosity = '-v' if verbose else ''
     command = f"{sys.executable} -m unittest {verbosity} {tests or ''} "
     g.execute_shell_commands(command)
@@ -7132,7 +7067,7 @@ def computeFileUrl(fn: str, c: Cmdr = None, p: Position = None) -> str:
         path = url[i:]
         path = g.os_path_expanduser(path)
         # #1338: This is way too dangerous, and a serious security violation.
-            # path = c.os_path_expandExpression(path)
+            # path = c.expand_path_expression(path)
         path = g.os_path_finalize(path)
         url = url[:i] + path
     else:
@@ -7145,7 +7080,7 @@ def computeFileUrl(fn: str, c: Cmdr = None, p: Position = None) -> str:
         else:
             path = url
         # #1338: This is way too dangerous, and a serious security violation.
-            # path = c.os_path_expandExpression(path)
+            # path = c.expand_path_expression(path)
         # Handle ancestor @path directives.
         if c and c.openDirectory:
             base = c.getNodePath(p)
@@ -7240,10 +7175,10 @@ def findUNL(unlList1: List[str], c: Cmdr) -> Optional[Position]:
                     except(TypeError, ValueError):
                         g.trace('bad line number', line)
                 if n < 0:
-                    p, offset, ok = c.gotoCommands.find_file_line(-n, p)  # Calls c.redraw().
-                    if not ok:
+                    p, offset = c.gotoCommands.find_file_line(-n, p)  # Calls c.redraw().
+                    if not p:
                         g.trace(f"Not found: global line {n}")
-                    return p if ok else None
+                    return p
                 insert_point = sum(len(z) for z in g.splitLines(p.b)[:n])
                 c.redraw(p)
                 c.frame.body.wrapper.setInsertPoint(insert_point)
@@ -7607,7 +7542,7 @@ def openUrlHelper(event: Any, url: str = None) -> Optional[str]:
         IMPORTre = r'^import\s+[\./\\]*([^\s/\\].+)'
         IMPORTSre = FROMre + '|' + IMPORTre
 
-        m = re.match(IMPORTSre, line)
+        m = re.match(IMPORTSre, s[i:], re.MULTILINE)
         module = m and (m[2] or m[1])
         if module:
             filename = module + '.py'

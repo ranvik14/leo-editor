@@ -921,9 +921,10 @@ class LeoQtGui(leoGui.LeoGui):
         w.setFocus()
     #@+node:ekr.20110605121601.18510: *3* qt_gui.getFontFromParams
     size_warnings: List[str] = []
+    font_ids: List[int] = []  # id's of traced fonts.
 
     def getFontFromParams(self,
-        family: str, size: str, slant: str, weight: str, defaultSize: int=12,
+        family: str, size: str, slant: str, weight: str, defaultSize: int = 12, tag = '',
     ) -> Any:
         """Required to handle syntax coloring."""
         if isinstance(size, str):
@@ -960,8 +961,8 @@ class LeoQtGui(leoGui.LeoGui):
                     pass
             return font
         except Exception:
-            g.es("exception setting font", g.callers(4))
-            g.es(
+            g.es_print("exception setting font", g.callers(4))
+            g.es_print(
                 f"family: {family}\n"
                 f"  size: {i_size}\n"
                 f" slant: {slant}\n"
@@ -1670,7 +1671,7 @@ class StyleSheetManager:
         # This warning is inappropriate in some contexts.
             # if not self.settings_p:
                 # g.es("No '@settings' node found in outline.  See:")
-                # g.es("http://leoeditor.com/tutorial-basics.html#configuring-leo")
+                # g.es("https://leo-editor.github.io/leo-editor/tutorial-basics.html#configuring-leo")
     #@+node:ekr.20170222051716.1: *4* ssm.reload_settings
     def reload_settings(self, sheet: str=None) -> None:
         """

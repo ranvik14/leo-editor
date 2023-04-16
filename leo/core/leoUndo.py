@@ -45,7 +45,7 @@
 #@+<< leoUndo imports & annotations >>
 #@+node:ekr.20220821074023.1: ** << leoUndo imports & annotations >>
 from __future__ import annotations
-from typing import Callable, List, Tuple, TYPE_CHECKING
+from typing import Callable, Dict, List, Tuple, TYPE_CHECKING
 from leo.core import leoGlobals as g
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -73,6 +73,7 @@ class Undoer:
     #@+node:ekr.20031218072017.3606: *4* u.__init__
     def __init__(self, c: Cmdr) -> None:
         self.c = c
+        self.p: Position = None  # The position/node being operated upon for undo and redo.
         self.granularity = None  # Set in reloadSettings.
         self.max_undo_stack_size = c.config.getInt('max-undo-stack-size') or 0
         # State ivars...
@@ -96,6 +97,7 @@ class Undoer:
         self.children = None
         self.deleteMarkedNodesData: g.Bunch = None
         self.followingSibs: List[VNode] = None
+        self.headlines: Dict[str, Tuple[str, str]]
         self.inHead: bool = None
         self.kind: str = None
         self.newBack = None
@@ -110,7 +112,6 @@ class Undoer:
         self.newParent_v = None
         self.newRecentFiles = None
         self.newSel = None
-        self.newSiblings = None
         self.newTree = None
         self.newYScroll = None
         self.oldBack = None
@@ -120,7 +121,6 @@ class Undoer:
         self.oldIns = None
         self.oldMarked = None
         self.oldN = None
-        self.oldP = None
         self.oldParent = None
         self.oldParent_v = None
         self.oldRecentFiles = None
@@ -296,7 +296,6 @@ class Undoer:
             u.realUndoMenuLabel = realLabel
     #@+node:ekr.20031218072017.3616: *4* u.setUndoTypes
     def setUndoTypes(self) -> None:
-
         u = self
         # Set the undo type and undo menu label.
         bunch = u.peekBead(u.bead)
@@ -395,8 +394,7 @@ class Undoer:
     #@+node:ekr.20050410095424: *4* u.updateMarks
     def updateMarks(self, oldOrNew: str) -> None:
         """Update dirty and marked bits."""
-        u = self
-        c = u.c
+        c, u = self.c, self
         if oldOrNew not in ('new', 'old'):  # pragma: no cover
             g.trace("can't happen")
             return
@@ -454,7 +452,7 @@ class Undoer:
     def afterChangeGroup(self,
         p: Position,
         undoType: str,
-        reportFlag: bool = False,  # unused: retained for compatiblility with existing scripts.
+        reportFlag: bool = False,  # unused: retained for compatibility with existing scripts.
     ) -> None:
         """
         Create an undo node for general tree operations using d created by
@@ -522,6 +520,7 @@ class Undoer:
         u = self
         if u.redoing or u.undoing:
             return  # pragma: no cover
+        #
         # Set the type & helpers.
         bunch.kind = 'headline'
         bunch.undoType = command
@@ -531,6 +530,28 @@ class Undoer:
         u.pushBead(bunch)
 
     afterChangeHead = afterChangeHeadline
+    #@+node:felix.20230326225405.1: *5* u.afterChangeMultiHeadline
+    def afterChangeMultiHeadline(self, command: str, bunch: g.Bunch) -> None:
+        """Create an undo node using d created by beforeChangeMultiHeadline."""
+        u = self
+        c = self.c
+        if u.redoing or u.undoing:
+            return  # pragma: no cover
+        # Set the type & helpers.
+        bunch.kind = 'multipleHeadline'
+        bunch.undoType = command
+        bunch.undoHelper = u.undoChangeMultiHeadline
+        bunch.redoHelper = u.redoChangeMultiHeadline
+        oldHeadlines = bunch.headlines
+        newHeadlines = {}
+        for p in c.all_unique_positions():
+            if p.h != oldHeadlines[p.gnx][0]:
+                newHeadlines[p.gnx] = (oldHeadlines[p.gnx][0], p.h)
+        # Filtered down dict containing only the changed ones.
+        bunch.headlines = newHeadlines
+        u.pushBead(bunch)
+
+    afterChangeMultiHead = afterChangeMultiHeadline
     #@+node:ekr.20050315134017.3: *5* u.afterChangeTree
     def afterChangeTree(self, p: Position, command: str, bunch: g.Bunch) -> None:
         """Create an undo node for general tree operations using d created by beforeChangeTree"""
@@ -728,47 +749,13 @@ class Undoer:
         u.beads[u.bead:] = [bunch]
         # Recalculate the menu labels.
         u.setUndoTypes()
-    #@+node:ekr.20080425060424.2: *5* u.afterSort*
-    def afterSortChildren(self, oldChildren: List[VNode], newChildren: List[VNode]) -> None:
-        """Push the undo bead for sort-children."""
-        p, u = self.p, self
-        if u.redoing or u.undoing:
-            return  # pragma: no cover
-        bunch = u.createCommonBunch(p)
-        bunch.kind = 'sort'
-        bunch.undoType = 'Sort Children'
-        bunch.oldChildren = oldChildren
-        bunch.newChildren = newChildren
-        bunch.undoHelper = u.undoSortChildren
-        bunch.redoHelper = u.redoSortChildren
-        # Push the bunch.
-        u.bead += 1
-        u.beads[u.bead:] = [bunch]
-        # Recalculate the menu labels.
-        u.setUndoTypes()
-
-    def afterSortSiblings(self,
-        oldP: Position,
-        newP: Position,
-        oldSiblings: List[VNode],
-        newSiblings: List[VNode],
-    ) -> None:
-        """Create an undo node for sort operations"""
+    #@+node:ekr.20080425060424.2: *5* u.afterSort
+    def afterSort(self, p: Position, bunch: g.Bunch) -> None:
+        """Completes bead for sort operations, which was added to u.beads in beforeSort"""
         u = self
+        # c = self.c
         if u.redoing or u.undoing:
             return  # pragma: no cover
-        bunch = u.createCommonBunch(p=None)
-        bunch.kind = 'sort'
-        bunch.undoType = 'Sort Siblings'
-        bunch.undoHelper = u.undoSortSiblings
-        bunch.redoHelper = u.redoSortSiblings
-        bunch.oldP = oldP
-        bunch.newP = newP
-        bunch.oldSiblings = oldSiblings
-        bunch.newSiblings = newSiblings
-        # # Push the bunch.
-        u.bead += 1
-        u.beads[u.bead:] = [bunch]
         # Recalculate the menu labels.
         u.setUndoTypes()
     #@+node:ekr.20050318085432.3: *4* u.beforeX...
@@ -818,6 +805,22 @@ class Undoer:
         return bunch
 
     beforeChangeHead = beforeChangeHeadline
+    #@+node:felix.20230326230839.1: *5* u.beforeChangeMultiHeadline
+    def beforeChangeMultiHeadline(self, p: Position) -> None:
+        """
+        Return data that gets passed to afterChangeMultiHeadline.
+        p is used to select position after undo/redo multiple headline changes is done
+        """
+        c, u = self.c, self
+        bunch = u.createCommonBunch(p)
+        headlines = {}
+        for p in c.all_unique_positions():
+            headlines[p.gnx] = (p.h, None)
+        # contains all, but will get reduced by afterChangeMultiHeadline
+        bunch.headlines = headlines
+        return bunch
+
+    beforeChangeMultiHead = beforeChangeMultiHeadline
     #@+node:ekr.20050315133212.2: *5* u.beforeChangeNodeContents
     def beforeChangeNodeContents(self, p: Position) -> None:
         """Return data that gets passed to afterChangeNode."""
@@ -831,8 +834,7 @@ class Undoer:
         return bunch
     #@+node:ekr.20050315134017.6: *5* u.beforeChangeTree
     def beforeChangeTree(self, p: Position) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         w = c.frame.body.wrapper
         bunch = u.createCommonBunch(p)
         bunch.oldSel = w.getSelectionRange()
@@ -887,12 +889,37 @@ class Undoer:
         bunch.oldN = p.childIndex()
         bunch.oldParent_v = p._parentVnode()
         return bunch
+    #@+node:ekr.20080425060424.3: *5* u.beforeSort
+    def beforeSort(self,
+        p: Position,
+        undoType: str,
+        oldChildren: List[VNode],
+        newChildren: List[VNode],
+        sortChildren: bool,
+    ) -> None:
+        """Create an undo node for sort operations."""
+        u = self
+        if sortChildren:
+            bunch = u.createCommonBunch(p.parent())
+        else:
+            bunch = u.createCommonBunch(p)
+        # Set types.
+        bunch.kind = 'sort'
+        bunch.undoType = undoType
+        bunch.undoHelper = u.undoSort
+        bunch.redoHelper = u.redoSort
+        bunch.oldChildren = oldChildren
+        bunch.newChildren = newChildren
+        bunch.sortChildren = sortChildren  # A bool
+        # Push the bunch.
+        u.bead += 1
+        u.beads[u.bead:] = [bunch]
+        return bunch
     #@+node:ekr.20050318085432.2: *5* u.createCommonBunch
     def createCommonBunch(self, p: Position) -> None:
         """Return a bunch containing all common undo info.
         This is mostly the info for recreating an empty node at position p."""
-        u = self
-        c = u.c
+        c = self.c
         w = c.frame.body.wrapper
         return g.Bunch(
             oldMarked=p and p.isMarked(),
@@ -911,7 +938,7 @@ class Undoer:
         return u.undoMenuLabel != "Can't Undo"
     #@+node:ekr.20031218072017.3609: *4* u.clearUndoState
     def clearUndoState(self) -> None:
-        """Clears then entire Undo state.
+        """Clears the entire Undo state.
 
         All non-undoable commands should call this method."""
         u = self
@@ -1355,33 +1382,44 @@ class Undoer:
         c.frame.body.recolor(u.p)
         # Restore the headline.
         u.p.initHeadString(u.newHead)
-        # This is required so.  Otherwise redraw will revert the change!
+        # This is required. Otherwise redraw will revert the change!
         c.frame.tree.setHeadline(u.p, u.newHead)
+    #@+node:felix.20230326231408.1: *4* u.redoChangeMultiHeadline
+    def redoChangeMultiHeadline(self) -> None:
+        c, u = self.c, self
+        c.frame.body.recolor(u.p)
+        # Swap the ones from the 'bunch.headline' dict
+        for gnx, oldNewTuple in u.headlines.items():
+            v = c.fileCommands.gnxDict.get(gnx)
+            v.initHeadString(oldNewTuple[1])
+            if v.gnx == u.p.gnx:
+                u.p.setDirty()
+                # This is required.  Otherwise redraw will revert the change!
+                c.frame.tree.setHeadline(u.p, oldNewTuple[1])
+        # selectPosition causes recoloring, so don't do this unless needed.
+        if c.p != u.p:  # #1333.
+            c.selectPosition(u.p)
     #@+node:ekr.20050424170219: *4* u.redoClearRecentFiles
     def redoClearRecentFiles(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         rf = g.app.recentFilesManager
         rf.setRecentFiles(u.newRecentFiles[:])
         rf.createRecentFilesMenuItems(c)
     #@+node:ekr.20111005152227.15558: *4* u.redoCloneMarkedNodes
     def redoCloneMarkedNodes(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         c.selectPosition(u.p)
         c.cloneMarked()
         u.newP = c.p
     #@+node:ekr.20160502175557.1: *4* u.redoCopyMarkedNodes
     def redoCopyMarkedNodes(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         c.selectPosition(u.p)
         c.copyMarked()
         u.newP = c.p
     #@+node:ekr.20050412083057: *4* u.redoCloneNode
     def redoCloneNode(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         cc = c.chapterController
         if cc:
             cc.selectChapterByName('main')
@@ -1395,22 +1433,19 @@ class Undoer:
         u.newP.setDirty()
     #@+node:ekr.20111005152227.15559: *4* u.redoDeleteMarkedNodes
     def redoDeleteMarkedNodes(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         c.selectPosition(u.p)
         c.deleteMarked()
         c.selectPosition(u.newP)
     #@+node:EKR.20040526072519.2: *4* u.redoDeleteNode
     def redoDeleteNode(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         c.selectPosition(u.p)
         c.deleteOutline()
         c.selectPosition(u.newP)
     #@+node:ekr.20080425060424.9: *4* u.redoDemote
     def redoDemote(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         parent_v = u.p._parentVnode()
         n = u.p.childIndex()
         # Move the demoted nodes from the old parent to the new parent.
@@ -1474,8 +1509,7 @@ class Undoer:
         c.dehoist()
     #@+node:ekr.20050412084532: *4* u.redoInsertNode
     def redoInsertNode(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         cc = c.chapterController
         if cc:
             cc.selectChapterByName('main')
@@ -1498,16 +1532,14 @@ class Undoer:
         c.selectPosition(u.newP)
     #@+node:ekr.20050526125801: *4* u.redoMark
     def redoMark(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         u.updateMarks('new')
         if u.groupCount == 0:
             u.p.setDirty()
             c.selectPosition(u.p)
     #@+node:ekr.20050411111847: *4* u.redoMove
     def redoMove(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         cc = c.chapterController
         v = u.p.v
         assert u.oldParent_v
@@ -1554,8 +1586,7 @@ class Undoer:
         u.p.setDirty()
     #@+node:ekr.20080425060424.13: *4* u.redoPromote
     def redoPromote(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         parent_v = u.p._parentVnode()
         # Add the children to parent_v's children.
         n = u.p.childIndex() + 1
@@ -1575,20 +1606,22 @@ class Undoer:
             child.parents.append(parent_v)
         u.p.setDirty()
         c.setCurrentPosition(u.p)
-    #@+node:ekr.20080425060424.4: *4* u.redoSort*
-    def redoSortChildren(self) -> None:
-        c, p, u = self.c, self.c.p, self
-        p.v.children = u.newChildren[:]
+    #@+node:ekr.20080425060424.4: *4* u.redoSort
+    def redoSort(self) -> None:
+        c, u = self.c, self
+        p = u.p
+        if u.sortChildren:
+            p.v.children = u.newChildren[:]
+        else:
+            parent_v = p._parentVnode()
+            parent_v.children = u.newChildren[:]
+            # Only the child index of new position changes!
+            for i, v in enumerate(parent_v.children):
+                if v.gnx == p.v.gnx:
+                    p._childIndex = i
+                    break
         p.setAllAncestorAtFileNodesDirty()
         c.setCurrentPosition(p)
-
-    def redoSortSiblings(self) -> None:
-        c, u = self.c, self
-        newP = u.newP
-        parent_v = newP._parentVnode()
-        parent_v.children = u.newSiblings[:]
-        newP.setDirty()
-        c.setCurrentPosition(newP)
     #@+node:ekr.20050318085432.8: *4* u.redoTree
     def redoTree(self) -> None:
         """Redo replacement of an entire tree."""
@@ -1601,8 +1634,7 @@ class Undoer:
             c.frame.body.wrapper.setSelectionRange(i, j)
     #@+node:EKR.20040526075238.5: *4* u.redoTyping
     def redoTyping(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         current = c.p
         w = c.frame.body.wrapper
         # selectPosition causes recoloring, so avoid if possible.
@@ -1626,8 +1658,7 @@ class Undoer:
     @cmd('undo')
     def undo(self, event: Event = None) -> None:
         """Undo the operation described by the undo parameters."""
-        u = self
-        c = u.c
+        c, u = self.c, self
         if not c.p:
             g.trace('no current position')
             return
@@ -1697,12 +1728,28 @@ class Undoer:
         u.p.setDirty()
         c.frame.body.recolor(u.p)
         u.p.initHeadString(u.oldHead)
-        # This is required.  Otherwise c.redraw will revert the change!
+        # This is required. Otherwise c.redraw will revert the change!
         c.frame.tree.setHeadline(u.p, u.oldHead)
+    #@+node:felix.20230326231543.1: *4* u.undoChangeMultiHeadline
+    def undoChangeMultiHeadline(self) -> None:
+        """Undo a change to a node's headline."""
+        c, u = self.c, self
+        # selectPosition causes recoloring, so don't do this unless needed.
+        c.frame.body.recolor(u.p)
+        # Swap the ones from the 'bunch.headline' dict
+        for gnx, oldNewTuple in u.headlines.items():
+            v = c.fileCommands.gnxDict.get(gnx)
+            v.initHeadString(oldNewTuple[0])
+            if v.gnx == u.p.gnx:
+                u.p.setDirty()
+                # This is required.  Otherwise redraw will revert the change!
+                c.frame.tree.setHeadline(u.p, oldNewTuple[0])
+        #
+        if c.p != u.p:
+            c.selectPosition(u.p)
     #@+node:ekr.20050424170219.1: *4* u.undoClearRecentFiles
     def undoClearRecentFiles(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         rf = g.app.recentFilesManager
         rf.setRecentFiles(u.oldRecentFiles[:])
         rf.createRecentFilesMenuItems(c)
@@ -1716,8 +1763,7 @@ class Undoer:
         u.c.selectPosition(u.p)
     #@+node:ekr.20050412083057.1: *4* u.undoCloneNode
     def undoCloneNode(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         cc = c.chapterController
         if cc:
             cc.selectChapterByName('main')
@@ -1735,8 +1781,7 @@ class Undoer:
         u.c.selectPosition(u.p)
     #@+node:ekr.20111005152227.15557: *4* u.undoDeleteMarkedNodes
     def undoDeleteMarkedNodes(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         # Undo the deletes in reverse order
         aList = u.deleteMarkedNodesData[:]
         aList.reverse()
@@ -1751,8 +1796,7 @@ class Undoer:
         c.selectPosition(u.p)
     #@+node:ekr.20050412084055: *4* u.undoDeleteNode
     def undoDeleteNode(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         if u.oldBack:
             u.p._linkAfter(u.oldBack)
         elif u.oldParent:
@@ -1763,8 +1807,7 @@ class Undoer:
         c.selectPosition(u.p)
     #@+node:ekr.20080425060424.10: *4* u.undoDemote
     def undoDemote(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         parent_v = u.p._parentVnode()
         n = len(u.followingSibs)
         # Remove the demoted nodes from p's children.
@@ -1821,22 +1864,19 @@ class Undoer:
             c.frame.body.wrapper.setSelectionRange(i, j)
     #@+node:ekr.20050412083244: *4* u.undoHoistNode & undoDehoistNode
     def undoHoistNode(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         u.p.setDirty()
         c.selectPosition(u.p)
         c.dehoist()
 
     def undoDehoistNode(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         u.p.setDirty()
         c.selectPosition(u.p)
         c.hoist()
     #@+node:ekr.20050412085112: *4* u.undoInsertNode
     def undoInsertNode(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         cc = c.chapterController
         if cc:
             cc.selectChapterByName('main')
@@ -1857,17 +1897,14 @@ class Undoer:
                     v.setHeadString(bunch.head)
     #@+node:ekr.20050526124906: *4* u.undoMark
     def undoMark(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         u.updateMarks('old')
         if u.groupCount == 0:
             u.p.setDirty()
             c.selectPosition(u.p)
     #@+node:ekr.20050411112033: *4* u.undoMove
     def undoMove(self) -> None:
-
-        u = self
-        c = u.c
+        c, u = self.c, self
         cc = c.chapterController
         if cc:
             cc.selectChapterByName('main')
@@ -1911,8 +1948,7 @@ class Undoer:
         u.updateMarks('old')
     #@+node:ekr.20080425060424.14: *4* u.undoPromote
     def undoPromote(self) -> None:
-        u = self
-        c = u.c
+        c, u = self.c, self
         parent_v = u.p._parentVnode()  # The parent of the all the *promoted* nodes.
         # Remove the promoted nodes from parent_v's children.
         n = u.p.childIndex() + 1
@@ -1947,8 +1983,7 @@ class Undoer:
     ) -> None:
         """Handle text undo and redo: converts _new_ text into _old_ text."""
         # newNewlines is unused, but it has symmetry.
-        u = self
-        c = u.c
+        c, u = self.c, self
         w = c.frame.body.wrapper
         #@+<< Compute the result using p's body text >>
         #@+node:ekr.20061106105812.1: *5* << Compute the result using p's body text >>
@@ -1996,20 +2031,22 @@ class Undoer:
         u.restoreTree(old_data)
         c.setBodyString(p, p.b)  # This is not a do-nothing.
         return p  # Nothing really changes.
-    #@+node:ekr.20080425060424.5: *4* u.undoSort*
-    def undoSortChildren(self) -> None:
-        c, p, u = self.c, self.c.p, self
-        p.v.children = u.oldChildren[:]
+    #@+node:ekr.20080425060424.5: *4* u.undoSort
+    def undoSort(self) -> None:
+        c, u = self.c, self
+        p = u.p
+        if u.sortChildren:
+            p.v.children = u.oldChildren[:]
+        else:
+            parent_v = p._parentVnode()
+            parent_v.children = u.oldChildren[:]
+            # Only the child index of new position changes!
+            for i, v in enumerate(parent_v.children):
+                if v.gnx == p.v.gnx:
+                    p._childIndex = i
+                    break
         p.setAllAncestorAtFileNodesDirty()
         c.setCurrentPosition(p)
-
-    def undoSortSiblings(self) -> None:
-        c, u = self.c, self
-        oldP = u.oldP
-        parent_v = oldP._parentVnode()
-        parent_v.children = u.oldSiblings[:]
-        oldP.setDirty()
-        c.setCurrentPosition(oldP)
     #@+node:ekr.20050318085713.2: *4* u.undoTree
     def undoTree(self) -> None:
         """Redo replacement of an entire tree."""

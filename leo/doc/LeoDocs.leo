@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Created by Leo: http://leoeditor.com/leo_toc.html -->
-<leo_file xmlns:leo="http://leoeditor.com/namespaces/leo-python-editor/1.1" >
+<!-- Created by Leo: https://leo-editor.github.io/leo-editor/leo_toc.html -->
+<leo_file xmlns:leo="http://leo-editor.github.io/leo-editor/namespaces/leo-python-editor/1.1" >
 <leo_header file_format="2"/>
 <globals/>
 <preferences/>
@@ -26,6 +26,7 @@
 <v t="ekr.20111108052738.5507"><vh>@shortcuts</vh></v>
 <v t="ekr.20130816100419.17299"><vh>@string target_language = rest</vh></v>
 <v t="ekr.20150222035621.5"><vh>@bool body_pane_wraps = True</vh></v>
+<v t="ekr.20230303070618.1"><vh>@data history-list</vh></v>
 <v t="ekr.20100907092300.4440"><vh>Inkscape options</vh>
 <v t="ekr.20100907092300.4441"><vh>@string inkscape-template = ../docs/inkscape-template.svg</vh></v>
 <v t="ekr.20100907092300.4442"><vh>@string inkscape-bin = "c:\Program Files (x86)\Inkscape\inkscape.exe"</vh></v>
@@ -63,8 +64,12 @@
 <v t="ekr.20230110153501.1"><vh>find_broken_links</vh></v>
 </v>
 <v t="ekr.20131016083406.16724"><vh>@button make-sphinx</vh>
+<v t="ekr.20230303064647.1"><vh>copy_files</vh></v>
 <v t="ekr.20230111164618.1"><vh>get_paths</vh></v>
+<v t="ekr.20230303080626.1"><vh>git_status</vh></v>
+<v t="ekr.20230303064734.1"><vh>make_html</vh></v>
 <v t="ekr.20230228105847.1"><vh>run</vh></v>
+<v t="ekr.20230303065849.1"><vh>last_timestamp</vh></v>
 <v t="ekr.20230111165336.1"><vh>write_intermediate_files</vh></v>
 </v>
 <v t="ekr.20230110152349.1"><vh>@ignore disabled buttons</vh>
@@ -1238,7 +1243,6 @@
 <v t="ekr.20100806170836.4403"><vh>\@file &lt;path&gt; (aka @thin)</vh></v>
 <v t="ekr.20160410044518.1"><vh>\@nosent &lt;path&gt;</vh></v>
 <v t="ekr.20100806170836.4402"><vh>\@shadow &lt;path&gt; (deprecated)</vh></v>
-<v t="ekr.20160410043905.1"><vh>Path expressions</vh></v>
 </v>
 <v t="ekr.20100806170836.4411"><vh>Part 2: \@all and \@others</vh></v>
 <v t="ekr.20100806170836.4398"><vh>Part 3: Syntax coloring directives</vh></v>
@@ -1825,6 +1829,7 @@
 </v>
 </v>
 <v t="ekr.20180125034510.1"><vh>Release Notes</vh>
+<v t="ekr.20230110152131.1"><vh>Leo 6.7.2 release notes</vh></v>
 <v t="ekr.20221018092737.1"><vh>Leo 6.7.1 release notes</vh></v>
 <v t="ekr.20230110152214.1"><vh>Leo 6.x release notes</vh>
 <v t="ekr.20220704113115.1"><vh>Leo 6.6.3 release notes</vh></v>
@@ -2515,7 +2520,9 @@
 </v>
 </v>
 <v t="ekr.20230111160833.1"></v>
-<v t="ekr.20230110152131.1"><vh>Leo 6.7.2 release notes</vh></v>
+<v t="ekr.20230409053106.1"><vh>What's new in Leo 6.7.3</vh></v>
+<v t="ekr.20230110152131.1"></v>
+<v t="ekr.20230409052507.1"><vh>Leo 6.7.3 release notes</vh></v>
 </vnodes>
 <tnodes>
 <t tx="EKR.20040524104904.140">Leo stores options in **@settings trees**, outlines whose headline is @settings. When opening a .leo file, Leo looks for @settings trees not only in the outline being opened but also in various leoSettings.leo files. This scheme allows for the following kinds of settings:
@@ -4734,6 +4741,7 @@ Event name (tag argument)     Stop?    When called                         Keys 
 'after-auto'                           after each @auto file loaded        c,p (note 13)
 'after-create-leo-frame'               after creating any frame            c
 'after-redraw-outline'                 end of tree.redraw                  c (note 6)
+'after-reload-settings'                after 'reload-settings' command     c
 'before-create-leo-frame'              before frame.finishCreate           c
 'bodyclick1'                   yes     before normal click in body         c,p,v,event
 'bodyclick2'                           after normal click in body          c,p,v,event
@@ -6557,11 +6565,13 @@ The **Great Graph Aha**: Leo outlines can represent arbitrary directed graphs. T
 
 The body text of the @enabled-plugins node contains a list of enabled plugins. Notes:
 
-- Leo attempts to load all plugins every time an @enabled-plugins node is seen. If the plugin has already been loaded, Leo silently ignores the request to re-enable the plugin. Leo never attempts to disable a plugin while processing enabled plugin strings. Thus, plugins enabled in an @enabled-plugins node in leoSettings.leo *will* be enabled regardless of the contents of any other @enabled-plugins node.
+Leo attempts to load all plugins every time an @enabled-plugins node is seen. If the plugin has already been loaded, Leo silently ignores the request to re-enable the plugin. Leo never attempts to disable a plugin while processing enabled plugin strings. Thus, plugins enabled in an @enabled-plugins node in leoSettings.leo *will* be enabled regardless of the contents of any other @enabled-plugins node.
 
-- You can enable plugins by file name or by module name.  File names end in .py and are resolved relative to the leo/plugins directory.  Module names do *not* end in .py and are found using Python's import mechanism--the module name must be on PYTHONPATH.
+You can enable plugins by file name or by module name:
+- Leo looks in the leo/plugins directory for names ending in .py.
+- Leo uses imports a module directly for names that do *not* end in .py, so you can load plugins from any path on PYTHONPATH, including paths given in sitecustomize.py.
 
-- g.app.gui.getEnabledPlugins contains the last processed @enabled-plugins node.
+g.app.gui.getEnabledPlugins contains the last processed @enabled-plugins node.
 </t>
 <t tx="ekr.20070816092449">Question and answer from plumloco.
 
@@ -15196,7 +15206,7 @@ It's even possible to define a context in which abbreviation scripts execute. Se
 .. index::
     pair: Plugins; Tutorial
 
-`Leo plugins &lt;plugins.html&gt;`_ are Python programs that extend what Leo can do. Plugins reside in the leo/plugins folder. **@enabled-plugins** settings node enable plugins. Leo has dozens of plugins, including:
+`Leo plugins &lt;plugins.html&gt;`_ are Python programs that extend what Leo can do. Plugins usually reside in the leo/plugins folder. **@enabled-plugins** settings node enable plugins. Leo has dozens of plugins, including:
 
 - `bookmarks.py`_ manages and shows bookmarks.
 - `contextmenu.py`_ shows a context menu when you right-click a headline.
@@ -15750,7 +15760,9 @@ After running this script, copy files from leo/doc/html/_build/html to leo-edito
 @language python
 
 g.cls()
+import glob
 import os
+import shutil
 trace = False
 headlines = [
     "Leo's Documentation"
@@ -20110,12 +20122,6 @@ For anyone with similar problem the homebrew instruction for adding PyQT to the 
     export PATH="/usr/local/lib/python2.7/site-packages:${PATH}"
     
 After this leo editor will open with using the default python installation provided by MacOS.</t>
-<t tx="ekr.20160410043905.1">Within @path and @&lt;file&gt; paths, Leo evaluates ``{{exp}}`` with the the following symbols defined: ``c``, ``g``, ``p``, ``os`` and ``sys``. Also, ``sep`` is defined as os.sep.
-File names are relative to the directory containing the .leo file, but that can be overridden, depending on the form of the file name. For example::
-
-    @file {{c.config.getString('my-dir')}}{{sep}}myFile.py
-
-</t>
 <t tx="ekr.20160410044518.1">.. index::
     pair: @nosent; Reference
 
@@ -30990,10 +30996,10 @@ Leo, https://leo-editor.github.io/leo-editor/ is an [IDE, outliner and PIM](http
 - Delete all of Leo's cover- and test- commands.
 - Allow unit tests to run with the Qt gui.
 - Several mass code updates:
-  - Annotate Leo's core files and important plugins.
-  - Simplify all of Leo's importers.
-  - Speed Leo's redraw code by rewriting Leo's icon drawing logic.
-  - Retire Tk indices, except in unit tests.
+   - Annotate Leo's core files and important plugins.
+   - Simplify all of Leo's importers.
+   - Speed Leo's redraw code by rewriting Leo's icon drawing logic.
+   - Retire Tk indices, except in unit tests.
 </t>
 <t tx="ekr.20221018092737.1">Leo https://leo-editor.github.io/leo-editor/ 6.7.1 is now available on
 [GitHub](https://github.com/leo-editor/leo-editor/releases) and
@@ -31083,7 +31089,7 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 
 **The highlights of Leo 6.7.2**
 
-- PR #3019: Leo's website has moved to Github Pages: https://leo-editor.github.io/leo-editor/
+- PR #3019: Leo's website has moved to GitHub Pages: https://leo-editor.github.io/leo-editor/
 
 Commands:
 
@@ -31250,40 +31256,51 @@ Settings and features:
 Bugs
 
 .. _`PR #2962`: https://github.com/leo-editor/leo-editor/pull/2962
+.. _`All noteworthy pull requests`: https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.2+label%3ANoteworthy
+.. _`All noteworthy issues`: https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.2+label%3ANoteworthy+
 
 - `PR #2962`_: Leo's git-diff command can clear top-level cloned node.
-
-All noteworthy pull requests:
-https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.2+label%3ANoteworthy
-
-All noteworthy issues:
-https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.2+label%3ANoteworthy+
-</t>
+- `All noteworthy pull requests`_.
+- `All noteworthy issues`_.</t>
 <t tx="ekr.20230111163935.1">c.backup_helper(sub_dir='leoDocs')
 </t>
 <t tx="ekr.20230111164618.1">def get_paths():
     """
-    Return paths to leo-editor/leo/doc/html and leo-editor/docs.
+    Return (build_path, docs_path, html_path), that is: 
+    (
+        leo-editor/leo/doc/_build/html,
+        leo-editor/docs,
+        leo-editor/leo/doc/html,
+    )
     """
-    docs_path = g.os_path_finalize_join(g.app.loadDir,'..','..','docs')
-    if not os.path.exists(docs_path):
-        g.es_print(f"Not found: {docs_path!r}")
-        return None, None
-    html_path = g.os_path_finalize_join(g.app.loadDir,'..','doc','html')
-    if not os.path.exists(html_path):
-        g.es_print(f"Not found: {html_path!r}")
-        return None, None
-    return docs_path, html_path</t>
-<t tx="ekr.20230111165336.1">def write_intermediate_files():
+    join = g.os_path_finalize_join
+    norm = os.path.normpath
+    build_path = norm(join(g.app.loadDir, '..', 'doc', 'html', '_build', 'html'))
+    docs_path = norm(join(g.app.loadDir,'..','..','docs'))
+    html_path = norm(join(g.app.loadDir,'..','doc','html'))
+    paths = build_path, docs_path, html_path
+    if all((os.path.exists(z) for z in paths)):
+        return paths
+    for path in paths:
+        if not os.path.exists(path):
+            g.es_print(f"Not found: {path!r}")
+    return None, None, None
+</t>
+<t tx="ekr.20230111165336.1">def write_intermediate_files() -&gt; int:
+    """Return True if the rst3 command wrote any intermediate files."""
+    total_n = 0
     for headline in headlines:
         p = g.findTopLevelNode(c, headline)
         if p:
             c.selectPosition(p)
-            c.rstCommands.rst3()
+            n = c.rstCommands.rst3()
+            total_n += n
         else:
             g.es_print(f"Not found: {headline!r}")
             return False
-    return True</t>
+    if total_n == 0:
+        g.es_print('No intermediate files changed', color='red')
+    return total_n &gt; 0</t>
 <t tx="ekr.20230111171223.1">def find_docs_links():
     """Find all links in all .html files in the leo-editor/docs directory."""
     docs_path = g.os_path_finalize_join(g.app.loadDir,'..','..','docs')
@@ -32579,18 +32596,103 @@ Leo's beautify command differs from `Black`_ as follows:
     
     old_p = c.p
     try:
-        docs_path, html_path = get_paths()
+        build_path, docs_path, html_path = get_paths()
         if html_path:
             os.chdir(html_path)
-            if write_intermediate_files():
-                g.execute_shell_commands([
-                    'make clean',
-                    'make html',
-                    'echo.',
-                    'echo copy files from html/_build/html to /docs',
-                ],trace=trace)
+            write_intermediate_files()
+            prev_timestamp = last_timestamp(build_path)
+            make_html(html_path)
+            copy_files(build_path, docs_path, prev_timestamp)
+            git_status()
     finally:
-        c.selectPosition(old_p)</t>
+        c.selectPosition(old_p)
+</t>
+<t tx="ekr.20230303064647.1">def copy_files(from_directory, to_directory, last_timestamp):
+    """Copy only *changed* html files from `from_directory` to `to_directory`."""
+    files = glob.glob(f"{from_directory}{os.sep}*")
+    written = 0
+    for f in files:
+        timestamp = os.path.getmtime(f)
+        if timestamp &gt; last_timestamp:
+            written += 1
+            print(f"copy {timestamp:&gt;24}: {g.shortFileName(f)}")
+            shutil.copy2(f, to_directory)
+    print(f"copied {written} file{g.plural(written)} to {to_directory}")
+</t>
+<t tx="ekr.20230303064734.1">def make_html(html_path):
+    """
+    Run the `make html` command in the `html_path` directory.
+    """
+    assert os.getcwd() == html_path, os.getcwd()
+    g.execute_shell_commands([
+        'make html',
+    ])</t>
+<t tx="ekr.20230303065849.1">def last_timestamp(directory: str) -&gt; str:
+    """Return the last time stamp for all the files in the given directory."""
+    files = glob.glob(f"{directory}{os.sep}*")
+    last_file = max(files, key=os.path.getmtime)
+    timestamp = os.path.getmtime(last_file)
+    # g.trace('Last timestamp:', timestamp, last_file)
+    return timestamp
+</t>
+<t tx="ekr.20230303070618.1">make-sphinx
+find-bad-links</t>
+<t tx="ekr.20230303080626.1">def git_status():
+    """Report git status"""
+    join = g.os_path_finalize_join
+    norm = os.path.normpath
+    leo_path = norm(join(g.app.loadDir, '..', '..'))
+    os.chdir(leo_path)
+    g.execute_shell_commands([
+        'git status',
+    ])
+    
+</t>
+<t tx="ekr.20230409052507.1">Leo https://leo-editor.github.io/leo-editor/ 6.7.3 is now available on
+[GitHub](https://github.com/leo-editor/leo-editor/releases) and
+[pypi](https://pypi.org/project/leo/).
+
+Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/preface.html).
+
+**The highlights of Leo 6.7.3**
+
+- PR #3260: Improved and safer handling of paths in `@&lt;file&gt;` nodes.
+            Leo supports Python's standard os.path expansions.
+            Leo no longer supports {{python-expression}} in headlines.
+
+**Commands**
+
+- PR #3266: Add write-zip-archive command.
+- PR #3227: Add commands to add/remove numbers from headlines.
+
+**Other changes**
+
+- PR #3208: Add 'reload-settings' hook.
+- PR #3214: Optionally expand headlines on mouseover.
+- PR #3224: Improve mod_autosave plugin.
+- Tweaks and small bug fixes: 20+ issues and 30+ pull requests.
+
+**Links**
+
+- [Download Leo](https://leo-editor.github.io/leo-editor/download.html)
+- [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
+- [6.7.3 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.3+)
+- [6.7.3 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.3)
+- [Documentation](https://leo-editor.github.io/leo-editor/leo_toc.html)
+- [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
+- [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
+- [Forum](http://groups.google.com/group/leo-editor)
+- [Download](http://sourceforge.net/projects/leo/files/)
+- [Leo on GitHub](https://github.com/leo-editor/leo-editor)
+- [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
+- [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
+- [A web page that displays .leo files](https://leo-editor.github.io/leo-editor/load-leo.html)
+- [More links](https://leo-editor.github.io/leo-editor/leoLinks.html)
+
+@nowrap
+@language rest
+</t>
+<t tx="ekr.20230409053106.1"></t>
 <t tx="felix.20210825213137.1">Since a WebSocket server can receive events from clients, process them to update the
 application state, and synchronize the resulting state across clients, leoserver.py
 has the ability to listen and interact with more than one concurrent client, and have

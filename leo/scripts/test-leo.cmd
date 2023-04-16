@@ -1,4 +1,5 @@
-echo off
-cd C:\Repos\leo-editor
+@echo off
+call %~dp0\set-repo-dir
+
 echo test-leo
-python -m unittest %*
+py -m unittest %*

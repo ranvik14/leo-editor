@@ -688,11 +688,6 @@ class ParserBaseClass:
     #@+node:ekr.20041124063257: *3* pbc.munge
     def munge(self, s: str) -> str:
         return g.app.config.canonicalizeSettingName(s)
-    #@+node:ekr.20041119204700.2: *3* pbc.oops
-    def oops(self) -> None:
-        g.pr("ParserBaseClass oops:",
-            g.callers(),
-            "must be overridden in subclass")
     #@+node:ekr.20041213082558: *3* pbc.parsers
     #@+node:ekr.20041213082558.1: *4* pbc.parseFont & helper
     def parseFont(self, p: Position) -> Dict[str, Any]:
@@ -885,6 +880,7 @@ class ParserBaseClass:
         d[key] = g.GeneralSetting(kind,
             path=c.mFileName,
             tag='setting',
+            source=p.h if p else '',
             unl=p.get_UNL() if p else '',
             val=val,
         )
@@ -916,8 +912,7 @@ class ParserBaseClass:
         self.error(f"{val} is not a valid {kind} for {name}")
     #@+node:ekr.20041119204700.3: *3* pbc.visitNode (must be overwritten in subclasses)
     def visitNode(self, p: Position) -> str:
-        self.oops()
-        return ''
+        raise NotImplementedError
     #@-others
 #@-<< class ParserBaseClass >>
 #@+others
@@ -1234,10 +1229,8 @@ class GlobalConfigManager:
         limit = c.config.getInt('print-settings-at-data-limit')
         if limit is None:
             limit = 20  # A reasonable default.
-        # pylint: disable=len-as-condition
         for key in sorted(list(d.keys())):
-            gs = d.get(key)
-            assert isinstance(gs, g.GeneralSetting), repr(gs)
+            gs = d.get(key)  # gs is a GeneralSetting or None
             if gs and gs.kind:
                 letter = lm.computeBindingLetter(c, gs.path)
                 val = gs.val
@@ -1255,7 +1248,7 @@ class GlobalConfigManager:
                         val = f"<{len(aList)} non-comment lines>"
                 elif isinstance(val, str) and val.startswith('<?xml'):
                     val = '<xml>'
-                key2 = f"@{gs.kind:>6} {key}"
+                key2 = f"@{gs.kind:<6} {key}"
                 yield key2, val, c, letter
     #@+node:ekr.20041123070429: *3* gcm.canonicalizeSettingName (munge)
     def canonicalizeSettingName(self, name: str) -> str:
@@ -1408,7 +1401,7 @@ class GlobalConfigManager:
             return None
     #@+node:ekr.20041117062717.13: *4* gcm.getFontFromParams
     def getFontFromParams(self,
-        family: str, size: str, slant: str, weight: str, defaultSize: int = 12,
+        family: str, size: str, slant: str, weight: str, defaultSize: int = 12, tag: str = '',
     ) -> Any:
         """Compute a font from font parameters.
 
@@ -1738,7 +1731,7 @@ class LocalConfigManager:
             return None
     #@+node:ekr.20120215072959.12531: *5* c.config.getFontFromParams
     def getFontFromParams(self,
-        family: str, size: str, slant: str, weight: str, defaultSize: int = 12,
+        family: str, size: str, slant: str, weight: str, defaultSize: int = 12, tag: str = '',
     ) -> Any:
         """
         Compute a font from font parameters. This should be used *only*
@@ -1912,10 +1905,85 @@ class LocalConfigManager:
             if found:
                 return True
         return False
+    #@+node:ekr.20230306104439.1: *3* c.config.printColorSettings
+    def printColorSettings(self) -> None:
+        """
+        Print the value of all @color settings.
+
+        The following shows where the each setting comes from:
+
+        -     leoSettings.leo,
+        -  @  @button, @command, @mode.
+        - [D] default settings.
+        - [F] indicates the file being loaded,
+        - [M] myLeoSettings.leo,
+        - [T] theme .leo file.
+        """
+        legend = '''\
+    legend:
+        leoSettings.leo
+     @  @button, @command, @mode
+    [D] default settings
+    [F] loaded .leo File
+    [M] myLeoSettings.leo
+    [T] theme .leo file.
+    '''
+        c = self.c
+        if g.unitTesting:
+            return
+        legend = textwrap.dedent(legend)
+        result = []
+        for name, val, _c, letter in g.app.config.config_iter(c):
+            if name.strip().startswith('@color'):
+                kind = '   ' if letter == ' ' else f"[{letter}]"
+                result.append(f"{kind} {name} = {val}\n")
+        # Use a single g.es statement.
+        result.append('\n' + legend)
+        g.es_print('', ''.join(result), tabName='Settings')
+    #@+node:ekr.20230306104456.1: *3* c.config.printFontSettings
+    def printFontSettings(self) -> None:
+        """
+        Print the value of every @font setting.
+
+        The following shows where the each setting comes from:
+
+        -     leoSettings.leo,
+        -  @  @button, @command, @mode.
+        - [D] default settings.
+        - [F] indicates the file being loaded,
+        - [M] myLeoSettings.leo,
+        - [T] theme .leo file.
+        """
+        legend = '''\
+    legend:
+        leoSettings.leo
+     @  @button, @command, @mode
+    [D] default settings
+    [F] loaded .leo File
+    [M] myLeoSettings.leo
+    [T] theme .leo file.
+    '''
+        c = self.c
+        if g.unitTesting:
+            return
+        legend = textwrap.dedent(legend)
+        result = []
+        for name, val, _c, letter in g.app.config.config_iter(c):
+            #@verbatim
+            # @font nodes set @family, @weight, @slant, @size settings.
+            if name.strip().startswith(('@font', '@family', '@weight', '@slant', '@size')):
+                kind = '   ' if letter == ' ' else f"[{letter}]"
+                result.append(f"{kind} {name} = {val}\n")
+        # Use a single g.es statement.
+        result.append('\n' + legend)
+        g.es_print('', ''.join(result), tabName='Settings')
     #@+node:ekr.20070418073400: *3* c.config.printSettings
     def printSettings(self) -> None:
-        """Prints the value of every setting, except key bindings and commands and open-with tables.
-        The following shows where the active setting came from:
+        """
+        Print the value of every setting, except key bindings, commands, and
+        open-with tables.
+
+        The following shows where the each setting comes from:
 
         -     leoSettings.leo,
         -  @  @button, @command, @mode.
@@ -1962,7 +2030,13 @@ class LocalConfigManager:
             path = gs.path
             if warn and g.os_path_finalize(c.mFileName) != g.os_path_finalize(path):  # #1341.
                 g.trace("over-riding setting:", name, "from", path)
-        d[key] = g.GeneralSetting(kind, path=c.mFileName, val=val, tag='setting')
+        d[key] = g.GeneralSetting(
+            kind,
+            path=c.mFileName,
+            source=p.h if p else '',
+            val=val,
+            tag='setting',
+        )
     #@+node:ekr.20190905082644.1: *3* c.config.settingIsActiveInPath
     def settingIsActiveInPath(self, gs: str, target_path: str) -> bool:
         """Return True if settings file given by path actually defines the setting, gs."""
