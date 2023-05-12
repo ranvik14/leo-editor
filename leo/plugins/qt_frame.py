@@ -2301,7 +2301,6 @@ class LeoQtFrame(leoFrame.LeoFrame):
     #@+node:ekr.20110605121601.18282: *4* qtFrame.resizePanesToRatio
     def resizePanesToRatio(self, ratio: float, ratio2: float) -> None:
         """Resize splitter1 and splitter2 using the given ratios."""
-        # py--lint: disable=arguments-differ
         self.divideLeoSplitter1(ratio)
         self.divideLeoSplitter2(ratio2)
     #@+node:ekr.20110605121601.18283: *4* qtFrame.divideLeoSplitter1/2
@@ -2330,11 +2329,11 @@ class LeoQtFrame(leoFrame.LeoFrame):
         """Set the splitter sizes."""
         sizes = splitter.sizes()
         if len(sizes) != 2:
-            g.trace(f"{len(sizes)} widget(s) in {id(splitter)}")
+            # This is not an error: QSplitters may contain more than 2 widgets.
             return
         if frac > 1 or frac < 0:
-            g.trace(f"split ratio [{frac}] out of range 0 <= frac <= 1")
-            return
+            # g.trace(f"split ratio [{frac}] out of range 0 <= frac <= 1")
+            frac = 0.5
         s1, s2 = sizes
         s = s1 + s2
         s1 = int(s * frac + 0.5)

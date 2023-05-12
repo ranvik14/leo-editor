@@ -133,7 +133,7 @@ class AtFile:
         Return the finalized name of the output file.
         """
         at, c = self, self.c
-        if not c and c.config:
+        if not c or not c.config:
             return None  # pragma: no cover
         make_dirs = c.config.getBool('create-nonexistent-directories', default=False)
         assert root
@@ -282,7 +282,7 @@ class AtFile:
     def read(self, root: Position, fromString: str = None) -> bool:
         """Read an @thin or @file tree."""
         at, c = self, self.c
-        fileName = c.fullPath(root)  # #1341. #1889.
+        fileName = c.fullPath(root)
         if not fileName:  # pragma: no cover
             at.error("Missing file name. Restoring @file tree from .leo file.")
             return False
@@ -440,7 +440,7 @@ class AtFile:
     def readOneAtAutoNode(self, p: Position) -> Position:  # pragma: no cover
         """Read an @auto file into p. Return the *new* position."""
         at, c, ic = self, self.c, self.c.importCommands
-        fileName = c.fullPath(p)  # #1521, #1341, #1914.
+        fileName = c.fullPath(p)
         if not g.os_path_exists(fileName):
             g.error(f"not found: {p.h!r}", nodeLink=p.get_UNL())
             return p
@@ -506,7 +506,6 @@ class AtFile:
     def readOneAtAsisNode(self, fn: str, p: Position) -> None:  # pragma: no cover
         """Read one @asis node. Used only by refresh-from-disk"""
         at, c = self, self.c
-        # #1521 & #1341.
         fn = c.fullPath(p)
         junk, ext = g.os_path_splitext(fn)
         # Remember the full fileName.
@@ -557,7 +556,7 @@ class AtFile:
         FastAtRead(c, gnx2vnode).read_into_root(contents, fileName, root)
         return True  # Errors not detected.
     #@+node:ekr.20150204165040.7: *6* at.dump_lines
-    def dump(self, lines: Any, tag: Any) -> None:  # pragma: no cover
+    def dump(self, lines: List[str], tag: Any) -> None:  # pragma: no cover
         """Dump all lines."""
         print(f"***** {tag} lines...\n")
         for s in lines:
@@ -597,7 +596,7 @@ class AtFile:
                 f"can not happen: fn: {fn} != atShadowNodeName: "
                 f"{p.atShadowFileNodeName()}")
             return
-        fn = c.fullPath(p)  # #1521 & #1341.
+        fn = c.fullPath(p)
         # #889175: Remember the full fileName.
         at.rememberReadPath(fn, p)
         shadow_fn = x.shadowPathName(fn)
@@ -615,7 +614,7 @@ class AtFile:
     #@+node:ekr.20080712080505.1: *6* at.importAtShadowNode
     def importAtShadowNode(self, p: Position) -> bool:  # pragma: no cover
         c, ic = self.c, self.c.importCommands
-        fn = c.fullPath(p)  # #1521, #1341, #1914.
+        fn = c.fullPath(p)
         if not g.os_path_exists(fn):
             g.error(f"not found: {p.h!r}", nodeLink=p.get_UNL())
             return False
@@ -640,7 +639,7 @@ class AtFile:
         return FastAtRead(c, gnx2vnode).read_into_root(contents, path, root)
     #@+node:ekr.20041005105605.116: *4* at.Reading utils...
     #@+node:ekr.20041005105605.119: *5* at.createImportedNode
-    def createImportedNode(self, root: Position, headline: Any) -> Position:  # pragma: no cover
+    def createImportedNode(self, root: Position, headline: str) -> Position:  # pragma: no cover
         at = self
         if at.importRootSeen:
             p = root.insertAsLastChild()
@@ -801,7 +800,7 @@ class AtFile:
         # Not an error.
         return ''  # pragma: no cover
     #@+node:ekr.20041005105605.129: *5* at.scanHeader
-    def scanHeader(self, fileName: str, giveErrors: bool = True) -> Tuple[Any, Any, Any]:
+    def scanHeader(self, fileName: str, giveErrors: bool = True) -> Tuple[List[str], bool, bool]:
         """
         Scan the @+leo sentinel, using the old readLine interface.
 
@@ -827,7 +826,7 @@ class AtFile:
             g.trace(g.callers())
         return firstLines, new_df, isThinDerivedFile
     #@+node:ekr.20041005105605.130: *6* at.scanFirstLines
-    def scanFirstLines(self, firstLines: Any) -> str:  # pragma: no cover
+    def scanFirstLines(self, firstLines: List[str]) -> str:  # pragma: no cover
         """
         Append all lines before the @+leo line to firstLines.
 
@@ -854,7 +853,7 @@ class AtFile:
         at.readFileToUnicode(fileName)
         # scanHeader uses at.readline instead of its args.
         # scanHeader also sets at.encoding.
-        junk, junk, isThin = at.scanHeader(None)
+        junk1, junk2, isThin = at.scanHeader(None)
         return isThin
     #@+node:ekr.20041005105605.132: *3* at.Writing
     #@+node:ekr.20041005105605.133: *4* Writing (top level)
@@ -1246,7 +1245,7 @@ class AtFile:
             else:
                 p.moveToThreadNext()
         if not g.unitTesting:
-            if writtenFiles > 0:
+            if writtenFiles:
                 g.es("finished")
             else:
                 g.es("no @file node in the selected tree")
@@ -1303,7 +1302,7 @@ class AtFile:
             at.writeException(fileName, root)
             return False
     #@+node:ekr.20140728040812.17993: *7* at.dispatch & helpers
-    def dispatch(self, ext: Any, p: Position) -> Optional[Callable]:  # pragma: no cover
+    def dispatch(self, ext: str, p: Position) -> Optional[Callable]:  # pragma: no cover
         """Return the correct writer function for p, an @auto node."""
         at = self
         # Match @auto type before matching extension.
@@ -1486,7 +1485,7 @@ class AtFile:
             #
             # Write the public and private files to strings.
 
-            def put(sentinels: Any) -> str:
+            def put(sentinels: bool) -> str:
                 at.outputList = []
                 at.sentinels = sentinels
                 at.putFile(root, sentinels=sentinels)
@@ -1677,7 +1676,7 @@ class AtFile:
             at.putEndDocLine()
         return status.has_at_others
     #@+node:ekr.20041005105605.163: *6* at.putLine
-    def putLine(self, i: int, kind: Any, p: Position, s: str, status: Any) -> None:
+    def putLine(self, i: int, kind: int, p: Position, s: str, status: Any) -> None:
         """Put the line at s[i:] of the given kind, updating the status."""
         at = self
         if kind == at.noDirective:
@@ -1914,7 +1913,7 @@ class AtFile:
         else:
             g.trace('Can not happen: completely empty line')  # pragma: no cover
     #@+node:ekr.20041005105605.176: *6* at.putRefLine
-    def putRefLine(self, s: str, i: int, n1: int, n2: int, name: Any, p: Position) -> None:
+    def putRefLine(self, s: str, i: int, n1: int, n2: int, name: str, p: Position) -> None:
         """
         Put a line containing one or more references.
 
@@ -2590,20 +2589,16 @@ class AtFile:
         at.checkPythonCode(contents, fileName, root)
         return ok
     #@+node:ekr.20190114061452.27: *6* at.compareIgnoringBlankLines
-    def compareIgnoringBlankLines(self, s1: Any, s2: Any) -> bool:  # pragma: no cover
+    def compareIgnoringBlankLines(self, s1: str, s2: str) -> bool:  # pragma: no cover
         """Compare two strings, ignoring blank lines."""
-        assert isinstance(s1, str), g.callers()
-        assert isinstance(s2, str), g.callers()
         if s1 == s2:
             return True
         s1 = g.removeBlankLines(s1)
         s2 = g.removeBlankLines(s2)
         return s1 == s2
     #@+node:ekr.20190114061452.28: *6* at.compareIgnoringLineEndings
-    def compareIgnoringLineEndings(self, s1: Any, s2: Any) -> bool:  # pragma: no cover
+    def compareIgnoringLineEndings(self, s1: str, s2: str) -> bool:  # pragma: no cover
         """Compare two strings, ignoring line endings."""
-        assert isinstance(s1, str), (repr(s1), g.callers())
-        assert isinstance(s2, str), (repr(s2), g.callers())
         if s1 == s2:
             return True
         # Wrong: equivalent to ignoreBlankLines!

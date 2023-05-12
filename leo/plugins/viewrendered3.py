@@ -12,7 +12,7 @@ Markdown and Asciidoc text, images, movies, sounds, rst, html, jupyter notebooks
 
 #@+others
 #@+node:TomP.20200308230224.1: *3* About
-About Viewrendered3 V4.0
+About Viewrendered3 V4.01
 ===========================
 
 The ViewRendered3 plugin (hereafter "VR3") renders Restructured Text (RsT),
@@ -1789,7 +1789,7 @@ def export_rst_html(event):
     # Write to temp file
     c = vr3.c
     path = c.getNodePath(c.rootPosition())
-    pathname = g.os_path_finalize_join(path, VR3_TEMP_FILE)
+    pathname = g.finalize_join(path, VR3_TEMP_FILE)
     with ioOpen(pathname, 'w', encoding='utf-8') as f:
         f.write(_html)
     webbrowser.open_new_tab(pathname)
@@ -2042,7 +2042,7 @@ def vr3_help_for_plot_2d(event):
             output += f'<pre style="{RST_ERROR_BODY_STYLE}">{docstr}</pre>'
 
     path = c.getNodePath(c.rootPosition())
-    pathname = g.os_path_finalize_join(path, VR3_TEMP_FILE)
+    pathname = g.finalize_join(path, VR3_TEMP_FILE)
     with ioOpen(pathname, 'w', encoding='utf-8') as f:
         f.write(_html)
     webbrowser.open_new_tab(pathname)
@@ -2633,10 +2633,10 @@ class ViewRenderedController3(QtWidgets.QWidget):
 
             if is_abs:
                 # This method changes '\' to '/' in the path if needed.
-                self.rst_stylesheet = g.os_path_finalize_join(pth)
+                self.rst_stylesheet = g.finalize_join(pth)
             else:
                 self.rst_stylesheet = g.os_path_join(leodir, VR3_DIR, self.rst_stylesheet)
-                self.rst_stylesheet = g.os_path_finalize_join(self.rst_stylesheet)
+                self.rst_stylesheet = g.finalize_join(self.rst_stylesheet)
 
             if not os.path.exists(self.rst_stylesheet):
                 use_default = True
@@ -2935,10 +2935,27 @@ class ViewRenderedController3(QtWidgets.QWidget):
 
         If the VR3 variable "freeze" is True, do not update.
         """
-
-        if self.freeze: return
         pc = self
         p = pc.c.p
+
+        if tag in ('show-scrolled-message',):
+            # If we are called as a "scrolled message" - usually for display of
+            # docstrings.  keywords will contain the RsT to be displayed.
+            _kind = keywords.get('flags', 'rst')
+            s = keywords.get('s', '')
+            f = pc.dispatch_dict.get(_kind)
+            f([s,], keywords)
+
+            # Prevent VR3 from showing the selected node at
+            # the next idle-time callback,
+            # Which would over-write the scrolled message.
+            pc.node_changed = False
+            pc.gnx = p.v.gnx
+            pc.length = len(p.b)  # not s
+            pc.last_text = p.b
+            return
+
+        if self.freeze: return
         if pc.lock_to_tree:
             _root = pc.current_tree_root or p
         else:
@@ -2947,18 +2964,12 @@ class ViewRenderedController3(QtWidgets.QWidget):
         self.controlling_code_lang = None
         self.params = []
 
-        if tag in ('show-scrolled-message',):
-            # If we are called as a "scrolled message" - usually for display of
-            # docstrings.  keywords will contain the RsT to be displayed.
-            _kind = keywords.get('flags', 'rst')
-            keywords['tag'] = tag
-        else:
-            _kind = pc.get_kind(p) or self.default_kind
-            if _kind in ('edit', 'file', 'clean', 'auto'):
-                _kind = RST
-            if _kind == RST and p.h.startswith('@jupyter'):
-                _kind = 'jupyter'
-            f = pc.dispatch_dict.get(_kind)
+        _kind = pc.get_kind(p) or self.default_kind
+        if _kind in ('edit', 'file', 'clean', 'auto'):
+            _kind = RST
+        if _kind == RST and p.h.startswith('@jupyter'):
+            _kind = 'jupyter'
+        f = pc.dispatch_dict.get(_kind)
         # if f in (pc.update_rst, pc.update_md, pc.update_text):
             # self.show_toolbar()
         # else:
@@ -2994,6 +3005,7 @@ class ViewRenderedController3(QtWidgets.QWidget):
                 # This branch is for rendering docstrings, help-for-command messages,
                 # etc.  Called from qt_gui.py.
                 # In case Leo node elements get mixed into the message, remove them:
+                pc.node_changed = False
                 txt = keywords.get('s', '')
                 lines = txt.split('\n')
                 keywords['s'] = '\n'.join([l for l in lines if not l.startswith('#@')])
@@ -3347,8 +3359,8 @@ class ViewRenderedController3(QtWidgets.QWidget):
         # Find path relative to this file.  Needed as the base of relative
         # URLs, e.g., image or included files.
         path = c.getNodePath(c.p)
-        i_path = g.os_path_finalize_join(path, 'vr3_adoc.adoc')
-        o_path = g.os_path_finalize_join(path, 'vr3_adoc.html')
+        i_path = g.finalize_join(path, 'vr3_adoc.adoc')
+        o_path = g.finalize_join(path, 'vr3_adoc.html')
 
         # Write the input file.
         with open(i_path, 'w', encoding='utf-8') as f:
@@ -3366,6 +3378,7 @@ class ViewRenderedController3(QtWidgets.QWidget):
             attrs.append(f'imagesdir={self.asciidoctor_imagesdir}')
         att_str = ''
         for att in attrs:
+            # pylint: disable = consider-using-join
             att_str += f'-a {att} '
 
         # Call the external program to write the output file.
@@ -3798,8 +3811,8 @@ class ViewRenderedController3(QtWidgets.QWidget):
         global pandoc_exec
         assert pandoc_exec, g.callers()
         home = g.os.path.expanduser('~')
-        i_path = g.os_path_finalize_join(home, 'vr3_input.pandoc')
-        o_path = g.os_path_finalize_join(home, 'vr3_output.html')
+        i_path = g.finalize_join(home, 'vr3_input.pandoc')
+        o_path = g.finalize_join(home, 'vr3_output.html')
         # Write the input file.
         with open(i_path, 'w', encoding = ENCODING) as f:
             f.write(s)
@@ -3819,7 +3832,7 @@ class ViewRenderedController3(QtWidgets.QWidget):
             c = self.c
             if not self.pyplot_imported:
                 self.pyplot_imported = True
-                backend = g.os_path_finalize_join(
+                backend = g.finalize_join(
                     g.app.loadDir, '..', 'plugins', 'pyplot_backend.py')
                 if g.os_path_exists(backend):
                     if matplotlib:
@@ -3870,7 +3883,6 @@ class ViewRenderedController3(QtWidgets.QWidget):
             RETURNS
             nothing
         """
-
         if not keywords:  # EKR
             keywords = {}
         # Do this regardless of whether we show the widget or not.
@@ -3882,12 +3894,14 @@ class ViewRenderedController3(QtWidgets.QWidget):
         if got_docutils:
             if not node_list or isinstance(node_list[0], str):  # EKR.
                 # We were called as a "scrolled message"
-                s = keywords.get('s', '')
+                s = node_list[0]
+                node_list = None
             else:
                 s = node_list[0].b
                 s = self.remove_directives(s)
             isHtml = s and s[0] == '<'
     #@+at
+    #         # In case we bring back QtSvg again)
     #         if s.startswith('<svg'):
     #             if QtSvg is None:
     #                 g.es(NO_SVG_WIDGET_MSG, color = 'red')
@@ -4535,20 +4549,15 @@ class ViewRenderedController3(QtWidgets.QWidget):
         fn = fn.strip()
         # Similar to code in g.computeFileUrl
         if fn.startswith('~'):
-            # Expand '~' and handle Leo expressions.
             fn = fn[1:]
-            fn = g.os_path_expanduser(fn)
-            fn = c.expand_path_expression(fn)
-            fn = g.os_path_finalize(fn)
+            fn = g.finalize(fn)
         else:
-            # Handle Leo expressions.
-            fn = c.expand_path_expression(fn)
             # Handle ancestor @path directives.
             if c and c.openDirectory:
                 base = c.getNodePath(c.p)
-                fn = g.os_path_finalize_join(c.openDirectory, base, fn)
+                fn = g.finalize_join(c.openDirectory, base, fn)
             else:
-                fn = g.os_path_finalize(fn)
+                fn = g.finalize(fn)
 
         ok = g.os_path_exists(fn)
         return ok, fn
