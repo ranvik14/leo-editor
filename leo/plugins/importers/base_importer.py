@@ -48,13 +48,14 @@ class Importer:
     language: str = None
 
     # May be overridden in subclasses.
+    allow_preamble = False
     block_patterns: tuple = tuple()
     level_up_ch = '{'
     level_down_ch = '}'
     string_list: list[str] = ['"', "'"]
 
     #@+others
-    #@+node:ekr.20230529075138.5: *3* i.__init__ & reloadSettings
+    #@+node:ekr.20230529075138.5: *3* i.__init__
     def __init__(self, c: Cmdr) -> None:
         """Importer.__init__"""
         assert self.language, g.callers()  # Do not remove.
@@ -63,20 +64,6 @@ class Importer:
         delims = g.set_delims_from_language(self.language)
         self.single_comment, self.block1, self.block2 = delims
         self.tab_width = 0  # Must be set later.
-
-        # Settings...
-        self.reloadSettings()
-
-    def reloadSettings(self) -> None:
-        c = self.c
-        if not c:  # pragma: no cover (defensive)
-            return
-        getBool = c.config.getBool
-        c.registerReloadSettings(self)
-        self.add_context = getBool("add-context-to-headlines")
-        self.add_file_context = getBool("add-file-context-to-headlines")
-        self.at_auto_warns_about_leading_whitespace = getBool('at_auto_warns_about_leading_whitespace')
-        self.warn_about_underindented_lines = True
     #@+node:ekr.20230529075640.1: *3* i: Generic methods: may be overridden
     #@+node:ekr.20230529075138.36: *4* i.check_blanks_and_tabs
     def check_blanks_and_tabs(self, lines: list[str]) -> bool:  # pragma: no cover (missing test)
@@ -107,7 +94,6 @@ class Importer:
             message = 'intermixed blanks and tabs in: %s' % (fn)
         if not ok:
             if g.unitTesting:
-                ### self.report(message)
                 assert False, message
             else:
                 g.es(message)
@@ -124,6 +110,28 @@ class Importer:
         child_kind, child_name, child_start, child_start_body, child_end = block
         return f"{child_kind} {child_name}" if child_name else f"unnamed {child_kind}"
 
+    #@+node:ekr.20230612170928.1: *4* i.create_preamble
+    def create_preamble(self, blocks: list[Block], parent: Position, result_list: list[str]) -> None:
+        """
+        Importer.create_preamble: Create one preamble node.
+
+        Subclasses may override this method to create multiple preamble nodes.
+        """
+        assert self.allow_preamble
+        assert parent == self.root
+        lines = self.lines
+        common_lws = self.compute_common_lws(blocks)
+        child_kind, child_name, child_start, child_start_body, child_end = blocks[0]
+        new_start = max(0, child_start_body - 1)
+        preamble = lines[:new_start]
+        if preamble and any(z for z in preamble):
+            child = parent.insertAsLastChild()
+            section_name = '<< preamble >>'
+            child.h = section_name
+            child.b = ''.join(preamble)
+            result_list.insert(0, f"{common_lws}{section_name}\n")
+            # Adjust this block.
+            blocks[0] = child_kind, child_name, new_start, child_start_body, child_end
     #@+node:ekr.20230529075138.10: *4* i.find_blocks
     def find_blocks(self, i1: int, i2: int) -> list[Block]:
         """
@@ -201,12 +209,14 @@ class Importer:
         if 0:
             self.trace_blocks(blocks)
         if blocks:
+            common_lws = self.compute_common_lws(blocks)
             # Start with the head: lines[start : start_start_body].
             result_list = lines[start:start_body]
+            # Special case: create a preamble node as the first child of the parent.
+            if self.allow_preamble and parent == self.root and start == 0:
+                self.create_preamble(blocks, parent, result_list)
             # Add indented @others.
-            common_lws = self.compute_common_lws(blocks)
             result_list.extend([f"{common_lws}@others\n"])
-
             # Recursively generate the inner nodes/blocks.
             last_end = end
             for block in blocks:
@@ -324,7 +334,6 @@ class Importer:
         kind2 = 'blanks' if self.tab_width > 0 else 'tabs'
         fn = g.shortFileName(self.root.h)
         count, result, tab_width = 0, [], self.tab_width
-        self.ws_error = False  # 2016/11/23
         if tab_width < 0:  # Convert tabs to blanks.
             for n, line in enumerate(lines):
                 i, w = g.skip_leading_ws_with_indent(line, 0, tab_width)
@@ -340,12 +349,8 @@ class Importer:
                 if s != line:
                     count += 1
                 result.append(s)
-        if count:
-            self.ws_error = True  ### A flag to check.
-            if not g.unitTesting:
-                ### g.es('changed leading %s to %s in %s line%s in %s' % (
-                ###     kind2, kind, count, g.plural(count), fn))
-                g.es(f"changed leading {kind2} to {kind} in {count} line{g.plural(count)} in {fn}")
+        if count and not g.unitTesting:
+            g.es(f"changed leading {kind2} to {kind} in {count} line{g.plural(count)} in {fn}")
         return result
     #@+node:ekr.20230529075138.7: *3* i: Utils
     # Subclasses are unlikely ever to need to override these methods.
