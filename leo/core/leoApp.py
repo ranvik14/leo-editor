@@ -113,6 +113,7 @@ class LeoApp:
         """
         #@+<< LeoApp: command-line arguments >>
         #@+node:ekr.20161028035755.1: *5* << LeoApp: command-line arguments >>
+        self.always_write_session_data = False  # Default: write session data only if no files on command line.
         self.batchMode = False  # True: run in batch mode.
         self.debug: list[str] = []  # A list of switches to be enabled.
         self.diff = False  # True: run Leo in diff mode.
@@ -1357,6 +1358,13 @@ class LeoApp:
             g.trace()
         # #2433 - use the same method as clicking on the close box.
         g.app.gui.close_event(QCloseEvent())  # type:ignore
+    #@+node:ekr.20230703100758.1: *4* app.saveSession
+    def saveSession(self) -> None:
+        """Save session data depending on command-line arguments."""
+        if self.sessionManager and (
+            self.loaded_session or self.always_write_session_data
+        ):
+            self.sessionManager.save_snapshot()
     #@+node:ville.20090602181814.6219: *3* app.commanders
     def commanders(self) -> list[Cmdr]:
         """Return list of currently active commanders."""
@@ -1844,7 +1852,7 @@ class LoadManager:
         fn = g.app.config.getString(setting='default_leo_file') or '~/.leo/workbook.leo'
         fn = g.finalize(fn)
         directory = g.finalize(os.path.dirname(fn))
-        # #1415.
+
         return fn if os.path.exists(directory) else None
     #@+node:ekr.20120219154958.10485: *4* LM.reportDirectories
     def reportDirectories(self) -> None:
@@ -2214,7 +2222,7 @@ class LoadManager:
         g.app.idleTimeManager.start()
         #
         # Phase 3: after loading plugins. Create one or more frames.
-        t3 = time.process_time()
+        t4 = time.process_time()
         if lm.options.get('script') and not self.files:
             ok = True
         else:
@@ -2224,17 +2232,22 @@ class LoadManager:
             if ok and g.app.diff:
                 lm.doDiff()
         if not ok:
+            # --screen-shot causes an immediate exit.
+            if 'shutdown' in g.app.debug or 'startup' in g.app.debug:
+                print('Can not create a commander')
+            g.app.forceShutdown()
             return
         g.es('')  # Clears horizontal scrolling in the log pane.
         if g.app.listen_to_log_flag:
             g.app.listenToLog()
         if 'startup' in g.app.debug:
-            t4 = time.process_time()
+            t5 = time.process_time()
             print('')
             g.es_print(f"settings:{t2 - t1:5.2f} sec")
             g.es_print(f" plugins:{t3 - t2:5.2f} sec")
             g.es_print(f"   files:{t4 - t3:5.2f} sec")
-            g.es_print(f"   total:{t4 - t1:5.2f} sec")
+            g.es_print(f"  frames:{t5 - t4:5.2f} sec")
+            g.es_print(f"   total:{t5 - t1:5.2f} sec")
             print('')
         # -- quit
         if g.app.quit_after_load:
@@ -2273,26 +2286,26 @@ class LoadManager:
         g.app.initing = False  # "idle" hooks may now call g.app.forceShutdown.
         # Create the main frame.Show it and all queued messages.
         c = c1 = fn = None
+        g.app.loaded_session = not lm.files
         if lm.files:
-            try:  # #1403.
+            try:
                 for n, fn in enumerate(lm.files):
                     lm.more_cmdline_files = n < len(lm.files) - 1
                     # Returns None if the file is open in another instance of Leo.
                     c = lm.loadLocalFile(fn, gui=g.app.gui, old_c=None)
-                    if c and not c1:  # #1416:
+                    if c and not c1:
                         c1 = c
             except Exception:
                 g.es_print(f"Unexpected exception reading {fn!r}")
                 g.es_exception()
                 c = None
-        # Load (and save later) a session *only* if the command line contains no files.
-        g.app.loaded_session = not lm.files
-        if g.app.sessionManager and g.app.loaded_session:
-            try:  # #1403.
+
+        # Load a session if the command line contains no files.
+        if g.app.sessionManager and not lm.files:
+            try:
                 aList = g.app.sessionManager.load_snapshot()
                 if aList:
                     g.app.sessionManager.load_session(c1, aList)
-                    # #659.
                     if g.app.windowList:
                         c = c1 = g.app.windowList[0].c
                     else:
@@ -2304,10 +2317,11 @@ class LoadManager:
         # Enable redraws.
         g.app.disable_redraw = False
         if not c1:
-            try:  # #1403.
-                c1 = lm.openEmptyWorkBook()  # Calls LM.loadLocalFile.
+            # Open or create a workbook.
+            try:
+                c1 = lm.openWorkBook()
             except Exception:
-                g.es_print('Can not create empty workbook')
+                g.es_print('Can not create workbook')
                 g.es_exception()
         c = c1
         if not c:
@@ -2328,43 +2342,41 @@ class LoadManager:
         c.redraw()
         g.doHook("start2", c=c, p=c.p, fileName=c.fileName())
         c.initialFocusHelper()
-        screenshot_fn = lm.options.get('screenshot_fn')
-        if screenshot_fn:
-            lm.make_screen_shot(screenshot_fn)
-            return False  # Force an immediate exit.
         return True
-    #@+node:ekr.20120219154958.10489: *5* LM.make_screen_shot
-    def make_screen_shot(self, fn: str) -> None:
-        """Create a screenshot of the present Leo outline and save it to path."""
-        if g.app.gui.guiName() == 'qt':
-            m = g.loadOnePlugin('screenshots')
-            m.make_screen_shot(fn)
-    #@+node:ekr.20131028155339.17098: *5* LM.openEmptyWorkBook
-    def openEmptyWorkBook(self) -> Cmdr:
-        """Open CheatSheet.leo as the workbook. Return the new commander."""
-        fn = self.computeWorkbookFileName()
-        if not fn:
-            return None  # #1415
-        # Open CheatSheet.leo.
-        fn2 = g.finalize_join(g.app.loadDir, '..', 'doc', 'CheatSheet.leo')
-        if not g.os_path_exists(fn2):
+    #@+node:ekr.20131028155339.17098: *5* LM.openWorkBook
+    def openWorkBook(self) -> Cmdr:
+        """
+        Open or create a new workbook.
+
+        @string default-leo-file gives the path, defaulting to ~/.leo/workbook.leo.
+
+        Return the new commander.
+        """
+        # Never create a workbook during unit tests or in batch mode.
+        if g.unitTesting or g.app.batchMode:
             return None
-        c = self.loadLocalFile(fn2, gui=g.app.gui, old_c=None)
-        # Save as the workbook name.
-        c.mFileName = fn
+        fn = self.computeWorkbookFileName()
+        exists = fn and os.path.exists(fn)
+        if not fn:
+            # The usual directory does not exist. Create an empty file.
+            c = self.openEmptyLeoFile(gui=g.app.gui, old_c=None)
+            c.rootPosition().h = 'Workbook'
+        else:
+            # Open the workboook or create an empty file.
+            c = self.loadLocalFile(fn, gui=g.app.gui, old_c=None)
+            if not exists:
+                c.rootPosition().h = 'Workbook'
+        # Create the outline with workbook's name.
         c.frame.title = title = c.computeWindowTitle(fn)
         c.frame.setTitle(title)
         c.openDirectory = c.frame.openDirectory = g.os_path_dirname(fn)
         if hasattr(c.frame, 'top'):
             c.frame.top.leo_master.setTabName(c, fn)
-        c.fileCommands.saveAs(fn)
-        g.app.recentFilesManager.updateRecentFiles(fn)
+        # Finish: Do *not* save the file!
         g.chdir(fn)
-        # Finish.
         g.app.already_open_files = []
-        c.target_language = 'rest'
         c.clearChanged()
-        c.redraw(c.rootPosition())  # # 1380: Select the root.
+        # Do not redraw. Do not set c.p.
         return c
     #@+node:ekr.20120219154958.10477: *4* LM.doPrePluginsInit & helpers
     def doPrePluginsInit(self, fileName: str, pymacs: bool) -> None:
@@ -2610,60 +2622,35 @@ class LoadManager:
     #@+node:ekr.20210927034148.1: *5* LM.scanOptions & helpers
     def scanOptions(self, fileName: str, pymacs: bool) -> dict[str, Any]:
         """Handle all options, remove them from sys.argv and set lm.options."""
-        # Save a copy of argv for debugging.
-        self.old_argv = sys.argv[:]
-        self.usage = self.defineUsage()
-        # Handle help args.
-        if any(z in sys.argv for z in ('-h', '-?', '--help')):
-            print(self.usage)
-            sys.exit()
-        obsolete_options = [
-            '--dock', '--global-docks', '--init-docks', '--no-cache',
-            '--no-dock', '--session-restore', '--session-save', '--use-docks',
-        ]
-        valid_options = g.computeValidOptions(self.usage)
-        g.checkOptions(obsolete_options, valid_options, self.usage)
-        self.doSimpleOptions()
-        self.doTraceOptions()
-        self.files = self.computeFilesList(fileName)
-        # Return a dictionary of complex options.
-        script = None if pymacs else self.doScriptOption()  # Used twice below.
-        return {
-            'gui': self.doGuiOption(),
-            'load_type': self.doLoadTypeOption(),
-            'script': script,
-            'screenshot_fn': self.doScreenShotOption(),
-            'select': self.doSelectOption(),
-            'theme_path': self.doThemeOption(),
-            'version': any(z in sys.argv for z in ('-v', '--version')),
-            'windowFlag': script and '--script-window' in sys.argv,
-            'windowSize': self.doWindowSizeOption(),
-            'windowSpot': self.doWindowSpotOption(),
-        }
-    #@+node:ekr.20210927034148.3: *6* LM.computeFilesList
-    def computeFilesList(self, fileName: str) -> list[str]:
-        """Return the list of files on the command line."""
-        lm = self
-        files = []
-        if fileName:
-            files.append(fileName)
-        for arg in sys.argv[1:]:
-            if arg and not arg.startswith('-'):
-                files.append(arg)
-        result = []
-        for z in files:
-            aList = g.glob_glob(lm.completeFileName(z))
-            if aList:
-                result.extend(aList)
-            else:
-                result.append(z)
-        return [g.os_path_normslashes(z) for z in result]
-    #@+node:ekr.20230615062931.1: *6* LM.defineUsage
-    # g.computeValidOptions uses this message to compute the list of valid options!
-    # Abbreviations (-whatever) must appear before full options (--whatever).
-    def defineUsage(self) -> str:
-        return textwrap.dedent(
-        """
+        # Define helper functions.
+        #@+others
+        #@+node:ekr.20210927034148.3: *6* function: computeFilesList
+        def computeFilesList(fileName: str) -> list[str]:
+            """Return the list of files on the command line."""
+            lm = self
+            files = []
+            if fileName:
+                files.append(fileName)
+            for arg in sys.argv[1:]:
+                if arg and not arg.startswith('-'):
+                    files.append(arg)
+            result = []
+            for z in files:
+                aList = g.glob_glob(lm.completeFileName(z))
+                if aList:
+                    result.extend(aList)
+                else:
+                    result.append(z)
+            return [g.os_path_normslashes(z) for z in result]
+        #@+node:ekr.20230615062931.1: *6* function: defineUsage
+        def defineUsage() -> str:
+            """
+            Return (that is, define) Leo's usage message.
+
+            The g.OptionsUtils class uses this message to compute the list of valid options!
+            """
+            # Abbreviations (-whatever) must appear before full options (--whatever).
+            return textwrap.dedent("""
         usage: launchLeo.py [options] file1, file2, ...
 
         options:
@@ -2681,201 +2668,231 @@ class LoadManager:
           --no-plugins          disable all plugins
           --no-splash           disable the splash screen
           --quit                quit immediately after loading
-          --screen-shot=PATH    take a screen shot and then exit
+          --save-session        always save session data when Leo closes
           --script=PATH         execute a script and then exit
           --script-window       execute script using default gui
           --select=ID           headline or gnx of node to select
           --silent              disable all log messages
           --theme=NAME          use the named theme file
-          --trace=LIST          add one or more strings to g.app.debug.
-                                A comma-separated list of one or more of:
-                                abbrev, beauty, cache, coloring, drawing, events, focus, git, gnx
-                                importers, ipython, keys, layouts, plugins, save, select, sections,
-                                shutdown, size, speed, startup, themes, undo, verbose, zoom
+          --trace=LIST          add one or more strings to g.app.debug
+
+                A comma-separated list. Valid values are:
+                abbrev, beauty, cache, coloring, drawing, events, focus, git, gnx,
+                importers, ipython, keys, layouts, plugins, save, select, sections,
+                shutdown, size, speed, startup, themes, undo, verbose, zoom.
+
           --trace-binding=KEY   trace commands bound to a key
           --trace-setting=NAME  trace where named setting is set
-          --window-size=SIZE    initial window size (height x width)
-          --window-spot=SPOT    initial window position (top x left)
+          --window-size=SIZE    initial window size: (height x width)
+          --window-spot=SPOT    initial window position: (top x left)
           -v, --version         print version number and exit
         """)
-    #@+node:ekr.20210927034148.4: *6* LM.doGuiOption
-    def doGuiOption(self) -> str:
-        """Handle --gui option. Default to 'qt'"""
-        m = g.findComplexOption(r'--gui=(\w+)', self.usage)
-        valid = ('console', 'curses', 'null', 'qt', 'text')
-        if not m:
-            g.app.guiArgName = 'qt'
-            return 'qt'
-        # Validate the gui.
-        gui = m.group(1).lower()
-        if gui == 'qttabs':
-            gui = 'qt'  # Allow legacy qttabs gui.
-        elif not gui.startswith('browser') and gui not in valid:
-            arg = m.group(0)
-            valid_s = ', '.join(valid)
-            g.optionError(arg, f"Expected one of {valid_s}", self.usage)
-        g.app.guiArgName = gui
-        return gui
+        #@+node:ekr.20210927034148.4: *6* function: doGuiOption
+        def doGuiOption() -> str:
+            """Handle --gui option. Default to 'qt'"""
+            m = utils.find_complex_option(r'--gui=(\w+)')
+            valid = ('console', 'curses', 'null', 'qt', 'text')
+            if not m:
+                g.app.guiArgName = 'qt'
+                return 'qt'
+            # Validate the gui.
+            gui = m.group(1).lower()
+            if gui == 'qttabs':
+                gui = 'qt'  # Allow legacy qttabs gui.
+            elif not gui.startswith('browser') and gui not in valid:
+                arg = m.group(0)
+                valid_s = ', '.join(valid)
+                utils.option_error(arg, f"Expected one of {valid_s}")
+            g.app.guiArgName = gui
+            return gui
 
-    #@+node:ekr.20210927034148.5: *6* LM.doLoadTypeOption
-    def doLoadTypeOption(self) -> Optional[str]:
-        """Handle load-type=@(edit|file)"""
-        m = g.findComplexOption(r'--load-type=(@\w+)', self.usage)
-        return m.group(1).lower() if m else None
-    #@+node:ekr.20210927034148.6: *6* LM.doScreenShotOption
-    def doScreenShotOption(self) -> str:
-        """Handle --screen-shot=path"""
-        m = g.findComplexOption(r'--screen-shot=(.+)', self.usage)
-        return m.group(1).replace('"', '') if m else None
-    #@+node:ekr.20210927034148.7: *6* LM.doScriptOption
-    def doScriptOption(self) -> Optional[str]:
-        """Handle --script=path"""
-        m = g.findComplexOption(r'--script=(.+)', self.usage)
-        if not m:
-            return None
-        fn = m.group(1).replace('"', '')
-        # #1090: use cwd, not g.app.loadDir, to find scripts.
-        path = g.finalize_join(os.getcwd(), fn)
-        script, e = g.readFileIntoString(path, kind='script:', verbose=False)
-        if not script:
-            arg = m.group(0)
-            g.optionError(arg, f"Script not found: {m.group(1)!r}", self.usage)
-        return script
-    #@+node:ekr.20230615055158.1: *6* LM.doSelectOption
-    def doSelectOption(self) -> Optional[str]:
-        """Handle --select=headline"""
-        m = g.findComplexOption(r'--select=(.+)', self.usage)
-        return m.group(1) if m else None
-    #@+node:ekr.20230615034517.1: *6* LM.doSimpleOptions
-    def doSimpleOptions(self) -> None:
-        """Handle options without arguments."""
-        #@+<< define scanArgv helpers >>
-        #@+node:ekr.20230615053133.1: *7* << define scanArgv helpers >>
-        def _black() -> None:
-            g.app.write_black_sentinels = True
+        #@+node:ekr.20210927034148.5: *6* function: doLoadTypeOption
+        def doLoadTypeOption() -> Optional[str]:
+            """Handle load-type"""
+            m = utils.find_complex_option(r'--load-type=@(edit|file)')
+            return m.group(1).lower() if m else None
+        #@+node:ekr.20210927034148.7: *6* function: doScriptOption
+        def doScriptOption() -> Optional[str]:
+            """Handle --script=path"""
+            m = utils.find_complex_option(r'--script=(.+)')
+            if not m:
+                return None
+            fn = m.group(1).replace('"', '')
+            # #1090: use cwd, not g.app.loadDir, to find scripts.
+            path = g.finalize_join(os.getcwd(), fn)
+            script, e = g.readFileIntoString(path, kind='script:', verbose=False)
+            if not script:
+                arg = m.group(0)
+                utils.option_error(arg, f"Script not found: {m.group(1)!r}")
+            return script
+        #@+node:ekr.20230615055158.1: *6* function: doSelectOption
+        def doSelectOption() -> Optional[str]:
+            """Handle --select=headline"""
+            m = utils.find_complex_option(r'--select=(.+)')
+            return m.group(1) if m else None
+        #@+node:ekr.20230615034517.1: *6* function: doSimpleOptions
+        def doSimpleOptions() -> None:
+            """Handle options without arguments."""
+            #@+<< define scanArgv helpers >>
+            #@+node:ekr.20230615053133.1: *7* << define scanArgv helpers >>
+            def _black() -> None:
+                g.app.write_black_sentinels = True
 
-        def _diff() -> None:
-            g.app.diff = True
+            def _diff() -> None:
+                g.app.diff = True
 
-        def _fail_fast() -> None:
-            g.app.failFast = True
+            def _fail_fast() -> None:
+                g.app.failFast = True
 
-        def _full_screen() -> None:
-            g.app.start_fullscreen = True
+            def _full_screen() -> None:
+                g.app.start_fullscreen = True
 
-        def _listen_to_log() -> None:
-            g.app.listen_to_log_flag = True
+            def _listen_to_log() -> None:
+                g.app.listen_to_log_flag = True
 
-        def _ipython() -> None:
-            g.app.useIpython = True
+            def _ipython() -> None:
+                g.app.useIpython = True
 
-        def _maximized() -> None:
-            g.app.start_maximized = True
+            def _maximized() -> None:
+                g.app.start_maximized = True
 
-        def _minimized() -> None:
-            g.app.start_minimized = True
-            g.app.use_splash_screen = False
+            def _minimized() -> None:
+                g.app.start_minimized = True
+                g.app.use_splash_screen = False
 
-        def _no_plugins() -> None:
-            g.app.enablePlugins = False
+            def _no_plugins() -> None:
+                g.app.enablePlugins = False
 
-        def _no_splash() -> None:
-            g.app.use_splash_screen = False
+            def _no_splash() -> None:
+                g.app.use_splash_screen = False
 
-        def _quit() -> None:
-            g.app.quit_after_load = True
+            def _quit() -> None:
+                g.app.quit_after_load = True
 
-        def _silent() -> None:
-            g.app.silentMode = True
-        #@-<< define scanArgv helpers >>
+            def _save_session() -> None:
+                g.app.always_write_session_data = True
 
-        options_dict: dict[str, Callable] = {
-            '-b': _black,
-            '--black-sentinels': _black,
-            '--diff': _diff,
-            '--fail-fast': _fail_fast,
-            '--fullscreen': _full_screen,
-            '--listen-to-log': _listen_to_log,
-            '--ipython': _ipython,
-            '--maximized': _maximized,
-            '--minimized': _minimized,
-            '--no-plugins': _no_plugins,
-            '--no-splash': _no_splash,
-            '--quit': _quit,
-            '--silent': _silent,
-        }
-        for option, helper in options_dict.items():
-            if option in sys.argv:
-                helper()
-    #@+node:ekr.20230615060055.1: *6* LM.doThemeOption
-    def doThemeOption(self) -> Optional[str]:
-        """Handle --theme=path"""
-        m = g.findComplexOption(r'--theme=(.+)', self.usage)
-        return m.group(1).replace('"', '') if m else None
-    #@+node:ekr.20230615075314.1: *6* LM.doTraceOptions
-    def doTraceOptions(self) -> None:
-        """Handle --trace-binding, --trace-setting and --trace"""
+            def _silent() -> None:
+                g.app.silentMode = True
+            #@-<< define scanArgv helpers >>
 
-        # --trace-binding
-        m = g.findComplexOption(r'--trace-binding=([\w\-\+]+)', self.usage)
-        if m:
-            g.app.trace_binding = m.group(1)
-            print(f"Enabling --trace-binding={m.group(1)}")
+            options_dict: dict[str, Callable] = {
+                '-b': _black,
+                '--black-sentinels': _black,
+                '--diff': _diff,
+                '--fail-fast': _fail_fast,
+                '--fullscreen': _full_screen,
+                '--listen-to-log': _listen_to_log,
+                '--ipython': _ipython,
+                '--maximized': _maximized,
+                '--minimized': _minimized,
+                '--no-plugins': _no_plugins,
+                '--no-splash': _no_splash,
+                '--quit': _quit,
+                '--save-session': _save_session,
+                '--silent': _silent,
+            }
+            for option, helper in options_dict.items():
+                if option in sys.argv:
+                    helper()
+        #@+node:ekr.20230615060055.1: *6* function: doThemeOption
+        def doThemeOption() -> Optional[str]:
+            """Handle --theme=path"""
+            m = utils.find_complex_option(r'--theme=(.+)')
+            return m.group(1).replace('"', '') if m else None
+        #@+node:ekr.20230615075314.1: *6* function: doTraceOptions
+        def doTraceOptions() -> None:
+            """Handle --trace-binding, --trace-setting and --trace"""
 
-        # --trace-setting=setting
-        m = g.findComplexOption(r'--trace-setting=([\w]+)', self.usage)
-        if m:
-            # g.app.config does not exist yet.
-            g.app.trace_setting = m.group(1)
-            print(f"Enabling --trace-setting={m.group(1)}")
+            # --trace-binding
+            m = utils.find_complex_option(r'--trace-binding=([\w\-\+]+)')
+            if m:
+                g.app.trace_binding = m.group(1)
+                print(f"Enabling --trace-binding={m.group(1)}")
 
-        # --trace=option.
-        valid = [
-            'abbrev', 'beauty', 'cache', 'coloring', 'drawing', 'events',
-            'focus', 'git', 'gnx', 'importers', 'ipython', 'keys',
-            'layouts', 'plugins', 'save', 'select', 'sections', 'shutdown',
-            'size', 'speed', 'startup', 'themes', 'undo', 'verbose', 'zoom',
+            # --trace-setting=setting
+            m = utils.find_complex_option(r'--trace-setting=([\w]+)')
+            if m:
+                # g.app.config does not exist yet.
+                g.app.trace_setting = m.group(1)
+                print(f"Enabling --trace-setting={m.group(1)}")
+
+            # --trace=option.
+            valid = [
+                'abbrev', 'beauty', 'cache', 'coloring', 'drawing', 'events',
+                'focus', 'git', 'gnx', 'importers', 'ipython', 'keys',
+                'layouts', 'plugins', 'save', 'select', 'sections', 'shutdown',
+                'size', 'speed', 'startup', 'themes', 'undo', 'verbose', 'zoom',
+            ]
+            m = utils.find_complex_option(r'--trace=([\w\,]+)')
+            if not m:
+                return
+            values = m.group(1).split(',')
+            error = False
+            for value in values:
+                if value in valid:
+                    g.app.debug.append(value)
+                else:
+                    error = True
+            if error:
+                arg = m.group(0)
+                valid_s = '\n   '.join(valid)
+                print(f"Valid --trace values are:\n   {valid_s}")
+                utils.option_error(arg, 'Invalid value')
+            print(f"\nEnabling --trace={', '.join(g.app.debug)}\n")
+        #@+node:ekr.20210927034148.10: *6* function: doWindowSizeOption
+        def doWindowSizeOption() -> Optional[tuple[int, int]]:
+            """Handle --window-size"""
+            m = utils.find_complex_option(r'--window-size=(\d+)x(\d+)')
+            if not m:
+                return None
+            try:
+                h, w = int(m.group(1)), int(m.group(2))
+            except ValueError:
+                arg = m.group(0)
+                utils.option_error(arg, 'Invalid value: expected int x int')
+            return h, w
+        #@+node:ekr.20210927034148.9: *6* function: doWindowSpotOption
+        def doWindowSpotOption() -> Optional[tuple[int, int]]:
+            """Handle --window-spot"""
+            m = utils.find_complex_option(r'--window-spot=(\d+)x(\d+)')
+            if not m:
+                return None
+            try:
+                top, left = int(m.group(1)), int(m.group(2))
+            except ValueError:
+                arg = m.group(0)
+                utils.option_error(arg, 'Invalid value: expected int x int')
+            return top, left
+        #@-others
+
+        obsolete_options = [
+            '--dock', '--global-docks', '--init-docks', '--no-cache',
+            '--no-dock', '--session-restore', '--session-save', '--use-docks',
         ]
-        m = g.findComplexOption(r'--trace=([\w\,]+)', self.usage)
-        if not m:
-            return
-        values = m.group(1).split(',')
-        error = False
-        for value in values:
-            if value in valid:
-                g.app.debug.append(value)
-            else:
-                error = True
-        if error:
-            arg = m.group(0)
-            valid_s = '\n   '.join(valid)
-            print(f"Valid --trace values are:\n   {valid_s}")
-            g.optionError(arg, 'Invalid value', self.usage)
-        print(f"Enabling --trace={', '.join(g.app.debug)}")
-    #@+node:ekr.20210927034148.10: *6* LM.doWindowSizeOption
-    def doWindowSizeOption(self) -> Optional[tuple[int, int]]:
-        """Handle --window-size"""
-        m = g.findComplexOption(r'--window-size=(\d+)x(\d+)', self.usage)
-        if not m:
-            return None
-        try:
-            h, w = int(m.group(1)), int(m.group(2))
-        except ValueError:
-            arg = m.group(0)
-            g.optionError(arg, 'Invalid value: expected int x int', self.usage)
-        return h, w
-    #@+node:ekr.20210927034148.9: *6* LM.doWindowSpotOption
-    def doWindowSpotOption(self) -> Optional[tuple[int, int]]:
-        """Handle --window-spot"""
-        m = g.findComplexOption(r'--window-spot=(\d+)x(\d+)', self.usage)
-        if not m:
-            return None
-        try:
-            top, left = int(m.group(1)), int(m.group(2))
-        except ValueError:
-            arg = m.group(0)
-            g.optionError(arg, 'Invalid value: expected int x int', self.usage)
-        return top, left
+        usage = defineUsage()
+        utils = g.OptionsUtils(usage, obsolete_options)
+        # Handle help args.
+        if any(z in sys.argv for z in ('-h', '-?', '--help')):
+            print(usage)
+            sys.exit()
+        doSimpleOptions()
+        doTraceOptions()
+        # Set the LoadManager.files ivar.
+        self.files = computeFilesList(fileName)
+        # Return a dictionary of complex options.
+        script = None if pymacs else doScriptOption()  # Used twice below.
+        return {
+            'gui': doGuiOption(),
+            'load_type': doLoadTypeOption(),
+            'script': script,
+            'select': doSelectOption(),
+            'theme_path': doThemeOption(),
+            'version': any(z in sys.argv for z in ('-v', '--version')),
+            'windowFlag': script and '--script-window' in sys.argv,
+            'windowSize': doWindowSizeOption(),
+            'windowSpot': doWindowSpotOption(),
+        }
     #@+node:ekr.20160718072648.1: *5* LM.setStdStreams
     def setStdStreams(self) -> None:
         """

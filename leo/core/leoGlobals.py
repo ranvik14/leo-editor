@@ -142,8 +142,8 @@ cmd_instance_dict = {
     'VimCommands':              ['c', 'vimCommands'],
 }
 #@-<< define global decorator dicts >>
-#@+<< define global error regexs >>
-#@+node:ekr.20220412193109.1: ** << define global error regexs >> (leoGlobals.py)
+#@+<< define global error regexes >>
+#@+node:ekr.20220412193109.1: ** << define global error regexes >> (leoGlobals.py)
 # Most code need only know about the *existence* of these patterns.
 
 # For all *present* patterns, m.group(1) is the filename and m.group(2) is the line number.
@@ -155,7 +155,7 @@ mypy_pat = re.compile(r'^(.+?):([0-9]+):\s*(error|note)\s*(.*)\s*$')
 pyflakes_pat = re.compile(r'^(.*):([0-9]+):[0-9]+ .*?$')
 pylint_pat = re.compile(r'^(.*):\s*([0-9]+)[,:]\s*[0-9]+:.*?\(.*\)\s*$')
 python_pat = re.compile(r'^\s*File\s+"(.*?)",\s*line\s*([0-9]+)\s*$')
-#@-<< define global error regexs >>
+#@-<< define global error regexes >>
 #@+<< define g.decorators >>
 #@+node:ekr.20150508165324.1: ** << define g.Decorators >>
 #@+others
@@ -315,8 +315,8 @@ def new_cmd_decorator(name: str, ivars: list[str]) -> Callable:
     return _decorator
 #@-others
 #@-<< define g.decorators >>
-#@+<< define regex's >>
-#@+node:ekr.20200810093517.1: ** << define regex's >>
+#@+<< define regexes >>
+#@+node:ekr.20200810093517.1: ** << define regexes >> (leoGlobals.py)
 # Regex used by this module, and in leoColorizer.py.
 g_language_pat = re.compile(r'^@language\s+(\w+)+', re.MULTILINE)
 
@@ -342,7 +342,7 @@ unl_regex = re.compile(r"""\bunl:[^`'"]+""")
 url_leadins = 'fghmnptw'
 url_kinds = '(file|ftp|gopher|http|https|mailto|news|nntp|prospero|telnet|wais)'
 url_regex = re.compile(fr"""\b{url_kinds}://[^\s'"]+""")
-#@-<< define regex's >>
+#@-<< define regexes >>
 tree_popup_handlers: list[Callable] = []  # Set later.
 user_dict: dict[Any, Any] = {}  # Non-persistent dictionary for scripts and plugins.
 app: Any = None  # The singleton app object. Set by runLeo.py.
@@ -1452,6 +1452,85 @@ class MatchBrackets:
         else:
             g.es("unmatched", repr(ch))
     #@-others
+#@+node:ekr.20230616134732.1: *3* class g.OptionsUtils
+class OptionsUtils:
+    """
+    A stateless class for handling command-line options.
+
+    This class *calculates* valid options from the usage message.
+    """
+
+    def __init__(self, usage: str, obsolete_options: list[str] = None) -> None:
+        # This class is essentially stateless because these ivars never change.
+        self.usage = usage
+        self.obsolete_options = obsolete_options
+        self.valid_options = self.compute_valid_options()
+        self.check_options()
+
+    #@+others
+    #@+node:ekr.20230615034937.1: *4* OptionsUtils.check_options
+    def check_options(self) -> None:
+        """Make sure all command-line options pass sanity checks."""
+        option_prefixes = [z[:-1] for z in self.valid_options if z.endswith('=')]
+        for arg in sys.argv:
+            if arg in self.obsolete_options:
+                print(f"Ignoring obsolete option: {arg!r}")
+            elif arg.startswith('-'):
+                for option in self.valid_options:
+                    if arg.startswith(option) and not arg.endswith('='):
+                        break
+                else:
+                    for prefix in option_prefixes:
+                        if arg.startswith(prefix):
+                            self.option_error(arg, 'Missing value')
+                    self.option_error(arg, 'Unknown option')
+            else:
+                # Do a simple check for file arguments.
+                if any(z in arg for z in ',='):
+                    self.option_error(arg, 'Invalid file arg')
+    #@+node:ekr.20230615062610.1: *4* OptionsUtils.compute_valid_options
+    def compute_valid_options(self) -> list[str]:
+        """
+        Return a list of valid options by parsing the given usage message.
+        Options requiring an argument end with '='.
+        """
+        # Abbreviations (-whatever) must appear before full options (--whatever).
+        option_pattern = re.compile(r'\s*(-\w)?,?\s*(--[\w-]+=?)')
+        valid = ['-?']
+        for line in g.splitLines(self.usage):
+            m = option_pattern.match(line)
+            if m:
+                if m.group(1):
+                    valid.append(m.group(1))
+                if m.group(2):
+                    valid.append(m.group(2))
+        return sorted(list(set(valid)))
+    #@+node:ekr.20230615084117.1: *4* OptionsUtils.find_complex_option
+    def find_complex_option(self, regex: str) -> Optional[re.Match]:
+        """
+        Check arguments that take an argument.
+
+        Exit if the option exists but contains argument.
+        """
+        assert '=' in regex, repr(regex)
+        prefix = regex.split('=')[0]
+        for arg in sys.argv:
+            if arg.split('=')[0] == prefix:
+                m = re.match(regex, arg)
+                if m:
+                    return m
+                self.option_error(arg, 'Missing or erroneous value')
+        return None
+    #@+node:ekr.20230616075049.1: *4* OptionsUtils.option_error
+    def option_error(self, arg: str, message: str) -> None:
+        """Print an error message and help message, then exit."""
+        g.trace(g.callers(6))
+        message2 = f"Invalid {arg!r} option: {message}"
+        print(message2)
+        print(self.usage)
+        print(message2)
+        sys.exit(1)
+    #@-others
 #@+node:EKR.20040612114220.4: *3* class g.ReadLinesClass
 class ReadLinesClass:
     """A class whose next method provides a readline method for Python's tokenize module."""
@@ -1567,6 +1646,53 @@ def rawPrint(s: str) -> None:
     redirectStdOutObj.rawPrint(s)
 #@-others
 #@-<< define convenience methods for redirecting streams >>
+#@+node:ekr.20120129181245.10220: *3* class g.SettingsDict(dict)
+class SettingsDict(dict):
+    """A subclass of dict providing settings-related methods."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__()
+        self._name = name  # For __repr__ only.
+
+    def __repr__(self) -> str:
+        return f"<SettingsDict name:{self._name} "
+
+    __str__ = __repr__
+
+    #@+others
+    #@+node:ekr.20120223062418.10422: *4* td.copy
+    def copy(self, name: str = None) -> Any:
+        """Return a new dict with the same contents."""
+        # The result is a g.SettingsDict.
+        return copy.deepcopy(self)
+    #@+node:ekr.20190904052828.1: *4* td.add_to_list
+    def add_to_list(self, key: str, val: Any) -> None:
+        """Update the *list*, self.d [key]"""
+        if key is None:
+            g.trace('TypeDict: None is not a valid key', g.callers())
+            return
+        aList = self.get(key, [])
+        if val not in aList:
+            aList.append(val)
+            self[key] = aList
+    #@+node:ekr.20190903181030.1: *4* td.get_setting & get_string_setting
+    def get_setting(self, key: str) -> Any:
+        """Return the canonical setting name."""
+        key = key.replace('-', '').replace('_', '')
+        gs = self.get(key)
+        val = gs and gs.val
+        return val
+
+    def get_string_setting(self, key: str) -> Optional[str]:
+        val = self.get_setting(key)
+        return val if val and isinstance(val, str) else None
+    #@+node:ekr.20190904103552.1: *4* td.name & setName
+    def name(self) -> str:
+        return self._name
+
+    def setName(self, name: str) -> None:
+        self._name = name
+    #@-others
 #@+node:ekr.20121128031949.12605: *3* class g.SherlockTracer
 class SherlockTracer:
     """
@@ -2367,53 +2493,6 @@ def null_object_print(id_: int, kind: Any, *args: Any) -> None:
         # Print each signature once.
         tracing_signatures[signature] = True
         g.pr(f"{s:40} {callers}")
-#@+node:ekr.20120129181245.10220: *3* class g.SettingsDict(dict)
-class SettingsDict(dict):
-    """A subclass of dict providing settings-related methods."""
-
-    def __init__(self, name: str) -> None:
-        super().__init__()
-        self._name = name  # For __repr__ only.
-
-    def __repr__(self) -> str:
-        return f"<SettingsDict name:{self._name} "
-
-    __str__ = __repr__
-
-    #@+others
-    #@+node:ekr.20120223062418.10422: *4* td.copy
-    def copy(self, name: str = None) -> Any:
-        """Return a new dict with the same contents."""
-        # The result is a g.SettingsDict.
-        return copy.deepcopy(self)
-    #@+node:ekr.20190904052828.1: *4* td.add_to_list
-    def add_to_list(self, key: str, val: Any) -> None:
-        """Update the *list*, self.d [key]"""
-        if key is None:
-            g.trace('TypeDict: None is not a valid key', g.callers())
-            return
-        aList = self.get(key, [])
-        if val not in aList:
-            aList.append(val)
-            self[key] = aList
-    #@+node:ekr.20190903181030.1: *4* td.get_setting & get_string_setting
-    def get_setting(self, key: str) -> Any:
-        """Return the canonical setting name."""
-        key = key.replace('-', '').replace('_', '')
-        gs = self.get(key)
-        val = gs and gs.val
-        return val
-
-    def get_string_setting(self, key: str) -> Optional[str]:
-        val = self.get_setting(key)
-        return val if val and isinstance(val, str) else None
-    #@+node:ekr.20190904103552.1: *4* td.name & setName
-    def name(self) -> str:
-        return self._name
-
-    def setName(self, name: str) -> None:
-        self._name = name
-    #@-others
 #@+node:ville.20090827174345.9963: *3* class g.UiTypeException & g.assertui
 class UiTypeException(Exception):
     pass
@@ -2705,7 +2784,15 @@ def pdb(message: str = '') -> None:
 #@+node:ekr.20050819064157: *4* g.objToString & aliases
 def objToString(obj: Any, *, indent: int = 0, tag: str = None, width: int = 120) -> str:
     """Pretty print any Python object to a string."""
-    if isinstance(obj, (list, tuple)) and obj and all(isinstance(z, str) for z in obj):
+    if isinstance(obj, dict):
+        result_list = ['{\n']
+        pad = max([len(key) for key in obj])
+        for key in sorted(obj):
+            pad_s = ' ' * max(0, pad - len(key))
+            result_list.append(f"  {pad_s}{key}: {obj.get(key)}\n")
+        result_list.append('}')
+        result = ''.join(result_list)
+    elif isinstance(obj, (list, tuple)):
         # Return the enumerated lines of the list.
         result_list = ['[\n' if isinstance(obj, list) else '(\n']
         for i, z in enumerate(obj):
@@ -5205,10 +5292,6 @@ def toPythonIndex(s: str, index: str) -> int:
     g.trace(f"bad string index: {index}")
     return 0
 #@+node:ekr.20140526144610.17601: *3* g.Strings
-#@+node:ekr.20190503145501.1: *4* g.isascii
-def isascii(s: str) -> bool:
-    # s.isascii() is defined in Python 3.7.
-    return all(ord(ch) < 128 for ch in s)
 #@+node:ekr.20031218072017.3106: *4* g.angleBrackets & virtual_event_name
 def angleBrackets(s: str) -> str:
     """Returns < < s > >"""
@@ -5225,6 +5308,10 @@ def ensureLeadingNewlines(s: str, n: int) -> str:
 def ensureTrailingNewlines(s: str, n: int) -> str:
     s = g.removeTrailing(s, '\t\n\r ')
     return s + '\n' * n
+#@+node:ekr.20190503145501.1: *4* g.isascii
+def isascii(s: str) -> bool:
+    # s.isascii() is defined in Python 3.7.
+    return all(ord(ch) < 128 for ch in s)
 #@+node:ekr.20050920084036.4: *4* g.longestCommonPrefix & g.itemsMatchingPrefixInList
 def longestCommonPrefix(s1: str, s2: str) -> str:
     """Find the longest prefix common to strings s1 and s2."""
@@ -5253,6 +5340,10 @@ def itemsMatchingPrefixInList(s: str, aList: list[str], matchEmptyPrefix: bool =
     else:
         common_prefix = ''
     return pmatches, common_prefix
+#@+node:ekr.20230704030847.1: *4* g.pad
+def pad(s: str, width: int) -> str:
+    """Return a string of blanks to pad string s to the given width."""
+    return ' ' * max(0, width - len(s))
 #@+node:ekr.20090516135452.5776: *4* g.removeLeading/Trailing
 # Warning: g.removeTrailingWs already exists.
 # Do not change it!
@@ -6339,70 +6430,6 @@ def truncate(s: str, n: int) -> str:
 #@+node:ekr.20031218072017.3150: *3* g.windows
 def windows() -> Optional[list]:
     return app and app.windowList
-#@+node:ekr.20230616134732.1: ** g.Options
-# stateless utility functions for handling command-line options.
-
-# LM.scanOptions uses these functions.
-#@+node:ekr.20230615034937.1: *3* g.checkOptions
-def checkOptions(obsolete_options: list[str], valid_options: list[str], usage: str) -> None:
-    """Make sure all command-line options pass sanity checks."""
-    option_prefixes = [z[:-1] for z in valid_options if z.endswith('=')]
-    for arg in sys.argv:
-        if arg in obsolete_options:
-            print(f"Ignoring obsolete option: {arg!r}")
-        elif arg.startswith('-'):
-            for option in valid_options:
-                if arg.startswith(option):
-                    break
-            else:
-                for prefix in option_prefixes:
-                    if arg.startswith(prefix):
-                        g.optionError(arg, 'Missing value', usage)
-                g.optionError(arg, 'Unknown option', usage)
-        else:
-            # Do a simple check for file arguments.
-            if any(z in arg for z in ',='):
-                g.optionError(arg, 'Invalid file arg', usage)
-#@+node:ekr.20230615062610.1: *3* g.computeValidOptions
-def computeValidOptions(usage: str) -> list[str]:
-    """
-    Return a list of valid options by parsing the given usage message.
-    Options requiring an argument end with '='.
-    """
-    # Abbreviations (-whatever) must appear before full options (--whatever).
-    option_pattern = re.compile(r'\s*(-\w)?,?\s*(--[\w-]+=?)')
-    valid = ['-?']
-    for line in g.splitLines(usage):
-        m = option_pattern.match(line)
-        if m:
-            if m.group(1):
-                valid.append(m.group(1))
-            if m.group(2):
-                valid.append(m.group(2))
-    return list(sorted(list(set(valid))))
-#@+node:ekr.20230615084117.1: *3* g.findComplexOption
-def findComplexOption(regex: str, usage: str) -> Optional[re.Match]:
-    # """Return the complex argument starting with the given prefix."""
-    """
-    Handle the common portion of complex arguments.
-
-    Exit if the option exists but contains no value.
-    """
-    assert '=' in regex, repr(regex)
-    prefix = regex.split('=')[0]
-    for arg in sys.argv:
-        if arg.startswith(prefix):
-            m = re.match(regex, arg)
-            if m:
-                return m
-            g.optionError(arg, 'Missing or erroneous value', usage)
-    return None
-#@+node:ekr.20230616075049.1: *3* g.optionError
-def optionError(arg: str, message: str, usage: str) -> None:
-    """Print an error message and help message, then exit."""
-    print(f"Invalid {arg!r} option: {message}")
-    print(usage)
-    sys.exit(1)
 #@+node:ekr.20031218072017.2145: ** g.os_path_ Wrappers
 #@+at Note: all these methods return Unicode strings. It is up to the user to
 # convert to an encoded string as needed, say when opening a file.
@@ -7151,6 +7178,50 @@ def run_unit_tests(tests: str = None, verbose: bool = False) -> None:
     command = f"{sys.executable} -m unittest {verbosity} {tests or ''} "
     g.execute_shell_commands(command)
 #@+node:ekr.20120311151914.9916: ** g.Urls & UNLs
+#@+<< About clickable links >>
+#@+node:ekr.20230624100622.1: *3* << About clickable links >>
+#@@language rest
+#@@wrap
+#@+at
+# Clickable links have four forms:
+#
+# 1. Error messages produced by flake8, mypy, pyflakes, pylint, python:
+#
+#    Some of these tools produce clickable links in the log pane when run
+#    *within* Leo. Some do not.
+#
+#    When running these tools *outside of* Leo, copying an error message from
+#    the *console* to Leo's log pane will create clickable links in the log
+#    pane. Control-clicking these links will select the proper node and line
+#    provided the outline contains an `@<file>` node for file mentioned in
+#    the error message.
+#
+# 2. New in Leo 6.7.4: UNLs based on gnx's (global node indices):
+#
+#    Links of the form `unl:gnx:` + `//{outline}#{gnx}` open the given
+#    outline and select the first outline node with the given gnx. These UNLs
+#    will work as long as the node exists anywhere in the outline.
+#
+#    For example, the link: `unl:gnx://#ekr.20031218072017.2406` refers to this
+#    outline's "Code" node. Try it. The link works in this outline.
+#
+#    *Note*: `{outline}` is optional. It can be an absolute path name or a relative
+#    path name resolved using `@data unl-path-prefixes`.
+#
+# 3. Leo's headline-based UNLs, as shown in the status pane:
+#
+#    Headline-based UNLs consist of `unl://` + `//{outline}#{headline_list}`
+#    where headline_list is list of headlines separated by `-->`.
+#
+#    This link works: `unl://#Code-->About this file`.
+#
+#    *Note*: `{outline}` is optional. It can be an absolute path name or a relative
+#    path name resolved using `@data unl-path-prefixes`.
+#
+# 4. Web URLs: file, ftp, gopher, http, https, mailto, news, nntp, prospero, telnet, wais.
+#
+#    For example, Leo's forum: https://leo-editor.github.io/leo-editor/
+#@-<< About clickable links >>
 #@+node:ekr.20120320053907.9776: *3* g.computeFileUrl
 def computeFileUrl(fn: str, c: Cmdr = None, p: Position = None) -> str:
     """
@@ -7182,19 +7253,69 @@ def computeFileUrl(fn: str, c: Cmdr = None, p: Position = None) -> str:
             path = g.finalize(path)
         url = f"{tag}{path}"
     return url
-#@+node:ekr.20190608090856.1: *3* g.es_clickable_link
-def es_clickable_link(c: Cmdr, p: Position, line_number: int, message: str) -> None:
+#@+node:ekr.20190608090856.1: *3* g.es_clickable_link (not used)
+def es_clickable_link(c: Cmdr, p: Position, line_number: int, message: str) -> None:  # pragma: no cover
     """
     Write a clickable message to the given line number of p.b.
 
     Negative line numbers indicate global lines.
 
     """
+    # Not used in Leo's core.
     unl = p.get_UNL()
     c.frame.log.put(message.strip() + '\n', nodeLink=f"{unl}::{line_number}")
-#@+node:tbrown.20140311095634.15188: *3* g.findUNL & helpers
-def findUNL(unlList1: list[str], c: Cmdr) -> Optional[Position]:
+#@+node:ekr.20230628072620.1: *3* g.findAnyUnl
+def findAnyUnl(unl_s: str, c: Cmdr) -> Optional[Position]:
+    """Find a either a legacy (path-based) or new (gnx-based) unl."""
+    unl = unl_s
+    if unl.startswith('unl:gnx:'):
+        # Resolve a gnx-based unl.
+        unl = unl[8:]
+        file_part = g.getUNLFilePart(unl)
+        c2 = g.openUNLFile(c, file_part)
+        tail = unl[3 + len(file_part) :]  # 3: Skip the '//' and '#'
+        return g.findGnx(tail, c2)
+    # Resolve a file-based unl.
+    for prefix in ('unl:', 'file:'):
+        if unl.startswith(prefix):
+            unl = unl[len(prefix) :]
+            break
+    else:
+        print(f"Bad unl: {unl_s}")
+        return None
+    file_part = g.getUNLFilePart(unl)
+    c2 = g.openUNLFile(c, file_part)
+    tail = unl[3 + len(file_part) :]  # 3: Skip the '//' and '#'
+    unlList = tail.split('-->')
+    return g.findUnl(unlList, c2)
+#@+node:ekr.20230624015529.1: *3* g.findGnx (new unls)
+file_pat = re.compile(r'^(.*)::([-\d]+)?$')  # '::' is the separator.
+
+def findGnx(gnx: str, c: Cmdr) -> Optional[Position]:
+    """Return the position with the given gnx in c."""
+    n: int = 0  # The line number.
+    m = file_pat.match(gnx)
+    if m:
+        gnx = m.group(1)
+        try:
+            n = int(m.group(2))
+        except(TypeError, ValueError):
+            pass
+    for p in c.all_unique_positions():
+        if p.gnx == gnx:
+            if n is None:
+                return p
+            p2, offset = c.gotoCommands.find_file_line(-n, p)
+            return p2 or p
+    return None
+#@+node:ekr.20230626064652.1: *3* g.findUnl & helpers (legacy unls)
+def findUnl(unlList1: list[str], c: Cmdr) -> Optional[Position]:
     """
+    g.findUnl: support for legacy UNLs.
+    unlList is a list of headlines.
+
+    This method must remain for compatibility with plugins.
+
     Find and move to the unl given by the unlList in the commander c.
     Return the found position, or None.
     """
@@ -7203,7 +7324,7 @@ def findUNL(unlList1: list[str], c: Cmdr) -> Optional[Position]:
     new_pat = re.compile(r'^(.*?)(::)([-\d]+)?$')  # '::' is the separator.
 
     #@+others  # Define helper functions
-    #@+node:ekr.20220213142925.1: *4* function: convert_unl_list
+    #@+node:ekr.20230626064652.2: *4* function: convert_unl_list
     def convert_unl_list(aList: list[str]) -> list[str]:
         """
         Convert old-style UNLs to new UNLs, retaining line numbers if possible.
@@ -7226,11 +7347,12 @@ def findUNL(unlList1: list[str], c: Cmdr) -> Optional[Position]:
             result.append(s)
         # Do *not* remove duplicates!
         return result
-    #@+node:ekr.20220213142735.1: *4* function: full_match
+    #@+node:ekr.20230626064652.3: *4* function: full_match
     def full_match(p: Position) -> bool:
         """Return True if the stripped headlines of p and all p's parents match unlList."""
         # Careful: make copies.
-        aList, p1 = unlList[:], p.copy()
+        aList: list[str] = unlList[:]
+        p1 = p.copy()
         while aList and p1:
             m = new_pat.match(aList[-1])
             if m and m.group(1).strip() != p1.h.strip():
@@ -7268,19 +7390,15 @@ def findUNL(unlList1: list[str], c: Cmdr) -> Optional[Position]:
                     except(TypeError, ValueError):
                         g.trace('bad line number', line)
                 if n < 0:
-                    p, offset = c.gotoCommands.find_file_line(-n, p)  # Calls c.redraw().
-                    if not p:
-                        g.trace(f"Not found: global line {n}")
-                    return p
-                insert_point = sum(len(z) for z in g.splitLines(p.b)[:n])
-                c.redraw(p)
-                c.frame.body.wrapper.setInsertPoint(insert_point)
-                c.frame.bringToFront()
-                c.bodyWantsFocusNow()
+                    p2, offset = c.gotoCommands.find_file_line(-n, p)  # Calls c.redraw().
+                    if not p2:
+                        g.trace(f"{p.h}: global line {n} not found")
                 return p
         # Not found. Pop the first parent from unlList.
         unlList.pop(0)
     return None
+
+findUNL = findUnl  # Compatibility.
 #@+node:ekr.20120311151914.9917: *3* g.getUrlFromNode
 def getUrlFromNode(p: Position) -> Optional[str]:
     """
@@ -7316,84 +7434,25 @@ def getUrlFromNode(p: Position) -> Optional[str]:
             return s
     return None
 #@+node:ekr.20170221063527.1: *3* g.handleUnl
-def handleUnl(unl: str, c: Cmdr) -> Any:
+def handleUnl(unl_s: str, c: Cmdr) -> Optional[Cmdr]:
     """
-    Handle a Leo UNL. This must *never* open a browser.
-
-    Return the commander for the found UNL, or None.
-
-    Redraw the commander if the UNL is found.
+    Select the node given by any kind of unl.
+    This must *never* open a browser.
     """
+    if not unl_s:
+        return None
+    unl = unl_s.strip()
     if not unl:
         return None
-    unll = unl.lower()
-    if unll.startswith('unl://'):
-        unl = unl[6:]
-    elif unll.startswith('file://'):
-        unl = unl[7:]
-    unl = unl.strip()
-    if not unl:
+    p = g.findAnyUnl(unl, c)
+    if not p:
+        print(f"Not found: {unl!r}")
         return None
-    unl = g.unquoteUrl(unl)
-    # Compute path and unl.
-    if '#' not in unl and '-->' not in unl:
-        # The path is the entire unl.
-        path, unl = unl, None
-    elif '#' not in unl:
-        # The path is empty.
-        # Move to the unl in *this* commander.
-        p = g.findUNL(unl.split("-->"), c)
-        if p:
-            c.redraw(p)
-        return c
-    else:
-        path, unl = unl.split('#', 1)
-    if not unl:
-        return None  # #2731.
-    if not path:  # #2407
-        # Move to the unl in *this* commander.
-        p = g.findUNL(unl.split("-->"), c)
-        if p:
-            c.redraw(p)
-        return c
-    if c:
-        base = g.os_path_dirname(c.fileName())
-        c_path = g.finalize_join(base, path)
-    else:
-        c_path = None
-    # Look for the file in various places.
-    table = (
-        c_path,
-        g.finalize_join(g.app.loadDir, '..', path),
-        g.finalize_join(g.app.loadDir, '..', '..', path),
-        g.finalize_join(g.app.loadDir, '..', 'core', path),
-        g.finalize_join(g.app.loadDir, '..', 'config', path),
-        g.finalize_join(g.app.loadDir, '..', 'dist', path),
-        g.finalize_join(g.app.loadDir, '..', 'doc', path),
-        g.finalize_join(g.app.loadDir, '..', 'test', path),
-        g.app.loadDir,
-        g.app.homeDir,
-    )
-    for path2 in table:
-        if path2 and path2.lower().endswith('.leo') and os.path.exists(path2):
-            path = path2
-            break
-    else:
-        g.es_print('path not found', repr(path))
-        return None
-    # End editing in *this* outline, so typing in the new outline works.
-    c.endEditing()
-    c.redraw()
-    # Open the path.
-    c2 = g.openWithFileName(path, old_c=c)
-    if not c2:
-        return None
-    # Find  and redraw.
-    # #2445: Default to c2.rootPosition().
-    p = g.findUNL(unl.split("-->"), c2) or c2.rootPosition()
+    # Do not assume that p is in c.
+    c2 = p.v.context
+    if c2 != c:
+        g.app.selectLeoWindow(c2)  # Switch outlines.
     c2.redraw(p)
-    c2.bringToFront()
-    c2.bodyWantsFocusNow()
     return c2
 #@+node:tbrown.20090219095555.63: *3* g.handleUrl & helpers
 def handleUrl(url: str, c: Cmdr = None, p: Position = None) -> Any:
@@ -7410,7 +7469,7 @@ def handleUrl(url: str, c: Cmdr = None, p: Position = None) -> Any:
     if urll.startswith('@url'):
         url = url[4:].lstrip()
     if (
-        urll.startswith(('#', 'unl://')) or
+        urll.startswith(('#', 'unl://', 'unl:gnx:')) or
         urll.startswith('file://') and '-->' in urll
     ):
         return g.handleUnl(url, c)
@@ -7422,12 +7481,14 @@ def handleUrl(url: str, c: Cmdr = None, p: Position = None) -> Any:
         g.es_exception()
         return None
 #@+node:ekr.20170226054459.1: *4* g.handleUrlHelper
-def handleUrlHelper(url: str, c: Cmdr, p: Position) -> None:
+def handleUrlHelper(url: str, c: Cmdr, p: Position) -> None:  # pragma: no cover
     """Open a url.  Most browsers should handle:
         ftp://ftp.uu.net/public/whatever
         http://localhost/MySiteUnderDevelopment/index.html
         file:///home/me/todolist.html
     """
+    if g.unitTesting:
+        return
     tag = 'file://'
     original_url = url
     if url.startswith(tag) and not url.startswith(tag + '#'):
@@ -7447,23 +7508,18 @@ def handleUrlHelper(url: str, c: Cmdr, p: Position) -> None:
         g.handleUnl(original_url, c)
     elif parsed.scheme in ('', 'file'):
         unquote_path = g.unquoteUrl(leo_path)
-        if g.unitTesting:
-            pass
-        elif g.os_path_exists(leo_path):
+        if g.os_path_exists(leo_path):
             g.os_startfile(unquote_path)
         else:
             g.es(f"File '{leo_path}' does not exist")
     else:
-        if g.unitTesting:
+        # Mozilla throws a weird exception, then opens the file!
+        try:
+            webbrowser.open(url)
+        except Exception:
             pass
-        else:
-            # Mozilla throws a weird exception, then opens the file!
-            try:
-                webbrowser.open(url)
-            except Exception:
-                pass
 #@+node:ekr.20170226060816.1: *4* g.traceUrl
-def traceUrl(c: Cmdr, path: str, parsed: Any, url: str) -> None:
+def traceUrl(c: Cmdr, path: str, parsed: Any, url: str) -> None:  # pragma: no cover
 
     print()
     g.trace('url          ', url)
@@ -7473,6 +7529,13 @@ def traceUrl(c: Cmdr, path: str, parsed: Any, url: str) -> None:
     g.trace('parsed.netloc', parsed.netloc)
     g.trace('parsed.path  ', parsed.path)
     g.trace('parsed.scheme', repr(parsed.scheme))
+#@+node:ekr.20230628072109.1: *3* g.isValidUnl
+# unls must contain a (possible empty) file part followed by something else.
+valid_unl_pattern = re.compile(r"(unl:gnx|unl|file)://(.*?)#.+")
+
+def isValidUnl(unl_s: str) -> bool:
+    """Return true if the given unl is valid."""
+    return bool(valid_unl_pattern.match(unl_s))
 #@+node:ekr.20120311151914.9918: *3* g.isValidUrl
 def isValidUrl(url: str) -> bool:
     """Return true if url *looks* like a valid url."""
@@ -7482,9 +7545,8 @@ def isValidUrl(url: str) -> bool:
         'sftp', 'shttp', 'sip', 'sips', 'snews', 'svn', 'svn+ssh', 'telnet', 'wais',
     )
     if not url:
-        return False
-    if url.lower().startswith('unl://') or url.startswith('#'):
-        # All Leo UNL's.
+        return False  # pragma: no cover (defensive)
+    if g.isValidUnl(url):
         return True
     if url.startswith('@'):
         return False
@@ -7495,7 +7557,7 @@ def isValidUrl(url: str) -> bool:
             return True
     return False
 #@+node:ekr.20120315062642.9744: *3* g.openUrl
-def openUrl(p: Position) -> None:
+def openUrl(p: Position) -> None:  # pragma: no cover
     """
     Open the url of node p.
     Use the headline if it contains a valid url.
@@ -7509,7 +7571,7 @@ def openUrl(p: Position) -> None:
                 g.handleUrl(url, c=c, p=p)
             g.doHook("@url2", c=c, p=p, url=url)
 #@+node:ekr.20110605121601.18135: *3* g.openUrlOnClick (open-url-under-cursor)
-def openUrlOnClick(event: Any, url: str = None) -> Optional[str]:
+def openUrlOnClick(event: Any, url: str = None) -> Optional[str]:  # pragma: no cover
     """Open the URL under the cursor.  Return it for unit testing."""
     # QTextEditWrapper.mouseReleaseEvent calls this outside Leo's command logic.
     # Make sure to catch all exceptions!
@@ -7518,7 +7580,7 @@ def openUrlOnClick(event: Any, url: str = None) -> Optional[str]:
     except Exception:
         g.es_exception()
         return None
-#@+node:ekr.20170216091704.1: *4* g.openUrlHelper (changed)
+#@+node:ekr.20170216091704.1: *4* g.openUrlHelper
 def openUrlHelper(event: Any, url: str = None) -> Optional[str]:
     """Open the unl, url or gnx under the cursor.  Return it for unit testing."""
     c = getattr(event, 'c', None)
@@ -7659,15 +7721,101 @@ def openUrlHelper(event: Any, url: str = None) -> Optional[str]:
     #@-<< look for filename or import>>
     return None
 #@+node:ekr.20170226093349.1: *3* g.unquoteUrl
-def unquoteUrl(url: str) -> str:
-    """Replace special characters (especially %20, by their equivalent)."""
+def unquoteUrl(url: str) -> str:  # pragma: no cover
+    """Replace escaped characters (especially %20, by their equivalent)."""
     return urllib.parse.unquote(url)
+#@+node:ekr.20230627143007.1: *3* g: file part utils
+
+#@+node:ekr.20230630132339.1: *4* g.getUNLFilePart
+file_part_pattern = re.compile(r'//(.*?)#.+')
+
+def getUNLFilePart(s: str) -> str:
+    """Return the file part of a unl, that is, everything *between* '//' and '#'."""
+    # Strip the prefix if it exists.
+    for prefix in ('unl:gnx:', 'unl:', 'file:'):
+        if s.startswith(prefix):
+            s = s[len(prefix) :]
+            break
+    m = file_part_pattern.match(s)
+    return m.group(1) if m else ''
+#@+node:ekr.20230630132340.1: *4* g.openUNLFile
+def openUNLFile(c: Cmdr, s: str) -> Cmdr:
+    """
+    Open the commander for filename s, the file part of an unl.
+
+    Return c if the file can not be found.
+    """
+    trace = False and g.unitTesting
+    if not s.strip():
+        return c
+    if s.startswith('//') and s.endswith('#'):
+        s = s[2:-1]
+    if not s.strip():
+        return c
+    if os.path.isabs(s):
+        path = os.path.normpath(s).lower()
+    else:
+        # Values of d should be directories.
+        d = g.parsePathData(c)
+        if trace:
+            print('')
+            g.printObj(d, tag='d')
+        base = os.path.basename(s)
+        directory = d.get(base)
+        if not directory:
+            g.trace(f"No directory for {s!r}")
+            return c
+        if not os.path.exists(directory):
+            g.trace(f"Directory found: {directory!r}")
+            return c
+        path = os.path.normpath(os.path.join(directory, base)).lower()
+        if trace:
+            g.trace('   directory:', directory.lower())
+            g.trace('        path:', path.lower())
+            g.trace('c.fileName():', os.path.normpath(c.fileName()).lower())
+    if path == os.path.normpath(c.fileName()).lower():
+        return c
+    # Search all open commanders.
+    # This is a good shortcut, and it helps unit tests.
+    for c2 in g.app.commanders():
+        if path == os.path.normpath(c2.fileName()).lower():
+            if trace:
+                g.trace(f"       Found: {os.path.normpath(c2.fileName())}")
+            return c2
+    # Open the file if possible.
+    if not os.path.exists(path):
+        if trace:
+            g.trace(f"   Not found: {path}")
+        return c
+    if trace:
+        g.trace(f"Opening {path}")
+    return g.openWithFileName(path)
+#@+node:ekr.20230630132341.1: *4* g.parsePathData
+path_data_pattern = re.compile(r'(.+?):\s*(.+)')
+
+def parsePathData(c: Cmdr) -> dict[str, str]:
+    """
+    Return a dict giving path prefixes for the files given in @data unl-path-prefixes.
+    """
+    lines = c.config.getData('unl-path-prefixes')
+    d: dict[str, str] = {}
+    for line in lines:
+        m = path_data_pattern.match(line)
+        if m:
+            key, path = m.group(1), m.group(2)
+            if key in d:
+                g.trace(f"Ignoring duplicate key: {line!r}")  # pragma: no cover
+            else:
+                d[key] = os.path.normpath(path)
+        else:
+            g.trace(f"Ignoring line: {line!r}")  # pragma: no cover
+    return d
 #@-others
 # set g when the import is about to complete.
 g = sys.modules.get('leo.core.leoGlobals')
 assert g, sorted(sys.modules.keys())
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main()  # pragma: no cover
 
 #@@language python
 #@@tabwidth -4

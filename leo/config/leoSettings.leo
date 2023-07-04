@@ -549,7 +549,7 @@
 </v>
 <v t="ekr.20110611092035.16482"><vh>Headline commands settings</vh>
 <v t="ekr.20181018105904.1"><vh>@bool headline-gmt-time = False</vh></v>
-<v t="ekr.20041119050749.10"><vh>@string headline-time-format-string = %m/%d</vh></v>
+<v t="ekr.20041119050749.10"><vh>@string headline-time-format-string = %m/%d/%Y %H:%M:%S</vh></v>
 </v>
 <v t="ekr.20160127043440.1"><vh>make-stub-files settings</vh>
 <v t="ekr.20160127051552.1"><vh>@bool stub-overwrite = False</vh></v>
@@ -2196,6 +2196,11 @@
 <v t="ekr.20060325071042.3"><vh>@bool test-darwin-setting = True</vh></v>
 </v>
 </v>
+<v t="ekr.20230627131213.1"><vh>UNLs</vh>
+<v t="ekr.20230627130611.1"><vh>@string unl-status-kind = legacy</vh></v>
+<v t="ekr.20230627131227.1"><vh>@bool full-unl-paths = True</vh></v>
+<v t="ekr.20230627202839.1"><vh>@data unl-path-prefixes</vh></v>
+</v>
 <v t="ekr.20110611092035.16471"><vh>Widget colors</vh>
 <v t="ekr.20041119034357.67"><vh>@color split-bar-color = LightSteelBlue2</vh></v>
 <v t="ekr.20130705090546.10663"><vh>@int colorer-delay = 200</vh></v>
@@ -2279,6 +2284,7 @@
 </v>
 </v>
 <v t="ekr.20140915194122.23428"></v>
+<v t="ekr.20230627131213.1"></v>
 </vnodes>
 <tnodes>
 <t tx="TL.20080702085131.2">If True: Save the Leo file and all modified derived files every time the external editor saves a modified file.
@@ -8904,9 +8910,9 @@ QLabel#minibufferLabel {
 QPlainTextEdit#screencastcaption {
     background-color:   @screencast-bg;
     font-family:        @screencast-font-family;
-    font-size:          @screencaset-font-size;
+    font-size:          @screencast-font-size;
     font-weight:        @screencast-font-weight;
-    font-style:         @screencaset-font-style;
+    font-style:         @screencast-font-style;
 }
 </t>
 <t tx="ekr.20140915194122.19466">/*  ========== Dialogs (QLabel) ========== 
@@ -11646,10 +11652,10 @@ date;;={|{x=time.asctime()}|}
 # hellow=hello
 
 </t>
-<t tx="ekr.20230316031838.1">screencast_family = Times New Roman
-screencast_size = 18pt
-screencast_weight = normal
-screencaset_style = normal
+<t tx="ekr.20230316031838.1">screencast_font_family = Times New Roman
+screencast_font_size = 18pt
+screencast_font_weight = normal
+screencast_font_style = normal
 </t>
 <t tx="ekr.20230327033157.1">True: expand/contract nodes when the mouse hovers over the outline:
     &lt;CTRL-hover&gt;: expand.
@@ -11658,6 +11664,18 @@ screencaset_style = normal
 False: do nothing when the mouse hovers over nodes.</t>
 <t tx="ekr.20230507080533.1"></t>
 <t tx="ekr.20230613071616.1"></t>
+<t tx="ekr.20230627130611.1">gnx:    Show gnx-based unls in the status area.
+legacy: Show legacy (headline-based) uns in the status area.</t>
+<t tx="ekr.20230627131213.1"></t>
+<t tx="ekr.20230627131227.1">True: (legacy): Display full path names in the status area.
+False:          Display only the .leo file's name in the status area.
+                Use @data unl-path-prefixes to resolve names.
+</t>
+<t tx="ekr.20230627202839.1"># lines have the form:
+# x.leo: &lt;absolute path to x.leo&gt;
+
+# test.leo:    c:/Repos/leo-editor/leo/test
+# LeoDocs.leo: c:/Repos/leo-editor/leo/doc</t>
 <t tx="felix.20220506230435.1">True: (Legacy) The goto-first-visible-node and goto-first-visible-node commands collapse all nodes that are not ancestors of the target node that is selected.
 
 False: (Recommended) The commands act as simple navigation commands, and do not change the outline state.</t>
@@ -11947,9 +11965,8 @@ valid values are: normal,bold,100,..,900
 <t tx="tbrown.20140102100730.27778">Number of levels (rows) of hieararchical bookmarks to show.  0 (zero)
 collapse hieracrch and show all bookmarks.  1 or more sets max. levels
 displayed at once, see bookmarks plugin docs.</t>
-<t tx="tbrown.20140505094209.37266">Show close box (the 'X') on outlien tabs - they can be closed with
-Ctrl-W or middle mouse click, so this optionally hides the
-redundant 'X'</t>
+<t tx="tbrown.20140505094209.37266">True: Show the close box [x] on outline tabs.
+</t>
 <t tx="tbrown.20140514191846.42168">These give the width and style of the border surrounding the active pane.
 </t>
 <t tx="tbrown.20140514191846.42169"># Set to None to disable border styling.</t>
