@@ -7266,13 +7266,19 @@ def es_clickable_link(c: Cmdr, p: Position, line_number: int, message: str) -> N
     c.frame.log.put(message.strip() + '\n', nodeLink=f"{unl}::{line_number}")
 #@+node:ekr.20230628072620.1: *3* g.findAnyUnl
 def findAnyUnl(unl_s: str, c: Cmdr) -> Optional[Position]:
-    """Find a either a legacy (path-based) or new (gnx-based) unl."""
+    """
+    Find the Position corresponding to an UNL.
+
+    The UNL may be either a legacy (path-based) or new (gnx-based) unl.
+    """
     unl = unl_s
     if unl.startswith('unl:gnx:'):
         # Resolve a gnx-based unl.
         unl = unl[8:]
         file_part = g.getUNLFilePart(unl)
         c2 = g.openUNLFile(c, file_part)
+        if not c2:
+            return None
         tail = unl[3 + len(file_part) :]  # 3: Skip the '//' and '#'
         return g.findGnx(tail, c2)
     # Resolve a file-based unl.
@@ -7285,17 +7291,27 @@ def findAnyUnl(unl_s: str, c: Cmdr) -> Optional[Position]:
         return None
     file_part = g.getUNLFilePart(unl)
     c2 = g.openUNLFile(c, file_part)
+    if not c2:
+        return None
     tail = unl[3 + len(file_part) :]  # 3: Skip the '//' and '#'
     unlList = tail.split('-->')
     return g.findUnl(unlList, c2)
 #@+node:ekr.20230624015529.1: *3* g.findGnx (new unls)
-file_pat = re.compile(r'^(.*)::([-\d]+)?$')  # '::' is the separator.
+find_gnx_pat = re.compile(r'^(.*)::([-\d]+)?$')
 
 def findGnx(gnx: str, c: Cmdr) -> Optional[Position]:
-    """Return the position with the given gnx in c."""
+    """
+    gnx: the gnx part of a gnx-based unl.
+
+    The gnx part may be the actual gnx or <actual-gnx>::<line-number>
+
+    Return the first position in c with the actual gnx.
+    """
+    # Get the actual gnx and line number.
     n: int = 0  # The line number.
-    m = file_pat.match(gnx)
+    m = find_gnx_pat.match(gnx)
     if m:
+        # Get the actual gnx and line number.
         gnx = m.group(1)
         try:
             n = int(m.group(2))
@@ -7319,9 +7335,16 @@ def findUnl(unlList1: list[str], c: Cmdr) -> Optional[Position]:
     Find and move to the unl given by the unlList in the commander c.
     Return the found position, or None.
     """
-    # Define the unl patterns.
-    old_pat = re.compile(r'^(.*):(\d+),?(\d+)?,?([-\d]+)?,?(\d+)?$')  # ':' is the separator.
-    new_pat = re.compile(r'^(.*?)(::)([-\d]+)?$')  # '::' is the separator.
+    # Define two *optional* unl patterns.
+
+    # old_pat: ':' followed by a list of node indices.
+    #          Deprecated and probably does not work.
+    #          This pattern will remain for compatibility.
+    old_pat = re.compile(r'^(.*):(\d+),?(\d+)?,?([-\d]+)?,?(\d+)?$')
+
+    # new_pat: '::' followed by a line number.
+    #          Negative line numbers denote global line numbers.
+    new_pat = re.compile(r'^(.*?)(::)([-\d]+)?$')
 
     #@+others  # Define helper functions
     #@+node:ekr.20230626064652.2: *4* function: convert_unl_list
@@ -7743,59 +7766,57 @@ def openUNLFile(c: Cmdr, s: str) -> Cmdr:
     """
     Open the commander for filename s, the file part of an unl.
 
-    Return c if the file can not be found.
+    Return None if the file can not be found.
     """
-    trace = False and g.unitTesting
+    base = os.path.basename
+    norm = os.path.normpath
+    c_name = c.fileName()
+
+    def standard(path: str) -> str:
+        """Standardize the path for easy comparison."""
+        return norm(path).lower()
+
     if not s.strip():
-        return c
+        return None
     if s.startswith('//') and s.endswith('#'):
         s = s[2:-1]
     if not s.strip():
+        return None
+    # Always match within the present file.
+    if os.path.isabs(s) and standard(s) == standard(c_name):
+        return c
+    if not os.path.isabs(s) and standard(s) == standard(base(c_name)):
         return c
     if os.path.isabs(s):
-        path = os.path.normpath(s).lower()
+        path = standard(s)
     else:
         # Values of d should be directories.
         d = g.parsePathData(c)
-        if trace:
-            print('')
-            g.printObj(d, tag='d')
-        base = os.path.basename(s)
-        directory = d.get(base)
+        base_s = base(s)
+        directory = d.get(base_s)
         if not directory:
-            g.trace(f"No directory for {s!r}")
-            return c
+            return None
         if not os.path.exists(directory):
-            g.trace(f"Directory found: {directory!r}")
-            return c
-        path = os.path.normpath(os.path.join(directory, base)).lower()
-        if trace:
-            g.trace('   directory:', directory.lower())
-            g.trace('        path:', path.lower())
-            g.trace('c.fileName():', os.path.normpath(c.fileName()).lower())
-    if path == os.path.normpath(c.fileName()).lower():
+            return None
+        path = standard(os.path.join(directory, base_s))
+    if path == standard(c_name):
         return c
     # Search all open commanders.
     # This is a good shortcut, and it helps unit tests.
     for c2 in g.app.commanders():
-        if path == os.path.normpath(c2.fileName()).lower():
-            if trace:
-                g.trace(f"       Found: {os.path.normpath(c2.fileName())}")
+        if path == standard(c2.fileName()):
             return c2
     # Open the file if possible.
     if not os.path.exists(path):
-        if trace:
-            g.trace(f"   Not found: {path}")
-        return c
-    if trace:
-        g.trace(f"Opening {path}")
+        return None
     return g.openWithFileName(path)
 #@+node:ekr.20230630132341.1: *4* g.parsePathData
 path_data_pattern = re.compile(r'(.+?):\s*(.+)')
 
 def parsePathData(c: Cmdr) -> dict[str, str]:
     """
-    Return a dict giving path prefixes for the files given in @data unl-path-prefixes.
+    Return a dict giving path prefixes for the files given in @data
+    unl-path-prefixes.
     """
     lines = c.config.getData('unl-path-prefixes')
     d: dict[str, str] = {}

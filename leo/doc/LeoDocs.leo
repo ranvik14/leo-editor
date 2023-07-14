@@ -1646,6 +1646,8 @@
 <v t="ekr.20060620094033"><vh>What's New...</vh>
 <v t="ekr.20101025080245.5791"><vh>@rst html/what-is-new.html</vh>
 <v t="ekr.20071116062917.2"><vh>@rst-no-head links</vh></v>
+<v t="ekr.20230709070852.1"><vh>What's new in Leo 6.7.4</vh></v>
+<v t="ekr.20230409053106.1"><vh>What's new in Leo 6.7.3</vh></v>
 <v t="ekr.20230111160833.1"><vh>What's new in Leo 6.7.2</vh></v>
 <v t="ekr.20221018092915.1"><vh>What's new in Leo 6.7.1</vh></v>
 <v t="ekr.20220912154542.1"><vh>What's new in Leo 6.7.0</vh></v>
@@ -2511,7 +2513,8 @@
 </v>
 </v>
 </v>
-<v t="ekr.20230409053106.1"><vh>What's new in Leo 6.7.3</vh></v>
+<v t="ekr.20230409053106.1"></v>
+<v t="ekr.20230709070852.1"></v>
 <v t="ekr.20230703101804.1"></v>
 </vnodes>
 <tnodes>
@@ -32478,6 +32481,9 @@ Leo's beautify command differs from `Black`_ as follows:
 </t>
 <t tx="ekr.20230303064647.1">def copy_files(from_directory, to_directory, last_timestamp):
     """Copy only *changed* html files from `from_directory` to `to_directory`."""
+    if not os.path.exists(to_directory):
+        print(f"Directory not found: {to_directory!r}")
+        return
     files = glob.glob(f"{from_directory}{os.sep}*")
     written = 0
     for f in files:
@@ -32643,8 +32649,39 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 
 **The highlights of Leo 6.7.4**
 
-*** To do ***
+**Warning: breaking changes to Leo's api**
 
+p.get_UNL returns gnx-based unls. Previously it returned path-based gnxs.
+See the first comment of PR #3424 for full details.
+
+**gnx-based unls**
+
+- PR #3215 and #3424: gnx-based unls (clickable links).
+  These links will break only if the original node is deleted.
+  
+**New settings**
+  
+- @string unl-status-kind = gnx
+- @bool full-unl-paths = True
+- @data unl-path-prefixes
+  
+**Other improvements**
+  
+- PR #3330: Improve importers for C, C++, and cython.
+- PR #3345: Improve importer architecture.
+- PR #3363 &amp; #3379: Improve c.recursiveImport.
+- PR #3376: Improve python importer.
+
+**Large code changes**
+
+- PR #3365: Simplify mypy annotations (128 files).
+- PR #3367: Import Callable from collections.abc instead of typing (50 files).
+
+**Retire three plugins**
+
+- PR #3215: Retire the settings_finder, backlink, and quickMove plugins.
+
+- 40+ issues and about 50 pull requests.
 
 **Links**
 
@@ -32666,6 +32703,58 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 @nowrap
 @language rest
 </t>
+<t tx="ekr.20230709070852.1">.. Use the link-pr abbreviation to create these links.
+
+.. _`PR #3215`: https://github.com/leo-editor/leo-editor/pull/3215
+.. _`PR #3424`: https://github.com/leo-editor/leo-editor/pull/3424
+.. _`PR #3433`: https://github.com/leo-editor/leo-editor/pull/3433
+
+**Warning: breaking changes to Leo's api**
+
+p.get_UNL returns gnx-based unls. Previously it returned path-based gnxs.
+See the first comment of `PR #3424`_ for full details.
+
+`PR #3433`_: Callers must remove the "fn" positional arg from
+at.readOneAtEditNode and at.readOneAtAsisNode.
+
+**gnx-based unls**
+
+- `PR #3215`_ and `PR #3424`_: gnx-based unls (clickable links).
+  These links will break only if the original node is deleted.
+  
+**New settings**
+ 
+- @string unl-status-kind = gnx
+- @bool full-unl-paths = True
+- @data unl-path-prefixes
+
+**Other improvements**
+
+.. _`PR #3330`: https://github.com/leo-editor/leo-editor/pull/3330
+.. _`PR #3345`: https://github.com/leo-editor/leo-editor/pull/3345
+.. _`PR #3363`: https://github.com/leo-editor/leo-editor/pull/3363
+.. _`PR #3379`: https://github.com/leo-editor/leo-editor/pull/3379
+.. _`PR #3376`: https://github.com/leo-editor/leo-editor/pull/3376
+  
+- `PR #3330`_: Improve importers for C, C++, and cython.
+- `PR #3345`_: Improve importer architecture.
+- `PR #3363`_ &amp; `PR #3379`_: Improve c.recursiveImport.
+- `PR #3376`_: Improve python importer.
+
+**Large code changes**:
+
+.. _`PR #3365`: https://github.com/leo-editor/leo-editor/pull/3365
+.. _`PR #3367`: https://github.com/leo-editor/leo-editor/pull/3367
+
+- `PR #3365`_: Simplify all mypy annotations (128 files).
+- `PR #3367`_: Import Callable from collections.abc instead of typing (50 files).
+
+**Retire three plugins**
+
+- `PR #3215`_: Retire the settings_finder, backlink, and quickMove plugins.
+  The first was dangerous. gnx-based unls obsolete the other two.
+  
+- 40+ issues and about 50 pull requests.</t>
 <t tx="felix.20210825213137.1">Since a WebSocket server can receive events from clients, process them to update the
 application state, and synchronize the resulting state across clients, leoserver.py
 has the ability to listen and interact with more than one concurrent client, and have
