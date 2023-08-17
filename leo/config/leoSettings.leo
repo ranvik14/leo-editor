@@ -91,6 +91,7 @@
 <v t="ekr.20211209060458.1"><vh>@@bool put-class-in-imported-headlines = True</vh></v>
 <v t="ekr.20200620060909.1"><vh>@@bool put-cython-decorators-in-imported-headlines = False</vh></v>
 </v>
+<v t="ekr.20071110153046"><vh>@bool at-auto-warns-about-leading-whitespace = True</vh></v>
 </v>
 <v t="ekr.20200226104131.1"><vh>Future settings</vh>
 <v t="ekr.20190926110217.1"><vh>@string adoc-base-directory = None</vh></v>
@@ -514,6 +515,7 @@
 <v t="ekr.20111115083813.12518"><vh>@bool indent-added-comments = True</vh></v>
 <v t="ekr.20150227102835.1"><vh>@bool make-node-conflicts-node = True</vh></v>
 <v t="ekr.20220624062948.1"><vh>@bool redirect-execute-script-output-to-log_pane = False</vh></v>
+<v t="ekr.20230804112912.1"><vh>@bool search-links-backwards=True</vh></v>
 <v t="ekr.20180117074230.1"><vh>@bool show-tips = True</vh></v>
 <v t="ekr.20060323131801"><vh>@bool warn-about-missing-settings = False</vh></v>
 <v t="ekr.20220105172501.1"><vh>@data add-mypy-annotations</vh></v>
@@ -629,7 +631,6 @@
 <v t="ekr.20170718054951.1"><vh>@string log-timestamp-format = %H:%M:%S</vh></v>
 <v t="ekr.20181018113813.1"><vh>@string script-file-path = None</vh></v>
 <v t="ekr.20170706103843.1"><vh>Checking files</vh>
-<v t="ekr.20071110153046"><vh>@bool at-auto-warns-about-leading-whitespace = True</vh></v>
 <v t="ekr.20150403055250.1"><vh>@bool check-for-changed-external-files = True</vh></v>
 <v t="ekr.20090514111518.8379"><vh>@bool check-python-code-on-write = True</vh></v>
 <v t="ekr.20221128115636.1"><vh>@bool run-flake8-on-write = False</vh></v>
@@ -11675,6 +11676,11 @@ False:          Display only the .leo file's name in the status area.
 
 # test.leo:    c:/Repos/leo-editor/leo/test
 # LeoDocs.leo: c:/Repos/leo-editor/leo/doc</t>
+<t tx="ekr.20230804112912.1">This setting tells how Leo should search when the user clicks a clickable link.
+
+True:  (Recommended) Search backwards from the end of the outline.
+False: (Legacy)      Search forwards from the start of the outline.
+</t>
 <t tx="felix.20220506230435.1">True: (Legacy) The goto-first-visible-node and goto-first-visible-node commands collapse all nodes that are not ancestors of the target node that is selected.
 
 False: (Recommended) The commands act as simple navigation commands, and do not change the outline state.</t>

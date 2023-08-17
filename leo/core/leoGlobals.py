@@ -2785,20 +2785,26 @@ def pdb(message: str = '') -> None:
 def objToString(obj: Any, *, indent: int = 0, tag: str = None, width: int = 120) -> str:
     """Pretty print any Python object to a string."""
     if isinstance(obj, dict):
-        result_list = ['{\n']
-        pad = max([len(key) for key in obj])
-        for key in sorted(obj):
-            pad_s = ' ' * max(0, pad - len(key))
-            result_list.append(f"  {pad_s}{key}: {obj.get(key)}\n")
-        result_list.append('}')
-        result = ''.join(result_list)
+        if obj:
+            result_list = ['{\n']
+            pad = max([len(key) for key in obj])
+            for key in sorted(obj):
+                pad_s = ' ' * max(0, pad - len(key))
+                result_list.append(f"  {pad_s}{key}: {obj.get(key)}\n")
+            result_list.append('}')
+            result = ''.join(result_list)
+        else:
+            result = '{}'
     elif isinstance(obj, (list, tuple)):
-        # Return the enumerated lines of the list.
-        result_list = ['[\n' if isinstance(obj, list) else '(\n']
-        for i, z in enumerate(obj):
-            result_list.append(f"  {i:4}: {z!r}\n")
-        result_list.append(']\n' if isinstance(obj, list) else ')\n')
-        result = ''.join(result_list)
+        if obj:
+            # Return the enumerated lines of the list.
+            result_list = ['[\n' if isinstance(obj, list) else '(\n']
+            for i, z in enumerate(obj):
+                result_list.append(f"  {i:4}: {z!r}\n")
+            result_list.append(']\n' if isinstance(obj, list) else ')\n')
+            result = ''.join(result_list)
+        else:
+            result = '[]' if isinstance(obj, list) else '()'
     elif not isinstance(obj, str):
         result = pprint.pformat(obj, indent=indent, width=width)
         # Put opening/closing delims on separate lines.
@@ -3731,35 +3737,6 @@ def is_binary_string(s: str) -> bool:
     # aList is a list of all non-binary characters.
     aList = [7, 8, 9, 10, 12, 13, 27] + list(range(0x20, 0x100))
     return bool(s.translate(None, bytes(aList)))  # type:ignore
-#@+node:EKR.20040504154039: *3* g.is_sentinel
-def is_sentinel(line: str, delims: Sequence) -> bool:
-    """
-    Return True if line starts with a sentinel comment.
-
-    Leo 6.7.2: Support blackened sentinels.
-    """
-    delim1, delim2, delim3 = delims
-    # Defensive code. Make *sure* delim has no trailing space.
-    if delim1:
-        delim1 = delim1.rstrip()
-    line = line.lstrip()
-    if delim1:
-        sentinel1 = delim1 + '@'
-        sentinel2 = delim1 + ' @'
-        return line.startswith((sentinel1, sentinel2))
-    if delim2 and delim3:
-        sentinel1 = delim2 + '@'
-        sentinel2 = delim2 + ' @'
-        if sentinel1 in line:
-            i = line.find(sentinel1)
-            j = line.find(delim3)
-            return 0 == i < j
-        if sentinel2 in line:
-            i = line.find(sentinel2)
-            j = line.find(delim3)
-            return 0 == i < j
-    g.error(f"is_sentinel: can not happen. delims: {repr(delims)}")
-    return False
 #@+node:ekr.20031218072017.3119: *3* g.makeAllNonExistentDirectories
 def makeAllNonExistentDirectories(theDir: str) -> Optional[str]:
     """
@@ -4702,7 +4679,7 @@ def execGitCommand(command: str, directory: str) -> list[str]:
             shell=False,
         )
         out, err = p.communicate()
-        lines = [g.toUnicode(z) for z in g.splitLines(out or [])]
+        lines = [g.toUnicode(z) for z in g.splitLines(out or '')]
     finally:
         os.chdir(old_dir)
     return lines
@@ -7146,6 +7123,69 @@ def insertCodingLine(encoding: str, script: str) -> str:
             lines.insert(0, f"{tag} {encoding} -*-\n")
             script = ''.join(lines)
     return script
+#@+node:ekr.20230803155851.1: ** g.Sentinels
+#@+node:ekr.20230803160315.1: *3* g.is_invisible_sentinel
+def is_invisible_sentinel(delims: tuple[str, str, str], contents: list[str], i: int) -> bool:
+    """
+    delims are the comment delims in effect.
+
+    contents is the contents *with* sentinels of an external file that
+    normally does *not* have sentinels.
+
+    Return True if contents[i] corresponds to a line visible in the outline
+    but not the external file.
+    """
+    delim1 = delims[0] or delims[1]
+
+    # Get previous line, to test for previous @verbatim sentinel.
+    line1 = contents[i - 1] if i > 0 else ''  # previous line.
+    line2 = contents[i]
+    if not g.is_sentinel(line2, delims):
+        return False  # Non-sentinels are visible everywhere.
+
+    # Strip off the leading sentinel comment. Works for blackened sentinels.
+    s1 = line1.strip()[len(delim1) :]
+    s2 = line2.strip()[len(delim1) :]
+    if s1.startswith('@verbatim'):
+        return False  # *This* line is visible in the outline.
+    if s2.startswith('@@'):
+        # Directives are visible in the outline, but not the external file.
+        return True
+    if s2.startswith(('@+others', '@+<<')):
+        #@verbatim
+        # @others and section references are visibible everywhere.
+        return True
+    # Not visible anywhere. For example, @+leo, @-leo, @-others, @+node, @-node.
+    return True
+#@+node:EKR.20040504154039: *3* g.is_sentinel
+def is_sentinel(line: str, delims: tuple[str, str, str]) -> bool:
+    """
+    Return True if line starts with a sentinel comment.
+
+    Leo 6.7.2: Support blackened sentinels.
+    """
+    delim1, delim2, delim3 = delims
+    # Defensive code. Make *sure* delim has no trailing space.
+    if delim1:
+        delim1 = delim1.rstrip()
+    line = line.lstrip()
+    if delim1:
+        sentinel1 = delim1 + '@'
+        sentinel2 = delim1 + ' @'
+        return line.startswith((sentinel1, sentinel2))
+    if delim2 and delim3:
+        sentinel1 = delim2 + '@'
+        sentinel2 = delim2 + ' @'
+        if sentinel1 in line:
+            i = line.find(sentinel1)
+            j = line.find(delim3)
+            return 0 == i < j
+        if sentinel2 in line:
+            i = line.find(sentinel2)
+            j = line.find(delim3)
+            return 0 == i < j
+    g.error(f"is_sentinel: can not happen. delims: {repr(delims)}")
+    return False
 #@+node:ekr.20070524083513: ** g.Unit Tests
 #@+node:ekr.20210901071523.1: *3* g.run_coverage_tests
 def run_coverage_tests(module: str = '', filename: str = '') -> None:
@@ -7323,6 +7363,7 @@ def findGnx(gnx: str, c: Cmdr) -> Optional[Position]:
             n = int(m.group(2))
         except(TypeError, ValueError):
             pass
+    # Search forwards, setting p2.
     for p in c.all_unique_positions():
         if p.gnx == gnx:
             if n is None:

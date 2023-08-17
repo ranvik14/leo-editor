@@ -84,7 +84,6 @@ def pasteOutline(
         # Leo no longer supports MORE outlines. Use import-MORE-files instead.
         return None
     # Validate.
-    c.checkOutline()
     errors = c.checkOutline()
     if errors > 0:
         return None
@@ -128,7 +127,6 @@ def pasteOutlineRetainingClones(
         # Leo no longer supports MORE outlines. Use import-MORE-files instead.
         return None
     # Validate.
-    c.checkOutline()
     errors = c.checkOutline()
     if errors > 0:
         return None
@@ -332,8 +330,6 @@ def pasteAsTemplate(self: Cmdr, event: Event = None) -> None:
         xvelements = xroot.find('vnodes')  # <v> elements.
         xtelements = xroot.find('tnodes')  # <t> elements.
         bodies, uas = x.scanTnodes(xtelements)
-        # g.printObj(bodies, tag='bodies/gnx2body')
-        x.updateBodies(bodies, x.gnx2vnode)
         root_gnx = xvelements[0].attrib.get('t')  # the gnx of copied node
     else:
         xroot = json.loads(s)
@@ -876,7 +872,7 @@ def goToParent(self: Cmdr, event: Event = None) -> None:
 #@+node:ekr.20190211104913.1: *3* c_oc.goToPrevMarkedHeadline
 @g.commander_command('goto-prev-marked')
 def goToPrevMarkedHeadline(self: Cmdr, event: Event = None) -> None:
-    """Select the next marked node."""
+    """Select the previous marked node."""
     c, p = self, self.p
     if not p:
         return
