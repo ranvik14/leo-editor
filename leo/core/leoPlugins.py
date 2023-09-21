@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
 #@-<< leoPlugins imports & annotations >>
 
 # Define modules that may be enabled by default
-# but that mignt not load because imports may fail.
+# but that might not load because imports may fail.
 optional_modules = [
     'leo.plugins.livecode',
     'leo.plugins.cursesGui2',
@@ -260,7 +260,7 @@ class BaseLeoPlugin:
                 raise NameError(f"setButton error, {commandName} is not a commandName")
         if color is None:
             color = 'grey'
-        script = f"c.k.simulateCommand('{self.commandName}')"
+        script = f"c.doCommandByName('{self.commandName}')"
         g.app.gui.makeScriptButton(
             self.c,
             args=None,

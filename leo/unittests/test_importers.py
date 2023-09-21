@@ -541,7 +541,7 @@ class TestC(BaseTestImporter):
         )
         self.new_run_test(s, expected_results)
     #@-others
-#@+node:ekr.20211108063520.1: ** class TestCoffeescript (BaseTextImporter)
+#@+node:ekr.20211108063520.1: ** class TestCoffeescript (BaseTestImporter)
 class TestCoffeescript(BaseTestImporter):
 
     ext = '.coffee'
@@ -639,11 +639,11 @@ class TestCoffeescript(BaseTestImporter):
                 'class Builder\n'
                 '  @others\n'
           ),
-          (2, 'def constructor',
+          (2, 'Builder.constructor',
               'constructor: ->\n'
               '  @transformer = new Transformer\n'
           ),
-          (2, 'def build',
+          (2, 'Builder.build',
                 '# `build()`\n'
                 '\n'
                 'build: (args...) ->\n'
@@ -658,13 +658,13 @@ class TestCoffeescript(BaseTestImporter):
                 '\n'
                 '  if node.parenthesized then paren(out) else out\n'
           ),
-          (2, 'def transform',
+          (2, 'Builder.transform',
               '# `transform()`\n'
               '\n'
               'transform: (args...) ->\n'
               '  @transformer.transform.apply(@transformer, args)\n'
           ),
-          (2, 'def body',
+          (2, 'Builder.body',
               '# `body()`\n'
               '\n'
               'body: (node, opts={}) ->\n'
@@ -745,63 +745,6 @@ class TestCSharp(BaseTestImporter):
                     'class cTestClass1 {\n'
                     '    ;\n'
                     '}\n'
-            ),
-        )
-        self.new_run_test(s, expected_results)
-    #@-others
-#@+node:ekr.20220809160735.1: ** class TestCText (BaseTestImporter)
-class TestCText(BaseTestImporter):
-
-    ext = '.ctext'  # A made-up extension for unit tests.
-
-    #@+others
-    #@+node:ekr.20220811091538.1: *3* TestCText.test_importer
-    def test_importer(self):
-
-        # From the CText_Importer docstring.
-        # Note that '#' is the delim for unit tests.
-        s = """
-        Leading text in root node of subtree
-
-        Etc. etc.
-
-        ### A level one node #####################################
-
-        This would be the text in this level one node.
-
-        And this.
-
-        ### Another level one node ###############################
-
-        Another one
-
-        #### A level 2 node ######################################
-
-        See what we did there - one more '#' - this is a subnode.
-        """
-        # Round-tripping is not guaranteed.
-        expected_results = (
-            (0, '', # Ignore the first headline.
-                    'Leading text in root node of subtree\n'
-                    '\n'
-                    'Etc. etc.\n'
-                    '\n'
-            ),
-            (1, 'A level one node',
-                    '\n'
-                    'This would be the text in this level one node.\n'
-                    '\n'
-                    'And this.\n'
-                    '\n'
-            ),
-            (1, 'Another level one node',
-                    '\n'
-                    'Another one\n'
-                    '\n'
-            ),
-            (2, 'A level 2 node',
-                    '\n'
-                    "See what we did there - one more '#' - this is a subnode.\n"
             ),
         )
         self.new_run_test(s, expected_results)
@@ -1557,6 +1500,11 @@ class TestHtml(BaseTestImporter):
             ),
         )
         self.new_run_test(s, expected_results)
+    #@-others
+#@+node:ekr.20230826053559.1: ** class TestImporter(LeoUnitTest)
+class TestImporter(LeoUnitTest):
+    """General tests of the Importer class."""
+    #@+others
     #@-others
 #@+node:ekr.20211108062617.1: ** class TestIni (BaseTestImporter)
 class TestIni(BaseTestImporter):
@@ -3094,7 +3042,10 @@ class TestPython(BaseTestImporter):
             "'''\n",
             '    if 2: a = 2\n',
             "'''\n",
-            'i = 2\n'
+            'i = 2\n',
+            # #3517: f-strings.
+            # mypy/build.py line 430.
+            r"""plugin_error(f'Can\'t find plugin "{plugin_path}"')""" + '\n',
         ]
         expected_lines = [
             'i = 1 \n',
@@ -3108,7 +3059,8 @@ class TestPython(BaseTestImporter):
             '\n',
             '\n',
             '\n',
-            'i = 2\n'
+            'i = 2\n',
+            'plugin_error()\n',
         ]
         result = importer.delete_comments_and_strings(lines)
         self.assertEqual(len(result), len(expected_lines))
@@ -3176,7 +3128,7 @@ class TestPython(BaseTestImporter):
             (1, '<< TestPython.test_general_test_1: preamble >>',
                     'import sys\n'
             ),
-            (1, 'def f1',
+            (1, 'function: f1',
                     'def f1():\n'
                     '    pass\n'
             ),
@@ -3184,15 +3136,15 @@ class TestPython(BaseTestImporter):
                        'class Class1:\n'
                        '    @others\n'
             ),
-            (2, 'def method11',
+            (2, 'Class1.method11',
                        'def method11():\n'
                        '    pass\n'
             ),
-            (2, 'def method12',
+            (2, 'Class1.method12',
                        'def method12():\n'
                        '    pass\n'
             ),
-            (1, 'def f2',
+            (1, 'function: f2',
                        '#\n'
                        '# Define a = 2\n'
                        'a = 2\n'
@@ -3206,18 +3158,18 @@ class TestPython(BaseTestImporter):
                        'class Class2:\n'
                        '    @others\n'
             ),
-            (2, 'def method21',
+            (2, 'Class2.method21',
                        'def method21():\n'
                        '    print(1)\n'
                        '    print(2)\n'
                        '    print(3)\n'
             ),
-            (2, 'def method22',
+            (2, 'Class2.method22',
                        '@myDecorator\n'
                        'def method22():\n'
                        '    pass\n'
             ),
-            (2, 'def method23',
+            (2, 'Class2.method23',
                        'def method23():\n'
                        '    pass\n'
             ),
@@ -3225,13 +3177,13 @@ class TestPython(BaseTestImporter):
                 'class UnderindentedComment:\n'
                 '@others\n'  # The underindented comments prevents indentaion
             ),
-            (2, 'def u1',
+            (2, 'UnderindentedComment.u1',
                     '# Outer underindented comment\n'
                     '    def u1():\n'
                     '    # Underindented comment in u1.\n'
                     '        pass\n'
             ),
-            (1, 'def main',
+            (1, 'function: main',
                        '# About main.\n'
                        '\n'
                        'def main():\n'
@@ -3264,7 +3216,7 @@ class TestPython(BaseTestImporter):
                     '@language python\n'
                     '@tabwidth -4\n'
             ),
-            (1, 'def get_target_type',
+            (1, 'function: get_target_type',
                     'def get_target_type(\n'
                     '    tvar: TypeVarLikeType,\n'
                     '    type: Type,\n'
@@ -3369,14 +3321,14 @@ class TestPython(BaseTestImporter):
             (1, '<< TestPython.test_oneliners: preamble >>',
                     'import sys\n'
             ),
-            (1, 'def f1',
+            (1, 'function: f1',
                     'def f1():\n'
                     '    pass\n'
             ),
             (1, 'class Class1',
                     'class Class1:pass\n'
             ),
-            (1, 'def f2',
+            (1, 'function: f2',
                     'a = 2\n'
                     '@dec_for_f2\n'
                     'def f2(): pass\n'
@@ -3384,10 +3336,57 @@ class TestPython(BaseTestImporter):
             (1, 'class A',
                     'class A: pass\n'
             ),
-            (1, 'def main',
+            (1, 'function: main',
                        '# About main.\n'
                        'def main():\n'
                        '    pass\n'
+            ),
+        )
+        self.new_run_test(s, expected_results)
+    #@+node:ekr.20230825071437.1: *3* TestPython.test_post_process
+    def test_post_process(self):
+
+        s = '''
+            """Module-level docstring"""
+
+            from __future__ import annotations
+
+            class C1:
+                """Class docstring"""
+
+                def __init__(self):
+                    pass
+
+            def f1():
+                pass
+
+            '''
+        expected_results = (
+            (0, '',  # Ignore the first headline.
+                    '"""Module-level docstring"""\n'
+                    '<< TestPython.test_post_process: preamble >>\n'
+                    '@others\n'
+                    '@language python\n'
+                    '@tabwidth -4\n'
+            ),
+            (1, '<< TestPython.test_post_process: preamble >>',
+                    '\n'
+                    'from __future__ import annotations\n'
+                    '\n'
+            ),
+            (1, 'class C1',
+                    'class C1:\n'
+                    '    """Class docstring"""\n'
+                    '\n'
+                    '    @others\n'
+            ),
+            (2, 'C1.__init__',
+                    'def __init__(self):\n'
+                    '    pass\n'
+            ),
+            (1, 'function: f1',
+                   'def f1():\n'
+                   '    pass\n'
             ),
         )
         self.new_run_test(s, expected_results)
@@ -3424,7 +3423,7 @@ class TestPython(BaseTestImporter):
                     'from leo.core import leoGlobals as g\n'
                     '\n'
             ),
-            (1, 'def f',
+            (1, 'function: f',
                    'def f():\n'
                    '    g.trace()\n'
             )
@@ -3488,6 +3487,49 @@ class TestPython(BaseTestImporter):
                "    print('12')\n"
                '@language python\n'
                '@tabwidth -4\n'
+            ),
+        )
+        self.new_run_test(s, expected_results)
+    #@+node:ekr.20230830100457.1: *3* TestPython.test_nested_defs
+    def test_nested_defs(self):
+        # See #3517
+
+        # A simplified version of code in mypy/build.py.
+        s = (
+        '''
+            def load_plugins_from_config(
+                options: Options, errors: Errors, stdout: TextIO
+            ) -> tuple[list[Plugin], dict[str, str]]:
+                """Load all configured plugins."""
+
+                snapshot: dict[str, str] = {}
+
+                def plugin_error(message: str) -> NoReturn:
+                    errors.report(line, 0, message)
+                    errors.raise_error(use_stdout=False)
+
+                custom_plugins: list[Plugin] = []
+        ''')
+
+        expected_results = (
+            (0, '',  # Ignore the first headline.
+                '@others\n'
+                '@language python\n'
+                '@tabwidth -4\n'
+            ),
+            (1, 'function: load_plugins_from_config',
+                'def load_plugins_from_config(\n'
+                '    options: Options, errors: Errors, stdout: TextIO\n'
+                ') -> tuple[list[Plugin], dict[str, str]]:\n'
+                '    """Load all configured plugins."""\n'
+                '\n'
+                '    snapshot: dict[str, str] = {}\n'
+                '\n'
+                '    def plugin_error(message: str) -> NoReturn:\n'
+                '        errors.report(line, 0, message)\n'
+                '        errors.raise_error(use_stdout=False)\n'
+                '\n'
+                '    custom_plugins: list[Plugin] = []\n'
             ),
         )
         self.new_run_test(s, expected_results)

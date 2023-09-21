@@ -356,7 +356,7 @@ class EditFileCommandsClass(BaseEditCommandsClass):
             parent.setHeadString(kind)
             for key in d:
                 p = d.get(key)
-                if not kind.endswith('.leo') and p.isAnyAtFileNode():
+                if not kind.endswith(('.leo', '.leojs')) and p.isAnyAtFileNode():
                     # Don't make clones of @<file> nodes for wrapped files.
                     pass
                 elif p.v.context == c:
@@ -481,7 +481,7 @@ class EditFileCommandsClass(BaseEditCommandsClass):
     @cmd('file-diff-files')
     def diff(self, event: Event = None) -> None:
         """Creates a node and puts the diff between 2 files into it."""
-        c = self.c
+        c, u = self.c, self.c.undoer
         fn = self.getReadableTextFile()
         if not fn:
             return
@@ -496,9 +496,13 @@ class EditFileCommandsClass(BaseEditCommandsClass):
             return
         lines1, lines2 = g.splitLines(s1), g.splitLines(s2)
         aList = difflib.ndiff(lines1, lines2)
+        # add as last top level like other 'diff' result nodes
+        c.selectPosition(c.lastTopLevel())  # pre-select to help undo-insert
+        undoData = u.beforeInsertNode(c.p)  # c.p is subject of 'insertAfter'
         p = c.p.insertAfter()
         p.h = 'diff'
         p.b = ''.join(aList)
+        u.afterInsertNode(p, 'file-diff-files', undoData)
         c.redraw()
     #@+node:ekr.20170806094318.6: *3* efc.getReadableTextFile
     def getReadableTextFile(self) -> str:
@@ -729,7 +733,7 @@ class GitDiffController:
         # Finish.
         path = g.finalize_join(directory, fn)  # #1781: bug fix.
         c1 = c2 = None
-        if fn.endswith('.leo'):
+        if fn.endswith(('.leo', '.leojs')):
             c1 = self.make_leo_outline(fn, path, s1, rev1)
             c2 = self.make_leo_outline(fn, path, s2, rev2)
         else:

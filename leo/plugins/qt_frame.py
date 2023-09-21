@@ -750,7 +750,7 @@ class DynamicWindow(QtWidgets.QMainWindow):  # type:ignore
         ftm = fc.ftm
 
         def mungeName(kind: str, label: str) -> str:
-            # The returned value is the namve of an ivar.
+            # The returned value is the name of an ivar.
             kind = 'check_box_' if kind == 'box' else 'radio_button_'
             name = label.replace(' ', '_').replace('&', '').lower()
             return f"{kind}{name}"
@@ -946,14 +946,14 @@ class DynamicWindow(QtWidgets.QMainWindow):  # type:ignore
                     return True
                 binding, ch, lossage = self.eventFilter.toBinding(event)
                 # #2094: Use code similar to the end of LeoQtEventFilter.eventFilter.
-                #        The ctor converts <Alt-X> to <Atl-x> !!
+                #        The ctor converts <Alt-X> to <Alt-x> !!
                 #        That is, we must use the stroke, not the binding.
                 key_event = leoGui.LeoKeyEvent(
                     c=self.c, char=ch, event=event, binding=binding, w=self.w)
                 if key_event.stroke:
                     cmd_name = self.d.get(key_event.stroke)
                     if cmd_name:
-                        self.c.k.simulateCommand(cmd_name)
+                        self.c.doCommandByName(cmd_name)
                         return True
                 # Do the normal processing.
                 return self.oldEvent(event)
@@ -3450,7 +3450,7 @@ class LeoQTreeWidget(QtWidgets.QTreeWidget):  # type:ignore
         urls = md.urls()
         if not urls:
             return
-        c.undoer.beforeChangeGroup(c.p, undoType)
+        u.beforeChangeGroup(c.p, undoType)
         changed = False
         for z in urls:
             url = QtCore.QUrl(z)
@@ -3532,7 +3532,7 @@ class LeoQTreeWidget(QtWidgets.QTreeWidget):  # type:ignore
         based on the file's name fn and contents s.
 
         If the file is an thin file, create an @file tree.
-        Othewise, create an @auto tree.
+        Otherwise, create an @auto tree.
         If all else fails, create an @edit node.
 
         Give a warning if a node with the same headline already exists.
@@ -4253,7 +4253,7 @@ class QtMenuWrapper(LeoQtMenu, QtWidgets.QMenu):  # type:ignore
                     if not bi.isModeBinding():
                         accel = k.prettyPrintKey(bi.stroke)
                         result.append(accel)
-                        # Break here if we want to show only one accerator.
+                        # Break here if we want to show only one accelerator.
                 action.setText(f"{s}\t{', '.join(result)}")
             else:
                 action.setText(s)

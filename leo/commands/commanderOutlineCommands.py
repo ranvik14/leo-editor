@@ -1369,16 +1369,20 @@ def markChangedHeadlines(self: Cmdr, event: Event = None) -> None:
     c, current, u = self, self.p, self.undoer
     undoType = 'Mark Changed'
     c.endEditing()
-    u.beforeChangeGroup(current, undoType)
+    changed = False
     for p in c.all_unique_positions():
         if p.isDirty() and not p.isMarked():
+            if not changed:
+                u.beforeChangeGroup(current, undoType)
+            changed = True
             bunch = u.beforeMark(p, undoType)
             # c.setMarked calls a hook.
             c.setMarked(p)
             p.setDirty()
             c.setChanged()
             u.afterMark(p, undoType, bunch)
-    u.afterChangeGroup(current, undoType)
+    if changed:
+        u.afterChangeGroup(current, undoType)
     if not g.unitTesting:
         g.blue('done')
 #@+node:ekr.20031218072017.2924: *3* c_oc.markChangedRoots
@@ -1387,18 +1391,22 @@ def markChangedRoots(self: Cmdr, event: Event = None) -> None:
     c, current, u = self, self.p, self.undoer
     undoType = 'Mark Changed'
     c.endEditing()
-    u.beforeChangeGroup(current, undoType)
+    changed = False
     for p in c.all_unique_positions():
         if p.isDirty() and not p.isMarked():
             s = p.b
             flag, i = g.is_special(s, "@root")
             if flag:
+                if not changed:
+                    u.beforeChangeGroup(current, undoType)
+                changed = True
                 bunch = u.beforeMark(p, undoType)
                 c.setMarked(p)  # Calls a hook.
                 p.setDirty()
                 c.setChanged()
                 u.afterMark(p, undoType, bunch)
-    u.afterChangeGroup(current, undoType)
+    if changed:
+        u.afterChangeGroup(current, undoType)
     if not g.unitTesting:
         g.blue('done')
 #@+node:ekr.20031218072017.2928: *3* c_oc.markHeadline
@@ -1429,15 +1437,19 @@ def markSubheads(self: Cmdr, event: Event = None) -> None:
     if not current:
         return
     c.endEditing()
-    u.beforeChangeGroup(current, undoType)
+    changed = False
     for p in current.children():
         if not p.isMarked():
+            if not changed:
+                u.beforeChangeGroup(current, undoType)
+            changed = True
             bunch = u.beforeMark(p, undoType)
             c.setMarked(p)  # Calls a hook.
             p.setDirty()
             c.setChanged()
             u.afterMark(p, undoType, bunch)
-    u.afterChangeGroup(current, undoType)
+    if changed:
+        u.afterChangeGroup(current, undoType)
 #@+node:ekr.20031218072017.2930: *3* c_oc.unmarkAll
 @g.commander_command('unmark-all')
 def unmarkAll(self: Cmdr, event: Event = None) -> None:
@@ -1447,11 +1459,12 @@ def unmarkAll(self: Cmdr, event: Event = None) -> None:
     if not current:
         return
     c.endEditing()
-    u.beforeChangeGroup(current, undoType)
     changed = False
     p = None  # To keep pylint happy.
     for p in c.all_unique_positions():
         if p.isMarked():
+            if not changed:
+                u.beforeChangeGroup(current, undoType)
             bunch = u.beforeMark(p, undoType)
             # c.clearMarked(p) # Very slow: calls a hook.
             p.v.clearMarked()
@@ -1461,7 +1474,7 @@ def unmarkAll(self: Cmdr, event: Event = None) -> None:
     if changed:
         g.doHook("clear-all-marks", c=c, p=p)
         c.setChanged()
-    u.afterChangeGroup(current, undoType)
+        u.afterChangeGroup(current, undoType)
 #@+node:ekr.20031218072017.1766: ** c_oc.Move commands
 #@+node:ekr.20031218072017.1767: *3* c_oc.demote
 @g.commander_command('demote')
@@ -1675,6 +1688,56 @@ def moveOutlineUp(self: Cmdr, event: Event = None) -> None:
         u.afterMoveNode(p, 'Move Up', undoData)
     c.redraw(p)
     c.updateSyntaxColorer(p)  # Moving can change syntax coloring.
+#@+node:ekr.20230902051130.1: *3* c_oc.moveOutlineToFirstChild
+@g.commander_command('move-outline-to-first-child')
+def moveOutlineToFirstChild(self: Cmdr, event: Event = None) -> None:
+    """
+    Move the selected node so that it is the first child of its parent.
+
+    Do nothing if a hoist is in effect.
+    """
+    c, p, u = self, self.p, self.undoer
+    if not p:
+        return
+    if c.hoistStack:
+        return
+    if not p.hasBack():
+        return
+    parent = p.parent()
+    if not parent:
+        return
+    c.endEditing()
+    undoData = u.beforeMoveNode(p)
+    p.moveToNthChildOf(p.parent(), 0)
+    p.setDirty()
+    c.setChanged()
+    u.afterMoveNode(p, 'Move To First Child', undoData)
+    c.redraw(p)
+#@+node:ekr.20230902051833.1: *3* c_oc.moveOutlineToLastChild
+@g.commander_command('move-outline-to-last-child')
+def moveOutlineToLastChild(self: Cmdr, event: Event = None) -> None:
+    """
+    Move the selected node so that it is the last child of its parent.
+
+    Do nothing if a hoist is in effect.
+    """
+    c, p, u = self, self.p, self.undoer
+    if not p:
+        return
+    if c.hoistStack:
+        return
+    if not p.hasNext():
+        return
+    parent = p.parent()
+    if not parent:
+        return
+    c.endEditing()
+    undoData = u.beforeMoveNode(p)
+    p.moveToNthChildOf(parent, len(parent.v.children) - 1)
+    p.setDirty()
+    c.setChanged()
+    u.afterMoveNode(p, 'Move To Last Child', undoData)
+    c.redraw(p)
 #@+node:ekr.20031218072017.1774: *3* c_oc.promote
 @g.commander_command('promote')
 def promote(self: Cmdr, event: Event = None, undoFlag: bool = True) -> None:

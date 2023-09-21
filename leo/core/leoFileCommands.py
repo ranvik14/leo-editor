@@ -1000,7 +1000,7 @@ class FileCommands:
         recoveryNode = fc.handleNodeConflicts()
         #
         # Do this after reading external files.
-        # The descendent nodes won't exist unless we have read
+        # The descendant nodes won't exist unless we have read
         # the @thin nodes!
         fc.restoreDescendentAttributes()
         fc.setPositionsFromVnodes()
@@ -1057,19 +1057,6 @@ class FileCommands:
                 n2.setHeadString('new:' + h2)
                 n2.setBodyString(b2)
         return root
-    #@+node:ekr.20031218072017.3030: *5* fc.readOutlineOnly
-    def readOutlineOnly(self, theFile: Any, fileName: str) -> VNode:
-        c = self.c
-        # Set c.openDirectory
-        theDir = g.os_path_dirname(fileName)
-        if theDir:
-            c.openDirectory = c.frame.openDirectory = theDir
-        v, ratio = self.getLeoFile(theFile, fileName, readAtFileNodesFlag=False)
-        c.redraw()
-        c.frame.deiconify()
-        junk, junk, secondary_ratio = self.frame.initialRatios()
-        c.frame.resizePanesToRatio(ratio, secondary_ratio)
-        return v
     #@+node:vitalije.20170630152841.1: *5* fc.retrieveVnodesFromDb & helpers
     def retrieveVnodesFromDb(self, conn: Any) -> VNode:
         """
@@ -1411,7 +1398,8 @@ class FileCommands:
                 ' '.join(x.gnx for x in v.children),
                 ' '.join(x.gnx for x in v.parents),
                 v.iconVal,
-                v.statusBits,
+                # #3550: Clear the dirty bit.
+                v.statusBits & ~v.dirtyBit,
                 dump_u(v)
             )
 
@@ -1469,6 +1457,7 @@ class FileCommands:
             '''create table if not exists extra_infos(name primary key, value)''')
     #@+node:vitalije.20170701161851.1: *6* fc.exportVnodesToSqlite
     def exportVnodesToSqlite(self, conn: Any, rows: Any) -> None:
+        """Called only from fc.exportToSqlite."""
         conn.executemany(
             '''insert into vnodes
             (gnx, head, body, children, parents,
@@ -1876,7 +1865,7 @@ class FileCommands:
     #@+node:ekr.20080805071954.2: *5* fc.putDescendentVnodeUas & helper
     def putDescendentVnodeUas(self, p: Position) -> str:
         """
-        Return the a uA field for descendent VNode attributes,
+        Return the a uA field for descendant VNode attributes,
         suitable for reconstituting uA's for anonymous vnodes.
         """
         # Create aList of tuples (p,v) having a valid unknownAttributes dict.

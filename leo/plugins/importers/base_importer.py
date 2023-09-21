@@ -26,7 +26,7 @@ class Importer:
     Many importers only define `block_patterns` and `language` class ivars.
 
     Analyzing **guide lines** (lines without comments and strings)
-    grealtly simplifies this class and all of Leo's importers.
+    greatly simplifies this class and all of Leo's importers.
 
     Subclasses may override the following methods to recognize blocks:
 
@@ -50,8 +50,6 @@ class Importer:
     # May be overridden in subclasses.
     allow_preamble = False
     block_patterns: tuple = tuple()
-    level_up_ch = '{'
-    level_down_ch = '}'
     string_list: list[str] = ['"', "'"]
 
     #@+others
@@ -173,7 +171,7 @@ class Importer:
 
         Return the index of end of the block.
         i: The index of the (guide) line *following* the start of the block.
-        i2: The inedex last (guide) line to be scanned.
+        i2: The index last (guide) line to be scanned.
 
         This method assumes that that '{' and '}' delimit blocks.
         Subclasses may override this method as necessary.
@@ -270,11 +268,16 @@ class Importer:
         """
         Importer.import_from_string.
 
+        parent: An @<file> node containing the absolute path to the to-be-imported file.
+
+        s: The contents of the file.
+
         The top-level code for almost all importers.
 
         Overriding this method gives the subclass completed control.
         """
         c = self.c
+
         # Fix #449: Cloned @auto nodes duplicates section references.
         if parent.isCloned() and parent.hasChildren():  # pragma: no cover (missing test)
             return
@@ -294,6 +297,9 @@ class Importer:
 
         # Generate all nodes.
         self.gen_lines(lines, parent)
+
+        # A hook for python importer.
+        self.postprocess(parent)
 
         # Importers should never dirty the outline.
         # #1451: Do not change the outline's change status.
@@ -320,6 +326,17 @@ class Importer:
         Xml_Importer uses this hook to split lines.
         """
         return lines
+    #@+node:ekr.20230825095756.1: *4* i.postprocess
+    def postprocess(self, parent: Position) -> None:
+        """
+        Importer.postprocess.  A hook for language-specific post-processing.
+
+        Python_Importer overrides this method.
+
+        **Important**: The RecursiveImportController (RIC) class contains a
+                       language-independent postpass that adjusts headlines of
+                       *all* imported nodes.
+        """
     #@+node:ekr.20230529075138.39: *4* i.regularize_whitespace
     def regularize_whitespace(self, lines: list[str]) -> list[str]:  # pragma: no cover (missing test)
         """
@@ -373,7 +390,7 @@ class Importer:
             for line in lines:
                 stripped_line = line.lstrip()
                 if stripped_line:  # Skip empty lines
-                    lws_list.append(len(line[: -len(stripped_line)]))
+                    lws_list.append(len(line) - len(stripped_line))
         n = min(lws_list) if lws_list else 0
         ws_char = ' ' if self.tab_width < 1 else '\t'
         return ws_char * n

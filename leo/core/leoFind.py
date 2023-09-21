@@ -2394,18 +2394,7 @@ class LeoFind:
     def _inner_search_match_word(self, s: str, i: int, pattern: str) -> bool:
         """Do a whole-word search."""
         pattern = self.replace_back_slashes(pattern)
-        if not s or not pattern or not g.match(s, i, pattern):
-            return False
-        pat1, pat2 = pattern[0], pattern[-1]
-        n = len(pattern)
-        ch1 = s[i - 1] if 0 <= i - 1 < len(s) else '.'
-        ch2 = s[i + n] if 0 <= i + n < len(s) else '.'
-        isWordPat1 = g.isWordChar(pat1)
-        isWordPat2 = g.isWordChar(pat2)
-        isWordCh1 = g.isWordChar(ch1)
-        isWordCh2 = g.isWordChar(ch2)
-        inWord = isWordPat1 and isWordCh1 or isWordPat2 and isWordCh2
-        return not inWord
+        return bool(s and pattern and g.match_word(s, i, pattern))
     #@+node:ekr.20210110073117.46: *5* find._inner_search_plain
     def _inner_search_plain(self,
         s: str,
@@ -2497,26 +2486,8 @@ class LeoFind:
         return result
     #@+node:ekr.20210110073117.49: *4* find.replace_back_slashes
     def replace_back_slashes(self, s: str) -> str:
-        """Carefully replace backslashes in a search pattern."""
-        # This is NOT the same as:
-        #
-        #   s.replace('\\n','\n').replace('\\t','\t').replace('\\\\','\\')
-        #
-        # because there is no rescanning.
-        i = 0
-        while i + 1 < len(s):
-            if s[i] == '\\':
-                ch = s[i + 1]
-                if ch == '\\':
-                    s = s[:i] + s[i + 1 :]  # replace \\ by \
-                elif ch == 'n':
-                    s = s[:i] + '\n' + s[i + 2 :]  # replace the \n by a newline
-                elif ch == 't':
-                    s = s[:i] + '\t' + s[i + 2 :]  # replace \t by a tab
-                else:
-                    i += 1  # Skip the escaped character.
-            i += 1
-        return s
+        """Replace backslash-n with a newline and backslash-t with a tab."""
+        return s.replace('\\n', '\n').replace('\\t', '\t')
     #@+node:ekr.20031218072017.3082: *3* LeoFind.Initing & finalizing
     #@+node:ekr.20031218072017.3086: *4* find.init_in_headline & helper
     def init_in_headline(self) -> None:

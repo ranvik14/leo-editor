@@ -477,7 +477,7 @@ class Commands:
     idle_focus_count = 0
 
     def idle_focus_helper(self, tag: str, keys: Any) -> None:
-        """An idle-tme handler that ensures that focus is *somewhere*."""
+        """An idle-time handler that ensures that focus is *somewhere*."""
         trace = 'focus' in g.app.debug
         trace_inactive_focus = False  # Too disruptive for --trace-focus
         trace_in_dialog = False  # Not useful enough for --trace-focus
@@ -1823,7 +1823,7 @@ class Commands:
                 raise ValueError(f"Invalid position: {p!r}")
             c._currentPosition = c.rootPosition()
             g.trace('Invalid position', repr(p), repr(c))
-            g.trace(g.callers())
+            g.printObj(g.callers(20).split(','), tag='Callers')
 
     # For compatibility with old scripts.
 
@@ -2724,7 +2724,7 @@ class Commands:
             g.doHook("command2", c=c, p=p, label=command_name)
         return return_value
     #@+node:ekr.20200522075411.1: *4* c.doCommandByName
-    def doCommandByName(self, command_name: Any, event: Event) -> Any:
+    def doCommandByName(self, command_name: Any, event: Event = None) -> Any:
         """
         Execute one command, given the name of the command.
 
@@ -2733,6 +2733,10 @@ class Commands:
         Return the result, if any, of the command.
         """
         c = self
+        if not event:
+            # Create a default key event.
+            event = g.app.gui.create_key_event(c)
+
         # Get the command's function.
         command_func = c.commandsDict.get(command_name.replace('&', ''))
         if not command_func:
@@ -3717,7 +3721,7 @@ class Commands:
         """
         Navigate to the next headline starting with ch = event.char.
         If ch is uppercase, search all headlines; otherwise search only visible headlines.
-        This is modelled on Windows explorer.
+        This is modeled on Windows explorer.
         """
         if not event or not event.char or not event.char.isalnum():
             return
@@ -4361,12 +4365,14 @@ class Commands:
         Recursively import all python files in a directory and clean the results.
 
         Parameters::
-            dir_              The root directory or file to import.
+            dir_              The path to a directory or file.
+                              Relative paths must exist relative to the outline's directory.
             kind              One of ('@clean','@edit','@file','@nosent').
             recursive=True    True: recurse into subdirectories.
             safe_at_file=True True: produce @@file nodes instead of @file nodes.
             theTypes=None     A list of file extensions to import.
                               None is equivalent to ['.py']
+            verbose=False     True: report imported directories.
 
         This method cleans imported files as follows:
 
@@ -4377,12 +4383,7 @@ class Commands:
         """
         #@-<< docstring >>
         c = self
-        if not dir_:
-            g.es_print('Missing dir_ argument')
-            return
-        if not g.os_path_exists(dir_):
-            g.es_print(f"Directory/file does not exist: {dir_}")
-            return
+
         # Import all files in dir_ after c.p.
         try:
             from leo.core import leoImport

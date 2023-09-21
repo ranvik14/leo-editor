@@ -64,7 +64,7 @@ Socket = Any
 #@-<< leoserver annotations >>
 #@+<< leoserver version >>
 #@+node:ekr.20220820160619.1: ** << leoserver version >>
-version_tuple = (1, 0, 6)
+version_tuple = (1, 0, 7)
 # Version History
 # 1.0.1 Initial commit.
 # 1.0.2 July 2022: Adding ui-scroll, undo/redo, chapters, ua's & node_tags info.
@@ -72,6 +72,7 @@ version_tuple = (1, 0, 6)
 # 1.0.4 September 2022: Full type checking.
 # 1.0.5 October 2022: Fixed node commands when used from client's context menu.
 # 1.0.6 February 2023: Fixed JSON serialization, improved search commands and syntax-coloring.
+# 1.0.7 September 2023: Fixed message for file change detection.
 v1, v2, v3 = version_tuple
 __version__ = f"leoserver.py version {v1}.{v2}.{v3}"
 #@-<< leoserver version >>
@@ -100,7 +101,7 @@ class SetEncoder(json.JSONEncoder):
         # Sets become basic javascript arrays
         if isinstance(obj, set):
             return list(obj)
-        # Leo Positions get converted with same simple algo as p_to_ap
+        # Leo Positions get converted with same simple algorithm as p_to_ap
         if isinstance(obj, Position):
             stack = [{'gnx': v.gnx, 'childIndex': childIndex}
                 for (v, childIndex) in obj.stack]
@@ -337,7 +338,7 @@ class ServerExternalFilesController(ExternalFilesController):
         else:
             where = p.h
 
-        _is_leo = path.endswith(('.leo', '.db'))
+        _is_leo = path.endswith(('.leo', '.db', '.leojs'))
 
         if _is_leo:
             s = '\n'.join([
@@ -4137,7 +4138,6 @@ class LeoServer:
             'read-at-file-nodes',
             'read-at-shadow-nodes',
             'read-file-into-node',
-            'read-outline-only',
             'read-ref-file',
 
             # Save Files.
@@ -4867,7 +4867,7 @@ class LeoServer:
             selRange = gui_w.getSelectionRange()
             return selRange
         except Exception:
-            print("Error retrieving current focussed widget selection range.")
+            print("Error retrieving current focused widget selection range.")
             return 0, 0
     #@+node:felix.20210705211625.1: *4* server._is_jsonable
     def _is_jsonable(self, x: Any) -> bool:
