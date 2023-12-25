@@ -11,6 +11,7 @@ These classes should be overridden to create frames for a particular gui.
 from __future__ import annotations
 from collections.abc import Callable
 import os
+import re
 import string
 from typing import Any, Optional, Union
 from typing import TYPE_CHECKING
@@ -29,6 +30,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from leo.core.leoGui import LeoGui
     from leo.core.leoMenu import LeoMenu, NullMenu
     from leo.core.leoNodes import Position, VNode
+    from leo.plugins.mod_scripting import ScriptingController
     from leo.plugins.qt_frame import DynamicWindow
     from leo.plugins.qt_text import QTextEditWrapper as Wrapper
     from leo.plugins.qt_text import LeoQtBody, LeoQtLog, LeoQtMenu, LeoQtTree, QtIconBarClass
@@ -287,7 +289,12 @@ class IconBarAPI:
         pass
 
     def setCommandForButton(self,
-        button: Any, command: str, command_p: Position, controller: Cmdr, gnx: str, script: str,
+        button: Wrapper,
+        command: str,
+        command_p: Position,
+        controller: ScriptingController,
+        gnx: str,
+        script: str,
     ) -> None:
         pass
 #@+node:ekr.20031218072017.3656: ** class LeoBody
@@ -714,7 +721,6 @@ class LeoFrame:
         self.cursorStay = True  # May be overridden in subclass.reloadSettings.
         self.es_newlines = 0  # newline count for this log stream.
         self.isNullFrame = False
-        self.openDirectory = ""
         self.saved = False  # True if ever saved
         self.splitVerticalFlag = True  # Set by initialRatios later.
         self.stylesheet: str = None  # The contents of <?xml-stylesheet...?> line.
@@ -1292,8 +1298,7 @@ class LeoLog:
             if not line.strip():
                 return None, None, None
             for filename_i, line_number_i, pattern in self.link_table:
-                m = pattern.match(line)
-                if m:
+                if m := pattern.match(line):
                     return m, filename_i, line_number_i
             return None, None, None
         #@+node:ekr.20220412084258.1: *5* function: find_at_file_node
@@ -1418,14 +1423,9 @@ class LeoTree:
         s = w.getAllText()
         #@+<< truncate s if it has multiple lines >>
         #@+node:ekr.20040803072955.94: *5* << truncate s if it has multiple lines >>
-        # Remove trailing newlines before warning of truncation.
-        while s and s[-1] == '\n':
-            s = s[:-1]
-        # Warn if there are multiple lines.
-        i = s.find('\n')
-        if i > -1:
-            g.warning("truncating headline to one line")
-            s = s[:i]
+        # #3633: Replace newlines with a blank.
+        if '\n' in s:
+            s = re.sub(r'\s*\n\s*', ' ', s).replace('  ', ' ').rstrip()
         limit = 1000
         if len(s) > limit:
             g.warning("truncating headline to", limit, "characters")
@@ -1721,7 +1721,6 @@ class LeoTreeTab:
     #@+node:ekr.20070317073755: *3* LeoTreeTab: Must be defined in subclasses
     def createControl(self) -> Wrapper:  # pylint: disable=useless-return
         raise NotImplementedError
-        return None
 
     def createTab(self, tabName: str, createText: bool = True, widget: Widget = None, select: bool = True) -> None:
         raise NotImplementedError
@@ -2019,7 +2018,7 @@ class NullIconBarClass:
         button: Any,
         command: str,
         command_p: Position,
-        controller: Cmdr,
+        controller: ScriptingController,
         gnx: str,
         script: str,
     ) -> None:

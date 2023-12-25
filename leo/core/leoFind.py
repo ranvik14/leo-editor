@@ -1486,8 +1486,6 @@ class LeoFind:
         search string.
 
         Typing tab converts this to the change-all command.
-
-
         """
         self.ftm.clear_focus()
         self.ftm.set_entry_focus()
@@ -1698,10 +1696,15 @@ class LeoFind:
                         self.put_link(line, n, v)
         return ''.join(results)
     #@+node:ekr.20230124102225.1: *7* find.put_link
+    total_links = 0
+
     def put_link(self, line: str, line_number: int, v: VNode) -> None:  # pragma: no cover  # #2023
         """Put a link to the given line at the given line_number in v.h."""
         c = self.c
         log = c.frame.log
+        self.total_links += 1
+        if self.total_links > 100:
+            return
         # Find the first position with the given vnode.
         for p in c.all_unique_positions():
             if p.v == v:
@@ -1898,6 +1901,52 @@ class LeoFind:
         k.showStateAndMode()
         c.widgetWantsFocusNow(w)
         self.do_find_next(settings)
+    #@+node:ekr.20231127044802.1: *4* find.summarize
+    @cmd('summarize')
+    def summarize_command(self, event: Event) -> None:  # pragma: no cover (interactive)
+        """
+        The summarize command. Prompt for a regex and list all matches in a new
+        top-level node.
+        
+        This command shows *only* m.group(0).
+        Append `.*` to the pattern to see the remainder of the line.
+        """
+
+        c = self.c
+
+        def summarize_callback(**kwargs: Any) -> None:
+
+            # Get and check pattern.
+            pattern_s = kwargs['args'][0]
+            if not pattern_s.strip():
+                g.es_print('no pattern')
+                return
+            try:
+                re_pattern = re.compile(pattern_s)
+            except Exception:
+                g.es(f"invalid regex: {pattern_s!r}")
+                return
+
+            # Find all unique instances of pattern.
+            results_set = set()
+            for v in c.all_unique_nodes():
+                for m in re.finditer(re_pattern, v.b):
+                    results_set.add(m.group(0))
+            results = list(sorted(results_set))
+
+            if results:
+                # Create a top-level summary node.
+                last = c.lastTopLevel()
+                p = last.insertAfter()
+                p.h = f"summarize: found {len(results)}: {pattern_s}"
+                results_s = '\n'.join(results)
+                p.b = f"// summarize: {pattern_s}\n\n{results_s}\n"
+                c.redraw()
+            else:
+                # Report failure.
+                g.es(f"summarize: not found: {pattern_s}")
+
+        c.interactive1(summarize_callback, event=None, prompts=('Summarize regex: ',))
     #@+node:ekr.20160920164418.2: *4* find.tag-children & helper
     @cmd('tag-children')
     def interactive_tag_children(self, event: Event = None) -> None:  # pragma: no cover (interactive)
@@ -2042,10 +2091,6 @@ class LeoFind:
             else:
                 p.moveToThreadNext()
             assert p != progress
-        self.ftm.set_radio_button('entire-outline')
-        # suboutline-only is a one-shot for batch commands.
-        self.node_only = self.suboutline_only = False
-        self.root = None
         if clones:
             undoData = u.beforeInsertNode(c.p)
             found = self._cfa_create_nodes(clones, flattened=False)
@@ -2055,6 +2100,11 @@ class LeoFind:
             c.selectPosition(found)
             # Put the count in found.h.
             found.h = found.h.replace('Found:', f"Found {count}:")
+        # Reset data after calculating results.
+        self.ftm.set_radio_button('entire-outline')
+        # suboutline-only is a one-shot for batch commands.
+        self.node_only = self.suboutline_only = False
+        self.root = None
         g.es("found", count, "matches for", self.find_text)
         return count  # Might be useful for the gui update.
     #@+node:ekr.20210110073117.34: *5* find._cfa_create_nodes
@@ -2073,7 +2123,8 @@ class LeoFind:
         status = self.compute_result_status(find_all_flag=True)
         status = status.strip().lstrip('(').rstrip(')').strip()
         flat = 'flattened, ' if flattened else ''
-        found.b = f"@nosearch\n\n# {flat}{status}\n\n# found {len(clones)} nodes"
+        root = f"\n\n# root: {c.p.h}" if self.suboutline_only else ''
+        found.b = f"@nosearch\n\n# {flat}{status}{root}\n\n# found {len(clones)} nodes"
         # Clone nodes as children of the found node.
         for p in clones:
             # Create the clone directly as a child of found.
@@ -2394,7 +2445,10 @@ class LeoFind:
     def _inner_search_match_word(self, s: str, i: int, pattern: str) -> bool:
         """Do a whole-word search."""
         pattern = self.replace_back_slashes(pattern)
-        return bool(s and pattern and g.match_word(s, i, pattern))
+        return bool(
+            s and pattern
+            and g.match_word(s, i, pattern, ignore_case=self.ignore_case)
+        )
     #@+node:ekr.20210110073117.46: *5* find._inner_search_plain
     def _inner_search_plain(self,
         s: str,
@@ -3013,6 +3067,7 @@ class LeoFind:
         k.getArgEscapes = ['\t'] if escape_handler else []
         self.handler = handler
         self.escape_handler = escape_handler
+        self.total_links = 0  # Limit the total number of clickable links.
         # Start the state matching!
         k.get1Arg(event, handler=self.state0, tabList=self.findTextList, completion=True)
 

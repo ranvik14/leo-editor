@@ -367,7 +367,7 @@ class CoffeeScriptTraverser:
 
     def do_arg(self, node):
 
-        # Visit the node.annotation to keep strings in synch.
+        # Visit the node.annotation to keep strings in sync.
         if getattr(node, 'annotation', None):
             self.visit(node.annotation)
         return node.arg
@@ -1152,6 +1152,8 @@ class LeoGlobals:
     def cls(self):
         '''Clear the screen.'''
         if sys.platform.lower().startswith('win'):
+            # Leo 6.7.5: Two calls seem to be required!
+            os.system('cls')
             os.system('cls')
     #@+node:ekr.20160316091132.86: *3* g.computeLeadingWhitespace
     def computeLeadingWhitespace(self, width, tab_width):
@@ -1196,7 +1198,7 @@ class LeoGlobals:
         return s.splitlines(True) if s else []
     #@+node:ekr.20160316091132.92: *3* g.toUnicode (py2cs.py)
     def toUnicode(self, s, encoding='utf-8', reportErrors=False):
-        '''Connvert a non-unicode string with the given encoding to unicode.'''
+        '''Convert a non-unicode string with the given encoding to unicode.'''
         if isinstance(s, str):
             return s
         if not encoding:

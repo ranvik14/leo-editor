@@ -54,7 +54,7 @@ class PrintingController:
         table = (
             # Clearer w/o f-strings.
             f"h1 {{font-family: {family}}}",
-            f"pre {{font-family: {family}; font-size: {size}px}}",
+            f"pre {{font-family: {family}; font-size: {size}pt}}",
         )
         return '\n'.join(table)
     #@+node:ekr.20150420072955.1: *3* pr.Doc constructors
@@ -288,6 +288,7 @@ class PrintingController:
             return
         # pylint: disable=no-member
         dialog = printsupport.QPrintDialog()
+        dialog.setStyleSheet(self.stylesheet)
         result = dialog.exec_()
         if result == DialogCode.Accepted:
             try:
@@ -300,6 +301,7 @@ class PrintingController:
         # pylint: disable=no-member
         dialog = printsupport.QPrintPreviewDialog()
         dialog.setSizeGripEnabled(True)
+        dialog.setStyleSheet(self.stylesheet)
         dialog.paintRequested.connect(doc.print)
         dialog.exec_()
     #@-others

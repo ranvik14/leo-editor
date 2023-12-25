@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Created by Leo: https://leo-editor.github.io/leo-editor/leo_toc.html -->
-<leo_file xmlns:leo="http://leo-editor.github.io/leo-editor/namespaces/leo-python-editor/1.1" >
+<leo_file xmlns:leo="https://leo-editor.github.io/leo-editor/namespaces/leo-python-editor/1.1" >
 <leo_header file_format="2"/>
 <globals/>
 <preferences/>
@@ -201,7 +201,7 @@ Portions of Leo's pyzo interface uses code from pyzo:
 </t>
 <t tx="EKR.20040519090846.8">Metadata-Version: 1.0
 Name: leo
-Version: 6.7.4
+Version: 6.7.6
 Summary: An IDE, PIM and Outliner. See http://leo-editor.github.io/leo-editor/preface.html.
 Description: See users own descriptions of Leo at leo-editor.github.io/leo-editor/testimonials.html.
 Home-page: http://leo-editor.github.io/leo-editor/
@@ -220,52 +220,35 @@ Classifier: Topic :: Software Development
 Classifier: Topic :: Text Processing
 Download-URL: https://github.com/leo-editor/leo-editor/releases
 </t>
-<t tx="EKR.20040519090846.9">Leo https://leo-editor.github.io/leo-editor/ 6.7.4 is now available on [GitHub](https://github.com/leo-editor/leo-editor/releases) and [pypi](https://pypi.org/project/leo/).
+<t tx="EKR.20040519090846.9">Leo https://leo-editor.github.io/leo-editor/ 6.7.6 is now available on [GitHub](https://github.com/leo-editor/leo-editor/releases) and [pypi](https://pypi.org/project/leo/).
 
 Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/preface.html).
 
-**The highlights of Leo 6.7.4**
+**The highlights of Leo 6.7.6**
 
-**Warning: breaking changes to Leo's api**
+Support for Python 3.12:
 
-p.get_UNL returns gnx-based unls. Previously it returned path-based gnxs.
-See the first comment of PR #3424 for full details.
+- PR #3693: update leoAst.py for Python 3.12.
+- PR #3701: Colorize PEP 701 f-strings.
 
-**gnx-based unls**
+Other significant improvements:
 
-- PR #3215 and #3424: gnx-based unls (clickable links).
-  These links will break only if the original node is deleted.
-  
-**New settings**
-  
-- @string unl-status-kind = gnx
-- @bool full-unl-paths = True
-- @data unl-path-prefixes
-  
-**Other improvements**
-  
-- PR #3330: Improve importers for C, C++, and cython.
-- PR #3345: Improve importer architecture.
-- PR #3363 &amp; #3379: Improve c.recursiveImport.
-- PR #3376: Improve python importer.
+- PR #3645: Allow mixed external files on the command line.
+            Retire the --load-type command-line option.
+- PR #3575: Add the indented_languages plugin.
+- PR #3642: Add the clean-all-lines command.
+- PR #3659: Add python-to-rust command.
+- PR #3673: Add summarize command.
+- scripts.leo contains `@button` scripts by Thomas Passin.
 
-**Large code changes**
-
-- PR #3365: Simplify mypy annotations (128 files).
-- PR #3367: Import Callable from collections.abc instead of typing (50 files).
-
-**Retire three plugins**
-
-- PR #3215: Retire the settings_finder, backlink, and quickMove plugins.
-
-- 50+ issues and 70+ pull requests.
+The usual assortment of minor bug fixes and code-level improvements.
 
 **Links**
 
 - [Download Leo](https://leo-editor.github.io/leo-editor/download.html)
 - [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
-- [6.7.4 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.4+)
-- [6.7.4 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.4)
+- [6.7.6 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.6+)
+- [6.7.6 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.6)
 - [Documentation](https://leo-editor.github.io/leo-editor/leo_toc.html)
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
@@ -276,6 +259,9 @@ See the first comment of PR #3424 for full details.
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
 - [A web page that displays .leo files](https://leo-editor.github.io/leo-editor/load-leo.html)
 - [More links](https://leo-editor.github.io/leo-editor/leoLinks.html)
+
+@nowrap
+@language rest
 </t>
 <t tx="EKR.20040519091259.1">5.1:        setup: 1,114    zip: 2,912
 5.0:        setup: 552      zip: 1,617
@@ -1455,14 +1441,11 @@ g.es_print('done')
 </t>
 <t tx="ekr.20180405171433.1">Overview
 
-Create the **release branch**: `6.7.5`.
-- Change version in this checklist to match.
-- Do all release work in `6.7.5` or `gh-pages`.
+Create the **release branch**: `6.7.7`.
+Change version in this checklist to match.
 
-About merges:
-- Do *not* merge devel into 6.7.5.
-- Merge bug fix branches into `devel` and `6.7.5`
-- Merge `6.7.5` into `devel` any time.
+It's ok to merge devel into release branch
+*unless* devel contains work for the *next* release.
 
 @language rest
 </t>
@@ -1478,7 +1461,7 @@ About merges:
 
 </t>
 <t tx="ekr.20180405171433.3" __bookmarks="7d7100580700000069735f6475706571014930300a732e">- git checkout `gh-pages`.
-- git merge 6.7.5
+- git merge 6.7.7
 - Run the `make-sphinx` from LeoDocs.leo
   This script copies files from leo/doc/html/_build/html to leo-editor/docs
 - Commit the changes and push.
@@ -1497,7 +1480,7 @@ About merges:
 <t tx="ekr.20180405171433.7" __bookmarks="7d7100580700000069735f6475706571014930300a732e">Create a git tag **last**
 
 git checkout master
-git tag -a v6.7.5 -m "Added v6.7.5 tag"
+git tag -a v6.7.7 -m "Added v6.7.7 tag"
 git push --follow-tags
 </t>
 <t tx="ekr.20180828095843.1" __bookmarks="7d7100580700000069735f6475706571014930300a732e">leoVersion.py:
@@ -1506,20 +1489,20 @@ git push --follow-tags
 - Update date of the release, in &lt;&lt; version dates &gt;&gt; section.
 </t>
 <t tx="ekr.20181001112218.1" __bookmarks="7d7100580700000069735f6475706571014930300a732e">- git checkout devel
-- git merge 6.7.5
+- git merge 6.7.7
 - update version in leoVersion.py.
 
 Create a branch for the *new* version:
 
-git tag -a v6.7.6-devel -m "Added v6.7.6-devel tag"
+git tag -a v6.7.7-devel -m "Added v6.7.7-devel tag"
 git push --follow-tags
 </t>
-<t tx="ekr.20190618104430.1" __bookmarks="7d7100580700000069735f6475706571014930300a732e">From 6.7.5 branch:
+<t tx="ekr.20190618104430.1" __bookmarks="7d7100580700000069735f6475706571014930300a732e">From 6.7.7 branch:
 
 - git merge master
 - Fix any conflicts and push.
 - git checkout master
-- git merge 6.7.5</t>
+- git merge 6.7.7</t>
 <t tx="ekr.20190618104622.1" __bookmarks="7d7100580700000069735f6475706571014930300a732e">Update the *GitHub* release at https://github.com/leo-editor/leo-editor/releases
 
 This must be done *soon* after the release's actual commit.
@@ -1599,14 +1582,14 @@ password:  EKR: Copy contents of leo_pypi_token.txt
            
 File names must be unique.
 If there are conflicting names, add -NNN to the filename, like this:
-    leo-6.7.5-2-py3-none-any.whl
-    leo-6.7.5-2.tar.gz
+    leo-6.7.7-2-py3-none-any.whl
+    leo-6.7.7-2.tar.gz
 
 **install**
 
 - Remove leo-editor from sitecustomize.py if it exists.
 
-python -m pip install --index-url https://pypi.org/simple/ --no-deps leo==6.7.5
+python -m pip install --index-url https://pypi.org/simple/ --no-deps leo==6.7.7
 
 **test**
 
@@ -1621,8 +1604,8 @@ python -m pip uninstall leo
 </t>
 <t tx="ekr.20230301070404.1">LeoDist.leo:
 - Make sure copyright dates are correct.
-- Update version numbers. Search for ##version
-  The final version in PKG-INFO.TXT must be called 6.7.5, not 6.7.5-final.
+- Update version numbers. Search for 6.7.
+  The final version in PKG-INFO.TXT must be called 6.7.7, not 6.7.7-final.
   See Pep 440: https://www.python.org/dev/peps/pep-0440/
 - Update readme.md.
 - Update version in 'PKG-INFO.TXT'
@@ -1638,7 +1621,7 @@ python -m pip uninstall leo
 - Create LeoPyRef.leo by copying leoPy.leo to it, then deleting unwanted nodes.
 - Open LeoPyRef.leo. Verify the diff after saving.
 </t>
-<t tx="ekr.20230301084201.1">- Change 6.7.5 (the old version) to 6.7.6.
+<t tx="ekr.20230301084201.1">- Change 6.7.7 (the old version) to 6.7.8.
   Be careful about the new version in the `Update version in devel` item.
 </t>
 <t tx="maphew.20180128212042.1">@language md

@@ -588,8 +588,7 @@ class AutoCompleterClass:
     def get_codewise_completions(self, prefix: str) -> list[str]:
         """Use codewise to generate a list of hits."""
         c = self.c
-        m = re.match(r"(\S+(\.\w+)*)\.(\w*)$", prefix)
-        if m:
+        if m := re.match(r"(\S+(\.\w+)*)\.(\w*)$", prefix):
             varname = m.group(1)
             ivar = m.group(3)
             kind, aList = self.guess_class(c, varname)
@@ -648,8 +647,7 @@ class AutoCompleterClass:
             # Return the nearest enclosing class.
             for p in c.p.parents():
                 h = p.h
-                m = re.search(r'class\s+(\w+)', h)
-                if m:
+                if m := re.search(r'class\s+(\w+)', h):
                     return 'class', [m.group(1)]
         # This is not needed now that we add the completions for 'self'.
             # aList = ContextSniffer().get_classes(c.p.b, varname)
@@ -784,8 +782,7 @@ class AutoCompleterClass:
         aList = prefix.split('.')
         if len(aList) > 1:
             name = aList[0]
-            m = sys.modules.get(name)
-            if m:
+            if m := sys.modules.get(name):
                 d[name] = m
         return d
     #@+node:ekr.20110512170111.14472: *4* ac.get_object
@@ -1727,13 +1724,10 @@ class KeyHandlerClass:
         self.arg = ''  # The value returned by k.getArg.
         self.getArgEscapeFlag = False  # True: the user escaped getArg in an unusual way.
         self.getArgEscapes: list[str] = []
+        self.functionTail = ''  # For vim commands that take minibuffer arguments.
         self.inputModeName = ''  # The name of the input mode, or None.
         self.modePrompt = ''  # The mode prompt.
         self.state = g.bunch(kind=None, n=None, handler=None)
-
-        # Remove ???
-        self.givenArgs: list[str] = []  # Args specified after the command name in k.simulateCommand.
-        self.functionTail = ''  # For commands that take minibuffer arguments.
     #@+node:ekr.20061031131434.79: *5* k.defineInternalIvars
     def defineInternalIvars(self) -> None:
         """Define internal ivars of the KeyHandlerClass class."""
@@ -3099,7 +3093,10 @@ class KeyHandlerClass:
         c, k = self.c, self
         # Setup...
         if trace:
-            g.trace(repr(k.state.kind), repr(event.char), repr(event.stroke))
+            handler_s = f"{k.state.handler.__name__}" if k.state.handler else 'No handler'
+            g.trace(
+                f"char: {event.char!r} stroke: {event.stroke!r} "
+                f"state.kind: {k.state.kind!r}, state.handler: {handler_s}")
         k.checkKeyEvent(event)
         k.setEventWidget(event)
         k.traceVars(event)
@@ -3285,6 +3282,8 @@ class KeyHandlerClass:
                     g.trace(state, 'k.generalModeHandler', stroke)
                 return True
             # Unbound keys end mode.
+            if trace:
+                g.trace(state, stroke, 'no binding')
             k.endMode()
             return False
         # Fourth, call the state handler.
@@ -3503,6 +3502,8 @@ class KeyHandlerClass:
         #
         # #327: Ignore killed bindings.
         if bi and bi.commandName in k.killedBindings:
+            if trace:
+                g.trace(f"{event.stroke!s} {bi.commandName}: in killed bindings")
             return False
         #
         # Execute the command if the binding exists.
@@ -3514,6 +3515,8 @@ class KeyHandlerClass:
             return True
         #
         # No binding exists.
+        if trace:
+            g.trace(f"{event.stroke!s} {bi.commandName}: no binding")
         return False
     #@+node:ekr.20091230094319.6240: *6* k.getPaneBinding & helper
     def getPaneBinding(self, event: Event) -> Any:

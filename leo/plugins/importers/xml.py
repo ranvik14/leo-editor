@@ -52,10 +52,11 @@ class Xml_Importer(Importer):
     #@+node:ekr.20230519053541.1: *3* xml_i.compute_headline
     def compute_headline(self, block: Block) -> str:
         """Xml_Importer.compute_headline."""
+        n = max(block.start, block.start_body - 1)
+        s = block.lines[n].strip()
 
-        child_kind, child_name, child_start, child_start_body, child_end = block
-        n = max(child_start, child_start_body - 1)
-        return self.lines[n].strip()
+        # Truncate the headline if necessary.
+        return g.truncate(s, 120)
     #@+node:ekr.20230518081757.1: *3* xml_i.find_end_of_block
     def find_end_of_block(self, i1: int, i2: int) -> int:
         """
@@ -68,8 +69,7 @@ class Xml_Importer(Importer):
         tag1: str = None
         line = self.guide_lines[i1 - 1]
         for pattern in self.start_patterns:
-            m = pattern.match(line)
-            if m:
+            if m := pattern.match(line):
                 tag1 = m.group(1).lower()
                 tag_stack.append(tag1)
                 break
@@ -81,14 +81,12 @@ class Xml_Importer(Importer):
             i += 1
             # Push start patterns.
             for pattern in self.start_patterns:
-                m = pattern.match(line)
-                if m:
+                if m := pattern.match(line):
                     tag = m.group(1).lower()
                     tag_stack.append(tag)
                     break
             for pattern in self.end_patterns:
-                m = pattern.match(line)
-                if m:
+                if m := pattern.match(line):
                     end_tag = m.group(1).lower()
                     while tag_stack:
                         tag = tag_stack.pop()

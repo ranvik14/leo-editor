@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Created by Leo: https://leo-editor.github.io/leo-editor/leo_toc.html -->
-<leo_file xmlns:leo="http://leo-editor.github.io/leo-editor/namespaces/leo-python-editor/1.1" >
+<leo_file xmlns:leo="https://leo-editor.github.io/leo-editor/namespaces/leo-python-editor/1.1" >
 <leo_header file_format="2"/>
 <globals/>
 <preferences/>
@@ -1222,7 +1222,7 @@
 <v t="ekr.20150323102918.1"><vh>@rst-ignore Undocumented commands</vh></v>
 </v>
 <v t="ekr.20131009065148.31758"><vh>@rst html/directives.html</vh>
-<v t="ekr.20100806170836.4392"><vh>Part 1: \@&lt;file&gt; directives</vh>
+<v t="ekr.20100806170836.4392"><vh>Part 1: \@&lt;file&gt; and \@path directives</vh>
 <v t="ekr.20100806170836.4393"><vh>\@asis &lt;path&gt;</vh></v>
 <v t="ekr.20100806170836.4396"><vh>\@auto &lt;path&gt;</vh>
 <v t="ekr.20160410045234.1"><vh>\@auto sanity checks</vh></v>
@@ -1232,6 +1232,7 @@
 <v t="ekr.20100806170836.4403"><vh>\@file &lt;path&gt; (aka @thin)</vh></v>
 <v t="ekr.20160410044518.1"><vh>\@nosent &lt;path&gt;</vh></v>
 <v t="ekr.20100806170836.4402"><vh>\@shadow &lt;path&gt; (deprecated)</vh></v>
+<v t="ekr.20231013091132.1"><vh>\@path &lt;path&gt;</vh></v>
 </v>
 <v t="ekr.20100806170836.4411"><vh>Part 2: \@all and \@others</vh></v>
 <v t="ekr.20100806170836.4398"><vh>Part 3: Syntax coloring directives</vh></v>
@@ -1505,7 +1506,6 @@
 <v t="ekr.20131019061259.16690"><vh>VNode class</vh></v>
 <v t="ekr.20131019061259.16691"><vh>Position class</vh></v>
 <v t="ekr.20131019061259.16692"><vh>leo.core.leoGlobals module</vh></v>
-<v t="ekr.20170311120214.1"><vh>Test driven development</vh></v>
 <v t="ekr.20170403185500.1"><vh>Performance gotchas</vh></v>
 <v t="ekr.20181015144118.25"><vh>Prompting for command arguments</vh>
 <v t="ekr.20181015144118.26"><vh>Example 1: Prompt for one arg</vh></v>
@@ -1639,6 +1639,7 @@
 <v t="ekr.20060620094033"><vh>What's New...</vh>
 <v t="ekr.20101025080245.5791"><vh>@rst html/what-is-new.html</vh>
 <v t="ekr.20071116062917.2"><vh>@rst-no-head links</vh></v>
+<v t="ekr.20231126120048.1"><vh>What's new in Leo 6.7.6</vh></v>
 <v t="ekr.20230901233844.1"><vh>What's new in Leo 6.7.5</vh></v>
 <v t="ekr.20230709070852.1"><vh>What's new in Leo 6.7.4</vh></v>
 <v t="ekr.20230409053106.1"><vh>What's new in Leo 6.7.3</vh></v>
@@ -1815,6 +1816,8 @@
 </v>
 </v>
 <v t="ekr.20180125034510.1"><vh>Release Notes</vh>
+<v t="ekr.20231126121710.1"><vh>Leo 6.7.6 release notes </vh></v>
+<v t="ekr.20230901233131.1"><vh>Leo 6.7.5 release notes</vh></v>
 <v t="ekr.20230703101804.1"><vh>Leo 6.7.4 release notes</vh></v>
 <v t="ekr.20230409052507.1"><vh>Leo 6.7.3 release notes</vh></v>
 <v t="ekr.20230110152131.1"><vh>Leo 6.7.2 release notes</vh></v>
@@ -2506,8 +2509,8 @@
 </v>
 </v>
 </v>
-<v t="ekr.20230901233844.1"></v>
-<v t="ekr.20230901233131.1"><vh>Leo 6.7.5 release notes</vh></v>
+<v t="ekr.20231126120048.1"></v>
+<v t="ekr.20231126121710.1"></v>
 </vnodes>
 <tnodes>
 <t tx="EKR.20040524104904.140">Leo stores options in **@settings trees**, outlines whose headline is ``@settings``. When opening a .leo file, Leo looks for ``@settings`` trees not only in the outline being opened but also in various ``leoSettings.leo`` files. This scheme allows for the following kinds of settings:
@@ -4716,91 +4719,94 @@ the 'Stop?' column.
 the keyword dictionary contain *positions*, not vnodes. These keys are
 deprecated. The new_c key is also deprecated. Plugins should use the c key instead.
 
-============================= ======== =================================== =============================
-Event name (tag argument)     Stop?    When called                         Keys in keywords dict
-============================= ======== =================================== =============================
-'after-auto'                           after each @auto file loaded        c,p (note 13)
-'after-create-leo-frame'               after creating any frame            c
-'after-redraw-outline'                 end of tree.redraw                  c (note 6)
-'after-reload-settings'                after 'reload-settings' command     c
-'before-create-leo-frame'              before frame.finishCreate           c
-'bodyclick1'                   yes     before normal click in body         c,p,v,event
-'bodyclick2'                           after normal click in body          c,p,v,event
-'bodydclick1'                  yes     before double click in body         c,p,v,event
-'bodydclick2'                          after  double click in body         c,p,v,event
-'bodykey1'                     yes     before body keystrokes              c,p,v,ch,oldSel,undoType
-'bodykey2'                             after  body keystrokes              c,p,v,ch,oldSel,undoType
-'bodyrclick1'                  yes     before right click in body          c,p,v,event
-'bodyrclick2'                          after  right click in body          c,p,v,event
-'boxclick1'                    yes     before click in +- box              c,p,v,event
-'boxclick2'                            after  click in +- box              c,p,v,event
-'clear-all-marks'                      after clear-all-marks command       c,p,v
-'clear-mark'                           when mark is set                    c,p,v
-'close-frame'                          in app.closeLeoWindow               c
-'color-optional-markup'        yes *   (note 7)                            colorer,p,v,s,i,j,colortag (note 7)
-'command1'                     yes     before each command                 c,p,v,label (note 2)
-'command2'                             after  each command                 c,p,v,label (note 2)
-'create-optional-menus'                (note 8)                            c (note 8)
-'create-popup-menu-items'              in tree.OnPopup                     c,p,v,event (new)
-'draw-outline-box'             yes     when drawing +- box                 tree,p,v,x,y
-'draw-outline-icon'            yes     when drawing icon                   tree,p,v,x,y
-'draw-outline-node'            yes     when drawing node                   tree,p,v,x,y
-'draw-outline-text-box'        yes     when drawing headline               tree,p,v,x,y
-'drag1'                        yes     before start of drag                c,p,v,event
-'drag2'                                after  start of drag                c,p,v,event
-'dragging1'                    yes     before continuing to drag           c,p,v,event
-'dragging2'                            after  continuing to drag           c,p,v,event
-'enable-popup-menu-items'              in tree.OnPopup                     c,p,v,event
-'end1'                                 start of app.quit()                 None
-'enddrag1'                     yes     before end of drag                  c,p,v,event
-'enddrag2'                             after  end of drag                  c,p,v,event
-'headclick1'                   yes     before normal click in headline     c,p,v,event
-'headclick2'                           after  normal click in headline     c,p,v,event
-'headrclick1'                  yes     before right click in headline      c,p,v,event
-'headrclick2'                          after  right click in headline      c,p,v,event
-'headkey1'                     yes     before headline keystrokes          c,p,v,ch (note 12)
-'headkey2'                             after  headline keystrokes          c,p,v,ch (note 12)
-'hoist-changed'                        whenever the hoist stack changes    c
-'hypercclick1'                 yes     before control click in hyperlink   c,p,v,event
-'hypercclick2'                         after  control click in hyperlink   c,p,v,event
-'hyperenter1'                  yes     before entering hyperlink           c,p,v,event
-'hyperenter2'                          after  entering hyperlink           c,p,v,event
-'hyperleave1'                  yes     before leaving  hyperlink           c,p,v,event
-'hyperleave2'                          after  leaving  hyperlink           c,p,v,event
-'iconclick1'                   yes     before single click in icon box     c,p,v,event (note 15)
-'iconclick2'                           after  single click in icon box     c,p,v,event (note 15)
-'iconrclick1'                  yes     before right click in icon box      c,p,v,event (note 15)
-'iconrclick2'                          after  right click in icon box      c,p,v,event (note 15)
-'icondclick1'                  yes     before double click in icon box     c,p,v,event (note 15)
-'icondclick2'                          after  double click in icon box     c,p,v,event (note 15)
-'idle'                                 periodically (at idle time)         c
-'init-color-markup'                    (note 7)                            colorer,p,v (note 7)
-'menu1'                        yes     before creating menus               c,p,v (note 3)
-'menu2'                        yes     during creating menus               c,p,v (note 3)
-'menu-update'                  yes     before updating menus               c,p,v
-'new'                                  start of New command                c,old_c,new_c (note 9)
-'open1'                        yes     before opening any file             c,old_c,new_c,fileName (note 4)
-'open2'                                after  opening any file             c,old_c,new_c,fileName (note 4)
-'openwith1'                    yes     before Open With command            c,p,v,d (note 14)
-'openwith2'                            after  Open With command            c,p,v,(note 14)
-'recentfiles1'                 yes     before Recent Files command         c,p,v,fileName
-'recentfiles2'                         after  Recent Files command         c,p,v,fileName
-'redraw-entire-outline'        yes     start of tree.redraw                c (note 6)
-'save1'                        yes     before any Save command             c,p,v,fileName
-'save2'                                after  any Save command             c,p,v,fileName
-'scan-directives'                      in scanDirectives                   c,p,v,s,old_dict,dict,pluginsList (note 10)
-'select1'                      yes     before selecting a position         c,new_p,old_p,new_v,old_v
-'select2'                              after  selecting a position         c,new_p,old_p,new_v,old_v
-'select3'                              after  selecting a position         c,new_p,old_p,new_v,old_v
-'set-mark'                             when a mark is set                  c,p,v
-'show-popup-menu'                      in tree.OnPopup                     c,p,v,event
-'start1'                               after app.finishCreate()            None
-'start2'                               after opening first Leo window      c,p,v,fileName
-'unselect1'                    yes     before unselecting a vnode          c,new_p,old_p,new_v,old_v
-'unselect2'                            after  unselecting a vnode          c,new_p,old_p,old_v,old_v
-'\@url1'                       yes     before double-click @url node       c,p,v,url (note 5)
-'\@url2'                               after  double-click @url node       c,p,v(note 5)
-============================= ======== =================================== =============================
+
+============================== ======== =================================== =============================
+Event name (tag argument)      Stop?    When called                         Keys in keywords dict
+============================== ======== =================================== =============================
+'after-auto'                            after each @auto file loaded        c,p (note 13)
+'after-create-leo-frame'                after creating any frame            c
+'after-redraw-outline'                  end of tree.redraw                  c (note 6)
+'after-reading-external-file'           after reading each external file    c,p
+'after-reload-settings'                 after 'reload-settings' command     c
+'before-create-leo-frame'               before frame.finishCreate           c
+'before-writing-external-file'          before writing each external file   c,p
+'bodyclick1'                    yes     before normal click in body         c,p,v,event
+'bodyclick2'                            after normal click in body          c,p,v,event
+'bodydclick1'                   yes     before double click in body         c,p,v,event
+'bodydclick2'                           after  double click in body         c,p,v,event
+'bodykey1'                      yes     before body keystrokes              c,p,v,ch,oldSel,undoType
+'bodykey2'                              after  body keystrokes              c,p,v,ch,oldSel,undoType
+'bodyrclick1'                   yes     before right click in body          c,p,v,event
+'bodyrclick2'                           after  right click in body          c,p,v,event
+'boxclick1'                     yes     before click in +- box              c,p,v,event
+'boxclick2'                             after  click in +- box              c,p,v,event
+'clear-all-marks'                       after clear-all-marks command       c,p,v
+'clear-mark'                            when mark is set                    c,p,v
+'close-frame'                           in app.closeLeoWindow               c
+'color-optional-markup'         yes *   (note 7)                            colorer,p,v,s,i,j,colortag (note 7)
+'command1'                      yes     before each command                 c,p,v,label (note 2)
+'command2'                              after  each command                 c,p,v,label (note 2)
+'create-optional-menus'                 (note 8)                            c (note 8)
+'create-popup-menu-items'               in tree.OnPopup                     c,p,v,event (new)
+'draw-outline-box'              yes     when drawing +- box                 tree,p,v,x,y
+'draw-outline-icon'             yes     when drawing icon                   tree,p,v,x,y
+'draw-outline-node'             yes     when drawing node                   tree,p,v,x,y
+'draw-outline-text-box'         yes     when drawing headline               tree,p,v,x,y
+'drag1'                         yes     before start of drag                c,p,v,event
+'drag2'                                 after  start of drag                c,p,v,event
+'dragging1'                     yes     before continuing to drag           c,p,v,event
+'dragging2'                             after  continuing to drag           c,p,v,event
+'enable-popup-menu-items'               in tree.OnPopup                     c,p,v,event
+'end1'                                  start of app.quit()                 None
+'enddrag1'                      yes     before end of drag                  c,p,v,event
+'enddrag2'                              after  end of drag                  c,p,v,event
+'headclick1'                    yes     before normal click in headline     c,p,v,event
+'headclick2'                            after  normal click in headline     c,p,v,event
+'headrclick1'                   yes     before right click in headline      c,p,v,event
+'headrclick2'                           after  right click in headline      c,p,v,event
+'headkey1'                      yes     before headline keystrokes          c,p,v,ch (note 12)
+'headkey2'                              after  headline keystrokes          c,p,v,ch (note 12)
+'hoist-changed'                         whenever the hoist stack changes    c
+'hypercclick1'                  yes     before control click in hyperlink   c,p,v,event
+'hypercclick2'                          after  control click in hyperlink   c,p,v,event
+'hyperenter1'                   yes     before entering hyperlink           c,p,v,event
+'hyperenter2'                           after  entering hyperlink           c,p,v,event
+'hyperleave1'                   yes     before leaving  hyperlink           c,p,v,event
+'hyperleave2'                           after  leaving  hyperlink           c,p,v,event
+'iconclick1'                    yes     before single click in icon box     c,p,v,event (note 15)
+'iconclick2'                            after  single click in icon box     c,p,v,event (note 15)
+'iconrclick1'                   yes     before right click in icon box      c,p,v,event (note 15)
+'iconrclick2'                           after  right click in icon box      c,p,v,event (note 15)
+'icondclick1'                   yes     before double click in icon box     c,p,v,event (note 15)
+'icondclick2'                           after  double click in icon box     c,p,v,event (note 15)
+'idle'                                  periodically (at idle time)         c
+'init-color-markup'                     (note 7)                            colorer,p,v (note 7)
+'menu1'                         yes     before creating menus               c,p,v (note 3)
+'menu2'                         yes     during creating menus               c,p,v (note 3)
+'menu-update'                   yes     before updating menus               c,p,v
+'new'                                   start of New command                c,old_c,new_c (note 9)
+'open1'                         yes     before opening any file             c,old_c,new_c,fileName (note 4)
+'open2'                                 after  opening any file             c,old_c,new_c,fileName (note 4)
+'openwith1'                     yes     before Open With command            c,p,v,d (note 14)
+'openwith2'                             after  Open With command            c,p,v,(note 14)
+'recentfiles1'                  yes     before Recent Files command         c,p,v,fileName
+'recentfiles2'                          after  Recent Files command         c,p,v,fileName
+'redraw-entire-outline'         yes     start of tree.redraw                c (note 6)
+'save1'                         yes     before any Save command             c,p,v,fileName
+'save2'                                 after  any Save command             c,p,v,fileName
+'scan-directives'                       in scanDirectives                   c,p,v,s,old_dict,dict,pluginsList (note 10)
+'select1'                       yes     before selecting a position         c,new_p,old_p,new_v,old_v
+'select2'                               after  selecting a position         c,new_p,old_p,new_v,old_v
+'select3'                               after  selecting a position         c,new_p,old_p,new_v,old_v
+'set-mark'                              when a mark is set                  c,p,v
+'show-popup-menu'                       in tree.OnPopup                     c,p,v,event
+'start1'                                after app.finishCreate()            None
+'start2'                                after opening first Leo window      c,p,v,fileName
+'unselect1'                     yes     before unselecting a vnode          c,new_p,old_p,new_v,old_v
+'unselect2'                             after  unselecting a vnode          c,new_p,old_p,old_v,old_v
+'\@url1'                        yes     before double-click @url node       c,p,v,url (note 5)
+'\@url2'                                after  double-click @url node       c,p,v(note 5)
+============================== ======== =================================== =============================
 
 **Notes**:
 
@@ -7671,7 +7677,7 @@ Attempting to modify c.cleo.prikey immediately in the @script gives an Attribute
    This directive also controls how @doc parts are broken into lines.
 
 ..  .. index::
-    ..  pair: \@path; Glossary
+    ..  pair: @path; Glossary
 
 @path &lt;path&gt;
 
@@ -8170,7 +8176,7 @@ Unless otherwise noted, all directives listed are valid only in body text, and t
 .. index::
     pair: @encoding; Reference
 
- ``@encoding &lt;encoding&gt;``
+``@encoding &lt;encoding&gt;``
 
     Specifies the Unicode encoding for an external file. For example::
 
@@ -8182,7 +8188,7 @@ Unless otherwise noted, all directives listed are valid only in body text, and t
 .. index::
     pair: @first; Reference
 
- ``@first &lt;text&gt;``
+``@first &lt;text&gt;``
 
     Places lines at the very start of an external file, before any Leo
     sentinels. ``@first`` lines must be the *very first* lines in an ``@&lt;file&gt;`` node.
@@ -8199,7 +8205,7 @@ Unless otherwise noted, all directives listed are valid only in body text, and t
         @first eval 'exec /usr/bin/perl -w -S $0 ${1+"$@"}'
         @first     if 0;
 
- ``@ignore``
+``@ignore``
 
     Tells Leo to ignore the subtree in which it appears.
 
@@ -8222,7 +8228,7 @@ Unless otherwise noted, all directives listed are valid only in body text, and t
 ..  s = ', '.join([g.shortFileName(z)[: -3] for z in aList])
 ..  g.es(s)
 
- ``@language &lt;language name&gt;``
+``@language &lt;language name&gt;``
 
     Specifies the language in effect, including comment delimiters.
     If no ``@language`` directive is in effect, Leo uses the defaults specified
@@ -8248,7 +8254,7 @@ Unless otherwise noted, all directives listed are valid only in body text, and t
 .. index::
     pair: @last; Reference
 
- ``@last &lt;text&gt;``
+``@last &lt;text&gt;``
 
     Places lines at the very end of external files.
 
@@ -8264,7 +8270,7 @@ Unless otherwise noted, all directives listed are valid only in body text, and t
 .. index::
     pair: @lineending; Reference
 
- ``@lineending cr/lf/nl/crlf``
+``@lineending cr/lf/nl/crlf``
 
     Sets the line endings for external files.
     This directive overrides the ``@string output_newline`` setting.
@@ -8286,7 +8292,7 @@ Unless otherwise noted, all directives listed are valid only in body text, and t
 .. index::
     pair: @nowrap; Reference
 
- ``@nowrap``
+``@nowrap``
 
     Disables line wrapping the Leo's body pane.
 
@@ -8297,7 +8303,7 @@ Unless otherwise noted, all directives listed are valid only in body text, and t
 .. index::
     pair: @pagewidth; Reference
 
- ``@pagewidth &lt;n&gt;``
+``@pagewidth &lt;n&gt;``
 
    Sets the page width used by the ``reformat-paragraph`` command.
    This directive also controls how ``@doc`` parts are broken into lines.
@@ -8308,33 +8314,9 @@ Unless otherwise noted, all directives listed are valid only in body text, and t
   The ``@pagewidth`` directive overrides the ``@int page_width`` setting.
 
 .. index::
-    pair: @path; Reference
-.. index::
-    pair: Absolute path; Reference
-.. index::
-    pair: Path prefix; Reference
-
-``@path &lt;path&gt;``
-
-   Sets the **path prefix** for relative filenames for all @&lt;file&gt; tree.
-
-   This directive may appear in headlines or body text, and may
-   appear in top-level ``@&lt;file&gt;`` nodes *except* ``@file`` nodes.
-
-   The path is an **absolute path** if it begins with ``c:\\`` or ``/``,
-   otherwise the path is a **relative** paths.
-
-   Multiple ``@path`` directives may contribute to the path prefix.
-   Absolute paths overrides any ancestor ``@path`` directives.
-   Relative paths add to the path prefix.
-
-   If no ``@path`` directives are in effect, the default path prefix is
-   the directory containing the .leo file.
-   
-.. index::
     pair: @persistence; Reference
     
- ``@persistence``
+``@persistence``
     
 With ``@clean`` and ``@file``, Leo can store **persistent data** in nodes. This information consists of the node's **gnx** (Global Node Index) and the node's **uA**, (User Attributes). The gnx gives each node a unique, immutable identity. Gnx's make clones possible. The uA allows scripts and plugins to associate arbitrarily much additional data with each node.
 
@@ -8347,7 +8329,7 @@ By default, Leo's importers preserve neither gnx's nor uA's. This makes imported
 .. index::
     pair: Negative tab width; Reference
 
- ``@tabwidth &lt;n&gt;``
+``@tabwidth &lt;n&gt;``
 
   Sets the width of tabs.
   Negative tab widths cause Leo to convert tabs to spaces.
@@ -8355,7 +8337,7 @@ By default, Leo's importers preserve neither gnx's nor uA's. This makes imported
 .. index::
     pair: @wrap; Reference
 
- ``@wrap``
+``@wrap``
 
     Enables line wrapping in Leo's body pane.
 
@@ -8443,7 +8425,7 @@ By default, the file's extension determines the importer::
 
 The ``@asis`` directive creates an external file without sentinels and without any expansions.
 
-Use this directive only when you must have complete control over every character of the external file. When writing ``@asis`` nodes, writes the body text of all nodes in outline order. Leo writes the body text *as is*, without recognizing section definitions, without expanding section references, and without treating directives specially in any way. In particular, Leo copies all directives, including ``@`` or ``@c`` directives, to the external file as text. **Warning**: Because the external file contains no sentinels, ``@nosent`` trees can not be updated from changes made outside of Leo. If you want this capability, use ``@clean`` instead.
+Use this directive only when you must have complete control over every character of the external file. When writing ``@asis`` nodes, writes the body text of all nodes in outline order. Leo writes the body text *as is*, without recognizing section definitions, without expanding section references, and without treating directives specially in any way. In particular, Leo copies all directives, including ``@`` or ``@c`` directives, to the external file as text. **Warning**: Because the external file contains no sentinels, ``@asis`` trees can not be updated from changes made outside of Leo. If you want this capability, use ``@clean`` instead.
 
 .. index::
     pair: @@ convention in @asis trees; Reference
@@ -8549,14 +8531,14 @@ These directives typically affect the node in which they appear and all descenda
 .. index::
     pair: @color; Reference
 
- ``@color``
+``@color``
 
     Enables syntax coloring until the next ``@nocolor`` directive.
 
 .. index::
     pair: @killcolor; Reference
 
- ``@killcolor``
+``@killcolor``
 
     Disables syntax coloring in a node, overriding all ``@color``, ``@nocolor`` or
     ``@nocolor-node`` directives in the same node.
@@ -8564,14 +8546,14 @@ These directives typically affect the node in which they appear and all descenda
 .. index::
     pair: @nocolor; Reference
 
- ``@nocolor``
+``@nocolor``
 
     Disables syntax coloring until the next ``@nocolor`` directive.
 
 .. index::
     pair: @nocolor-node; Reference
 
- ``@nocolor-node``
+``@nocolor-node``
 
     Disables coloring for only the node containing it. The ``@nocolor-node``
     directive overrides the ``@color`` and ``@nocolor`` directives within the same
@@ -8702,7 +8684,7 @@ Nevertheless, these sentinels can be useful in special situations.
 .. index::
     pair: @delims; Reference
 
- ``@delims &lt;1 or 2 comment delims&gt;``
+``@delims &lt;1 or 2 comment delims&gt;``
 
     Sets comment delimiters in external files containing sentinel lines.
 
@@ -9019,7 +9001,7 @@ controller(c).run()
 ``bookmarks.py``
     Manages bookmarks using a separate pane.
 ``add_directives.py``
-    Allows users to define new ``@``directives.
+    Allows users to define new directives.
 ``at_folder.py``
     Synchronizes ``@folder`` nodes with folders.
 ``at_produce.py``
@@ -9552,7 +9534,7 @@ will look something like:
 
 </t>
 <t tx="ekr.20101113063552.9412"></t>
-<t tx="ekr.20101113063552.9413">Allows users to define new ``@``directives.</t>
+<t tx="ekr.20101113063552.9413">Allows users to define new directives.</t>
 <t tx="ekr.20101113063552.9414">Adds a context menu to each node containing all the commands in the bzr Qt interface. Bzr is invoked based on the path of the current node. **Requires contextmenu.py.**
 
 </t>
@@ -15622,7 +15604,7 @@ For more information, consult `Leo's cheat sheet &lt;cheatsheet.html&gt;`_ and `
 Run this script from the `gh-pages` branch.
 
 1. Generate intermediate files for all headlines in the table.
-2. Run `make clean` and `make html` from the leo/doc/html directory.
+2. Run `make html` from the leo/doc/html directory.
 
 After running this script, copy files from leo/doc/html/_build/html to leo-editor/docs
 """
@@ -18347,9 +18329,7 @@ A **session** specifies a list of .leo files that Leo opens automatically when L
 
 
 </t>
-<t tx="ekr.20150318110552.38">``eval-expression``
-    Evaluate an expression entered in the minibuffer.
-``full-command (Alt-X)``
+<t tx="ekr.20150318110552.38">``full-command (Alt-X)``
     Execute a command by name. Tab completion is supported.
 ``keyboard-quit``
     Exits the minibuffer, putting focus in the body pane.
@@ -22182,10 +22162,6 @@ I can't ignore the freedom of arbitrary abstraction, and I've come to rely upon 
 
 I realize this is a "why" and not a "how" and that this doesn't help anyone get better acquainted with Leo. But, as a programmer if you've ever felt frustrated with the organizational constructs of the language you're working in you might be surprised to realize that after using Leo it wasn't the language that was the problem, but a lack of tools to organize your programs in a way that makes sense to you.</t>
 <t tx="ekr.20170311055647.1">Thanks to Tsuchi Noko for these.</t>
-<t tx="ekr.20170311120214.1">- Use `imp.reload &lt;https://docs.python.org/3/library/imp.html&gt;`_ to reload all changed modules.
-- Make sure to *instantiate* any changed objects.
-- See `this section &lt;unitTesting.html#test-driven-development-in-leo&gt;`_ for full details.
-</t>
 <t tx="ekr.20170312083548.1">.. index::
     pair: Chapter; Tutorial
     pair: @chapter; Tutorial
@@ -32579,7 +32555,7 @@ Try these examples!
 The "Key bindings" node in this file:
 unl:gnx://CheatSheet.leo#ekr.20131019184243.16685
 
-The "6.7.4 release notes" node in LeoDocs.leo.
+The "6.7.5 release notes" node in LeoDocs.leo.
 unl:gnx://LeoDocs.leo#ekr.20230703101804.1
 </t>
 <t tx="ekr.20230901233131.1">Leo https://leo-editor.github.io/leo-editor/ 6.7.5 is now available on [GitHub](https://github.com/leo-editor/leo-editor/releases) and [pypi](https://pypi.org/project/leo/).
@@ -32606,6 +32582,7 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 - PR #3519: Make the mark-node-and-parents and unmark-node-and-parents commands undoable.
 - PR #3503: Fix bug involving back slashes in search patterns.
 - PR #3499: Retire the read-outline-only command.
+- PR #3607: Add scheme importer
 - Fix several other minor bugs.
 
 **Links**
@@ -32642,18 +32619,19 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 
 **Other improvements**
 
-.. _`PR #3560`: https://github.com/leo-editor/leo-editor/pull/3560
-.. _`PR #3552`: https://github.com/leo-editor/leo-editor/pull/3552
-.. _`PR #3541`: https://github.com/leo-editor/leo-editor/pull/3541
-.. _`PR #3538`: https://github.com/leo-editor/leo-editor/pull/3538
-.. _`PR #3533`: https://github.com/leo-editor/leo-editor/pull/3533
-.. _`PR #3531`: https://github.com/leo-editor/leo-editor/pull/3531
-.. _`PR #3528`: https://github.com/leo-editor/leo-editor/pull/3528
-.. _`PR #3525`: https://github.com/leo-editor/leo-editor/pull/3525
-.. _`PR #3521`: https://github.com/leo-editor/leo-editor/pull/3521
-.. _`PR #3519`: https://github.com/leo-editor/leo-editor/pull/3519
-.. _`PR #3503`: https://github.com/leo-editor/leo-editor/pull/3503
 .. _`PR #3499`: https://github.com/leo-editor/leo-editor/pull/3499
+.. _`PR #3503`: https://github.com/leo-editor/leo-editor/pull/3503
+.. _`PR #3519`: https://github.com/leo-editor/leo-editor/pull/3519
+.. _`PR #3521`: https://github.com/leo-editor/leo-editor/pull/3521
+.. _`PR #3525`: https://github.com/leo-editor/leo-editor/pull/3525
+.. _`PR #3528`: https://github.com/leo-editor/leo-editor/pull/3528
+.. _`PR #3531`: https://github.com/leo-editor/leo-editor/pull/3531
+.. _`PR #3533`: https://github.com/leo-editor/leo-editor/pull/3533
+.. _`PR #3538`: https://github.com/leo-editor/leo-editor/pull/3538
+.. _`PR #3541`: https://github.com/leo-editor/leo-editor/pull/3541
+.. _`PR #3552`: https://github.com/leo-editor/leo-editor/pull/3552
+.. _`PR #3560`: https://github.com/leo-editor/leo-editor/pull/3560
+.. _`PR #3607`: https://github.com/leo-editor/leo-editor/pull/3607
 
 - `PR #3560`_: Retire the g.SherlockTracer class.
 - `PR #3552`_: Clear dirty bits when writing sqLite DBs.
@@ -32667,6 +32645,7 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 - `PR #3519`_: Make the mark-node-and-parents and unmark-node-and-parents commands undoable.
 - `PR #3503`_: Fix bug involving back slashes in search patterns.
 - `PR #3499`_: Retire the read-outline-only command.
+- `PR #3607`_: Add Scheme importer.
 </t>
 <t tx="ekr.20230908140206.569">This "fallow" period prepared contained important performance improvements and paved the way for ``leoInteg``.
 
@@ -32753,6 +32732,93 @@ When I study other people's code I do the following:
 - Use git diff to track any changes I make (such as adding tracing or debugging statements) for the purposes of studying the code. Using ``@clean`` is an essential part of this work flow. The diffs would be much harder to read if I had imported files into ``@file`` trees instead.
 
 In short, I have just now realized how badly sentinels interfered with git diffs.
+</t>
+<t tx="ekr.20231013091132.1">.. index::
+    pair: @path; Reference
+.. index::
+    pair: Absolute path; Reference
+.. index::
+    pair: Path prefix; Reference
+
+Sets the **path prefix** for relative filenames for all ``@&lt;file&gt;`` trees *except* ``@file`` trees.
+
+The ``@path`` directive may appear in any headline or the body text ``@&lt;file&gt;`` nodes (``@clean``, ``@auto``, etc.).
+
+*Note*: The ``@path`` directive is *not* allowed in the body text of ``@file`` nodes.
+
+The path is an **absolute path** if it begins with ``c:\\`` or ``/``, otherwise the path is a **relative** paths.
+
+Multiple ``@path`` directives may contribute to the path prefix. Absolute paths overrides any ancestor ``@path`` directives. Relative paths add to the path prefix.
+
+If no ``@path`` directives are in effect, the default path prefix is the directory containing the .leo file.
+</t>
+<t tx="ekr.20231126120048.1">.. Use the link-pr abbreviation to create these links.
+
+.. _`PR #3575`: https://github.com/leo-editor/leo-editor/pull/3575
+.. _`PR #3642`: https://github.com/leo-editor/leo-editor/pull/3642
+.. _`PR #3645`: https://github.com/leo-editor/leo-editor/pull/3645
+.. _`PR #3659`: https://github.com/leo-editor/leo-editor/pull/3659
+.. _`PR #3673`: https://github.com/leo-editor/leo-editor/pull/3673
+.. _`PR #3693`: https://github.com/leo-editor/leo-editor/pull/3693
+.. _`PR #3701`: https://github.com/leo-editor/leo-editor/pull/3701
+
+Support for Python 3.12:
+
+- `PR #3693`_: update leoAst.py for Python 3.12.
+- `PR #3701`_: Colorize PEP 701 f-strings.
+
+Other significant improvements:
+
+- `PR #3645`_: Allow mixed external files on the command line.
+               Retire the --load-type command-line option.
+- `PR #3575`_: Add the indented_languages plugin.
+- `PR #3642`_: Add the clean-all-lines command.
+- `PR #3659`_: Add python-to-rust command.
+- `PR #3673`_: Add summarize command.
+- scripts.leo contains `@button` scripts by Thomas Passin.
+</t>
+<t tx="ekr.20231126121710.1">Leo https://leo-editor.github.io/leo-editor/ 6.7.6 is now available on [GitHub](https://github.com/leo-editor/leo-editor/releases) and [pypi](https://pypi.org/project/leo/).
+
+Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/preface.html).
+
+**The highlights of Leo 6.7.6**
+
+Support for Python 3.12:
+
+- PR #3693: update leoAst.py for Python 3.12.
+- PR #3701: Colorize PEP 701 f-strings.
+
+Other significant improvements:
+
+- PR #3645: Allow mixed external files on the command line.
+            Retire the --load-type command-line option.
+- PR #3575: Add the indented_languages plugin.
+- PR #3642: Add the clean-all-lines command.
+- PR #3659: Add python-to-rust command.
+- PR #3673: Add summarize command.
+- scripts.leo contains `@button` scripts by Thomas Passin.
+
+The usual assortment of minor bug fixes and code-level improvements.
+
+**Links**
+
+- [Download Leo](https://leo-editor.github.io/leo-editor/download.html)
+- [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
+- [6.7.6 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.6+)
+- [6.7.6 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.6)
+- [Documentation](https://leo-editor.github.io/leo-editor/leo_toc.html)
+- [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
+- [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
+- [Forum](http://groups.google.com/group/leo-editor)
+- [Download](http://sourceforge.net/projects/leo/files/)
+- [Leo on GitHub](https://github.com/leo-editor/leo-editor)
+- [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
+- [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
+- [A web page that displays .leo files](https://leo-editor.github.io/leo-editor/load-leo.html)
+- [More links](https://leo-editor.github.io/leo-editor/leoLinks.html)
+
+@nowrap
+@language rest
 </t>
 <t tx="felix.20210825213137.1">Since a WebSocket server can receive events from clients, process them to update the
 application state, and synchronize the resulting state across clients, leoserver.py

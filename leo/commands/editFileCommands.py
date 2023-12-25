@@ -6,7 +6,6 @@
 from __future__ import annotations
 from collections.abc import Callable
 import difflib
-import io
 import os
 import re
 from typing import Optional, TYPE_CHECKING
@@ -117,8 +116,7 @@ class ConvertAtRoot:
     def make_clones(self, p: Position) -> None:
         """Make clones for all undefined sections in p.b."""
         for s in g.splitLines(p.b):
-            m = self.section_pat.match(s)
-            if m:
+            if m := self.section_pat.match(s):
                 section_name = g.angleBrackets(m.group(1).strip())
                 section_p = self.make_clone(p, section_name)
                 if not section_p:
@@ -263,8 +261,8 @@ class EditFileCommandsClass(BaseEditCommandsClass):
         if g.app.diff:
             if len(commanders) == 2:
                 c1, c2 = commanders
-                fn1 = g.shortFileName(c1.wrappedFileName) or c1.shortFileName()
-                fn2 = g.shortFileName(c2.wrappedFileName) or c2.shortFileName()
+                fn1 = c1.shortFileName()
+                fn2 = c2.shortFileName()
                 g.es('--diff auto compare', color='red')
                 g.es(fn1)
                 g.es(fn2)
@@ -336,9 +334,8 @@ class EditFileCommandsClass(BaseEditCommandsClass):
         parent = c.p.insertAfter()
         parent.setHeadString(undoType)
         u.afterInsertNode(parent, undoType, undoData)
-        # Use the wrapped file name if possible.
-        fn1 = g.shortFileName(c1.wrappedFileName) or c1.shortFileName()
-        fn2 = g.shortFileName(c2.wrappedFileName) or c2.shortFileName()
+        fn1 = c1.shortFileName()
+        fn2 = c2.shortFileName()
         for d, kind in (
             (deleted, f"not in {fn2}"),
             (inserted, f"not in {fn1}"),
@@ -565,29 +562,6 @@ class EditFileCommandsClass(BaseEditCommandsClass):
             k.setStatusLabel(f"Created: {k.arg}")
         except Exception:
             k.setStatusLabel(f"Not Created: {k.arg}")
-    #@+node:ekr.20170806094318.12: *3* efc.openOutlineByName
-    @cmd('file-open-by-name')
-    def openOutlineByName(self, event: Event) -> None:
-        """file-open-by-name: Prompt for the name of a Leo outline and open it."""
-        c, k = self.c, self.c.k
-        fileName = ''.join(k.givenArgs)
-        # Bug fix: 2012/04/09: only call g.openWithFileName if the file exists.
-        if fileName and g.os_path_exists(fileName):
-            g.openWithFileName(fileName, old_c=c)
-        else:
-            k.setLabelBlue('Open Leo Outline: ')
-            k.getFileName(event, callback=self.openOutlineByNameFinisher)
-
-    def openOutlineByNameFinisher(self, fn: str) -> None:
-        c = self.c
-        if fn and g.os_path_exists(fn) and not g.os_path_isdir(fn):
-            c2 = g.openWithFileName(fn, old_c=c)
-            try:
-                g.app.gui.runAtIdle(c2.treeWantsFocusNow)
-            except Exception:
-                pass
-        else:
-            g.es(f"ignoring: {fn}")
     #@+node:ekr.20170806094318.14: *3* efc.removeDirectory
     @cmd('directory-remove')
     def removeDirectory(self, event: Event) -> None:
@@ -1478,13 +1452,8 @@ class GitDiffController:
         hidden_c.frame.createFirstTreeNode()
         root = hidden_c.rootPosition()
         root.h = fn + ':' + rev if rev else fn
-        hidden_c.fileCommands.getLeoFile(
-            theFile=io.StringIO(initial_value=s),
-            fileName=path,
-            readAtFileNodesFlag=False,
-            silent=False,
-            checkOpenFiles=False,
-        )
+        fc = hidden_c.fileCommands
+        fc.getAnyLeoFileByName(path, checkOpenFiles=False, readAtFileNodesFlag=False)
         return hidden_c
     #@-others
 #@-others

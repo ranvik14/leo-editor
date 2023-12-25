@@ -3,12 +3,17 @@
 """Tests of leo/plugins/importers"""
 import glob
 import importlib
+import os
+import sys
 import textwrap
 from leo.core import leoGlobals as g
 from leo.core.leoNodes import Position
 from leo.core.leoTest2 import LeoUnitTest
-import leo.plugins.importers.coffeescript as cs
+from leo.plugins.importers.base_importer import Block
+from leo.plugins.importers.python import Python_Importer
+from leo.plugins.importers.c import C_Importer
 import leo.plugins.importers.coffeescript as coffeescript
+import leo.plugins.importers.javascript as javascript
 import leo.plugins.importers.markdown as markdown
 import leo.plugins.importers.otl as otl
 #@+others
@@ -22,7 +27,6 @@ class BaseTestImporter(LeoUnitTest):
     def setUp(self):
         super().setUp()
         g.app.loadManager.createAllImporterData()
-        g.app.write_black_sentinels = False
 
     #@+others
     #@+node:ekr.20230526135305.1: *3* BaseTestImporter.check_outline
@@ -36,12 +40,12 @@ class BaseTestImporter(LeoUnitTest):
         """
         try:
             p0_level = p.level()
-            actual = [(z.level(), z.h, z.b) for z in p.self_and_subtree()]
-            for i, actual in enumerate(actual):
+            actuals = [(z.level(), z.h, z.b) for z in p.self_and_subtree()]
+            for i, actual in enumerate(actuals):
                 try:
                     a_level, a_h, a_str = actual
                     e_level, e_h, e_str = expected[i]
-                except ValueError:
+                except Exception:
                     assert False  # So we print the actual results.
                 msg = f"FAIL in node {i} {e_h}"
                 self.assertEqual(a_level - p0_level, e_level, msg=msg)
@@ -50,7 +54,16 @@ class BaseTestImporter(LeoUnitTest):
                 self.assertEqual(g.splitLines(e_str), g.splitLines(a_str), msg=msg)
         except AssertionError:
             # Dump actual results, including bodies.
+            print('')
+            print(f"Fail: {self.id()}")
             self.dump_tree(p, tag='Actual results...')
+            if 0:  # Sometimes good.
+                # Dump the expected results, as in LeoUnitTest.dump_tree.
+                print('Expected results')
+                for (level, headline, body) in expected:
+                    print('')
+                    print('level:', level, headline)
+                    g.printObj(g.splitLines(body))
             raise
     #@+node:ekr.20220809054555.1: *3* BaseTestImporter.check_round_trip
     def check_round_trip(self, p: Position, s: str) -> None:
@@ -68,7 +81,7 @@ class BaseTestImporter(LeoUnitTest):
         self.assertEqual(s_lines, result_lines)
     #@+node:ekr.20211108044605.1: *3* BaseTestImporter.compute_unit_test_kind
     def compute_unit_test_kind(self, ext: str) -> str:
-        """Return kind from the given extention."""
+        """Return kind from the given extension."""
         aClass = g.app.classDispatchDict.get(ext)
         kind = {
             '.json': '@auto-json',
@@ -90,7 +103,7 @@ class BaseTestImporter(LeoUnitTest):
         p = self.run_test(s)
         self.check_round_trip(p, expected_s or s)
     #@+node:ekr.20230526124600.1: *3* BaseTestImporter.new_run_test
-    def new_run_test(self, s: str, expected_results: tuple) -> None:
+    def new_run_test(self, s: str, expected_results: tuple, brief: bool = False) -> None:
         """
         Run a unit test of an import scanner,
         i.e., create a tree from string s at location p.
@@ -109,6 +122,7 @@ class BaseTestImporter(LeoUnitTest):
 
         # createOutline calls Importer.gen_lines and Importer.check.
         test_s = textwrap.dedent(s).strip() + '\n'
+
         c.importCommands.createOutline(parent.copy(), ext, test_s)
 
         # Dump the actual results on failure and raise AssertionError.
@@ -136,6 +150,50 @@ class BaseTestImporter(LeoUnitTest):
         test_s = textwrap.dedent(s).strip() + '\n'
         c.importCommands.createOutline(parent.copy(), ext, test_s)
         return parent
+    #@-others
+#@+node:ekr.20231011020747.1: ** class TestImporterClass(LeoUnitTest)
+class TestImporterClass(LeoUnitTest):
+    """Tests of methods of the Importer class."""
+
+    #@+others
+    #@+node:ekr.20231011021003.1: *3* TestImporterClass.test_trace_block
+    def test_trace_block(self):
+
+        c = self.c
+        importer = Python_Importer(c)
+        lines = g.splitLines(textwrap.dedent(
+            """
+            import sys\n
+            def spam_and_eggs():
+               pass'
+            """
+        ))
+        # Test that Importer.trace_block doesn't crash.
+        # Comment out the assignment to sys.stdout to see the actual results.
+        try:
+            sys.stdout = open(os.devnull, 'w')
+            block = Block('def', 'spam_and_eggs', start=3, start_body=4, end=5, lines=lines)
+            importer.trace_block(block)
+        finally:
+            sys.stdout = sys.__stdout__
+
+    #@+node:ekr.20231011021056.1: *3* TestImporterClass.test_long_repr
+    def test_long_repr(self):
+
+        lines = g.splitLines(textwrap.dedent(
+            """
+            import sys\n
+            def spam_and_eggs():
+               pass'
+            """
+        ))
+        block = Block('def', 'spam_and_eggs', start=3, start_body=4, end=5, lines=lines)
+
+        # Test that long_repr doesn't crash.
+        s = block.long_repr()
+
+        # A short test that the results contain an expected line.
+        assert 'def spam_and_eggs' in s, repr(s)
     #@-others
 #@+node:ekr.20211108052633.1: ** class TestAtAuto (BaseTestImporter)
 class TestAtAuto(BaseTestImporter):
@@ -389,7 +447,6 @@ class TestC(BaseTestImporter):
     #@+node:ekr.20230510161130.1: *3* TestC.test_delete_comments_and_strings
     def test_delete_comments_and_strings(self):
 
-        from leo.plugins.importers.c import C_Importer
         importer = C_Importer(self.c)
 
         lines = [
@@ -402,10 +459,13 @@ class TestC(BaseTestImporter):
             '*/\n',
             'i = 2\n'
         ]
+
+        # The expected lines preserve characters except for line comments.
         expected_lines = [
-            'i = 1 \n',
-            's = \n',
-            'if (1)\n',
+            'i = 1\n',
+            's =\n',
+          # 'if (/* a */1)\n',
+            'if (       1)\n',
             '    ;\n',
             '\n',
             '\n',
@@ -413,13 +473,15 @@ class TestC(BaseTestImporter):
             'i = 2\n'
         ]
         result = importer.delete_comments_and_strings(lines)
+        if 0:
+            g.printObj(lines, tag='input lines')
+            g.printObj(result, tag='result')
+            g.printObj(expected_lines, tag='expected')
         self.assertEqual(len(result), len(expected_lines))
         self.assertEqual(result, expected_lines)
     #@+node:ekr.20230511044054.1: *3* TestC.test_find_blocks
     def test_find_blocks(self):
 
-        from leo.plugins.importers.c import C_Importer
-        trace = False
         importer = C_Importer(self.c)
         lines = g.splitLines(textwrap.dedent("""\
 
@@ -454,29 +516,17 @@ class TestC(BaseTestImporter):
         importer.lines = lines
         importer.guide_lines = importer.make_guide_lines(lines)
         blocks = importer.find_blocks(i1=0, i2=len(lines))
-        if trace:
-            print('')
-            g.trace('Blocks...')
-            for z in blocks:
-                kind, name, start, start_body, end = z
-                print(f"{kind:>10} {name:<20} {start:4} {start_body:4} {end:4}")
 
         # The result lines must tile (cover) the original lines.
         result_lines = []
-        for z in blocks:
-            kind, name, start, start_body, end = z
-            result_lines.extend(lines[start : end])
+        for block in blocks:
+            result_lines.extend(lines[block.start : block.end])
         self.assertEqual(lines, result_lines)
     #@+node:ekr.20230511073719.1: *3* TestC.test_codon_file
     def test_codon_file(self):
         # Test codon/codon/app/main.cpp.
-        import os
-        from leo.plugins.importers.c import C_Importer
-
-        trace = False
         c = self.c
         importer = C_Importer(c)
-
         path = 'C:/Repos/codon/codon/app/main.cpp'
         if not os.path.exists(path):
             self.skipTest(f"Not found: {path!r}")
@@ -486,18 +536,9 @@ class TestC(BaseTestImporter):
         if 1:  # Test gen_lines.
             importer.root = c.p
             importer.gen_lines(lines, c.p)
-            if trace:
-                for p in c.p.self_and_subtree():
-                    g.printObj(p.b, tag=p.h)
         else: # Test find_blocks.
             importer.guide_lines = importer.make_guide_lines(lines)
             result = importer.find_blocks(0, len(importer.guide_lines))
-            if trace:
-                print('')
-                g.trace()
-                for z in result:
-                    kind, name, start, start_body, end = z
-                    print(f"{kind:>10} {name:<20} {start:4} {start_body:4} {end:4}")
 
             # The result lines must tile (cover) the original lines.
             result_lines = []
@@ -507,7 +548,7 @@ class TestC(BaseTestImporter):
             self.assertEqual(lines, result_lines)
     #@+node:ekr.20230607164309.1: *3* TestC.test_struct
     def test_struct(self):
-        # From codon soources.
+        # From codon sources.
         s = """
         struct SrcInfoAttribute : public Attribute {
           static const std::string AttributeName;
@@ -547,10 +588,10 @@ class TestCoffeescript(BaseTestImporter):
     ext = '.coffee'
 
     #@+others
-    #@+node:ekr.20210904065459.15: *3* TestCoffeescript.test_1
+    #@+node:ekr.20210904065459.15: *3* TestCoffeescript.test_coffeescript_1
     #@@tabwidth -2 # Required
 
-    def test_1(self):
+    def test_coffeescript_1(self):
 
         s = r"""
         # Js2coffee relies on Narcissus's parser.
@@ -569,20 +610,17 @@ class TestCoffeescript(BaseTestImporter):
 
         expected_results = (
             (0, '',  # Ignore the first headline.
-                    '<< TestCoffeescript.test_1: preamble >>\n'
-                    '@others\n'
-                    '@language coffeescript\n'
-                    '@tabwidth -4\n'
-            ),
-            (1, '<< TestCoffeescript.test_1: preamble >>',
                     "# Js2coffee relies on Narcissus's parser.\n"
                     '\n'
                     "{parser} = @Narcissus or require('./narcissus_packed')\n"
                     '\n'
                     '# Main entry point\n'
                     '\n'
+                    '@others\n'
+                    '@language coffeescript\n'
+                    '@tabwidth -4\n'
             ),
-            (1, 'def buildCoffee',
+            (1, 'function: buildCoffee',
                     'buildCoffee = (str) ->\n'
                     "  str  = str.replace /\\r/g, ''\n"
                     '  str += "\\n"\n'
@@ -593,10 +631,10 @@ class TestCoffeescript(BaseTestImporter):
         )
         self.new_run_test(s, expected_results)
 
-    #@+node:ekr.20210904065459.16: *3* TestCoffeescript.test_2
+    #@+node:ekr.20210904065459.16: *3* TestCoffeescript.test_coffeescript_2
     #@@tabwidth -2 # Required
 
-    def test_2(self):
+    def test_coffeescript_2(self):
 
         s = """
           class Builder
@@ -683,7 +721,7 @@ class TestCoffeescript(BaseTestImporter):
     #@+node:ekr.20210904065459.126: *3* TestCoffeescript.test_scan_line
     def test_scan_line(self):
         c = self.c
-        x = cs.Coffeescript_Importer(c)
+        x = coffeescript.Coffeescript_Importer(c)
         self.assertEqual(x.single_comment, '#')
     #@-others
 #@+node:ekr.20211108062958.1: ** class TestCSharp (BaseTestImporter)
@@ -708,14 +746,11 @@ class TestCSharp(BaseTestImporter):
                     '@language csharp\n'
                     '@tabwidth -4\n'
             ),
-            (1, 'unnamed namespace',
+            (1, 'namespace unnamed namespace',
                     'namespace {\n'
-                    '    @others\n'
-                    '}\n'
-            ),
-            (2, 'class cTestClass1',
-                    'class cTestClass1 {\n'
-                    '    ;\n'
+                    '    class cTestClass1 {\n'
+                    '        ;\n'
+                    '    }\n'
                     '}\n'
             ),
         )
@@ -736,14 +771,11 @@ class TestCSharp(BaseTestImporter):
                     '@language csharp\n'
                     '@tabwidth -4\n'
             ),
-            (1, 'unnamed namespace',
+            (1, 'namespace unnamed namespace',
                     'namespace {\n'
-                    '@others\n'
-                    '}\n'
-            ),
-            (2, 'class cTestClass1',
                     'class cTestClass1 {\n'
                     '    ;\n'
+                    '}\n'
                     '}\n'
             ),
         )
@@ -754,8 +786,8 @@ class TestCython(BaseTestImporter):
 
     ext = '.pyx'
     #@+others
-    #@+node:ekr.20210904065459.11: *3* TestCython.test_importer
-    def test_importer(self):
+    #@+node:ekr.20210904065459.11: *3* TestCython.test_cython_importer
+    def test_cython_importer(self):
 
         s = '''
             from libc.math cimport pow
@@ -774,14 +806,11 @@ class TestCython(BaseTestImporter):
         '''
         expected_results = (
             (0, '',  # check_outlines ignores the first headline.
-                    '<< TestCython.test_importer: preamble >>\n'
+                    'from libc.math cimport pow\n'
+                    '\n'
                     '@others\n'
                     '@language cython\n'
                     '@tabwidth -4\n'
-            ),
-            (1, '<< TestCython.test_importer: preamble >>',
-                    'from libc.math cimport pow\n'
-                    '\n'
             ),
             (1, 'cdef double square_and_add',
                     'cdef double square_and_add (double x):\n'
@@ -862,8 +891,8 @@ class TestElisp(BaseTestImporter):
     ext = '.el'
 
     #@+others
-    #@+node:ekr.20210904065459.18: *3* TestElisp.test_1
-    def test_1(self):
+    #@+node:ekr.20210904065459.18: *3* TestElisp.test_elisp_1
+    def test_elisp_1(self):
 
         # Add weird assignments for coverage.
         s = """
@@ -1220,161 +1249,6 @@ class TestHtml(BaseTestImporter):
             ),
         )
         self.new_run_test(s, expected_results)
-    #@+node:ekr.20230126023536.1: *3* TestHtml.test_slideshow_slide
-    def test_slideshow_slide(self):
-
-        # s is the contents of slides/basics/slide-002.html
-        #@+<< define s >>
-        #@+node:ekr.20230126031120.1: *4* << define s >>
-        s = '''\
-        <!DOCTYPE html>
-
-        <html lang="en">
-          <head>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
-
-            <title>The workbook file &#8212; Leo 6.7.2 documentation</title>
-            <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-            <link rel="stylesheet" type="text/css" href="../../_static/classic.css" />
-            <link rel="stylesheet" type="text/css" href="../../_static/custom.css" />
-
-            <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-            <script src="../../_static/doctools.js"></script>
-            <script src="../../_static/sphinx_highlight.js"></script>
-
-            <script src="../../_static/sidebar.js"></script>
-
-            <link rel="index" title="Index" href="../../genindex.html" />
-            <link rel="search" title="Search" href="../../search.html" />
-            <link rel="next" title="Editing headlines" href="slide-003.html" />
-            <link rel="prev" title="Leoâ€™s Basics" href="basics.html" />
-          <!--
-            EKR: Xml_Importer.preprocess_lines should insert put </head> and <body> on separate lines.
-            As with this comment, there is a risk that preprocessing might affect comments...
-          -->
-          </head><body>
-            <div class="related" role="navigation" aria-label="related navigation">
-              <h3>Navigation</h3>
-              <ul>
-                <li class="right" style="margin-right: 10px">
-                  <a href="../../genindex.html" title="General Index"
-                     accesskey="I">index</a></li>
-                <li class="right" >
-                  <a href="slide-003.html" title="Editing headlines"
-                     accesskey="N">next</a> |</li>
-                <li class="right" >
-                  <a href="basics.html" title="Leoâ€™s Basics"
-                     accesskey="P">previous</a> |</li>
-                <li class="nav-item nav-item-0"><a href="../../leo_toc.html">Leo 6.7.2 documentation</a> &#187;</li>
-                  <li class="nav-item nav-item-1"><a href="../../toc-more-links.html" >More Leo Links</a> &#187;</li>
-                  <li class="nav-item nav-item-2"><a href="../../slides.html" >Slides</a> &#187;</li>
-                  <li class="nav-item nav-item-3"><a href="basics.html" accesskey="U">Leoâ€™s Basics</a> &#187;</li>
-                <li class="nav-item nav-item-this"><a href="">The workbook file</a></li>
-              </ul>
-            </div>
-
-            <div class="document">
-              <div class="documentwrapper">
-                <div class="bodywrapper">
-                  <div class="body" role="main">
-
-          <section id="the-workbook-file">
-        <h1>The workbook file<a class="headerlink" href="#the-workbook-file" title="Permalink to this heading">Â¶</a></h1>
-        <p>Leo opens the <strong>workbook file</strong> when you start
-        Leo without a filename.</p>
-        <p>The body has focusâ€“it is colored a pale pink, and
-        contains a blinking cursor.</p>
-        <p><strong>Note</strong>: on some monitors the colors will be almost
-        invisible.  You can choose such colors to suit your
-        taste.</p>
-        <img alt="../../_images/slide-002.png" src="../../_images/slide-002.png" />
-        </section>
-
-
-                    <div class="clearer"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-                <div class="sphinxsidebarwrapper">
-                    <p class="logo"><a href="../../leo_toc.html">
-                      <img class="logo" src="../../_static/LeoLogo.svg" alt="Logo"/>
-                    </a></p>
-          <div>
-            <h4>Previous topic</h4>
-            <p class="topless"><a href="basics.html"
-                                  title="previous chapter">Leoâ€™s Basics</a></p>
-          </div>
-          <div>
-            <h4>Next topic</h4>
-            <p class="topless"><a href="slide-003.html"
-                                  title="next chapter">Editing headlines</a></p>
-          </div>
-        <div id="searchbox" style="display: none" role="search">
-          <h3 id="searchlabel">Quick search</h3>
-            <div class="searchformwrapper">
-            <form class="search" action="../../search.html" method="get">
-              <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-              <input type="submit" value="Go" />
-            </form>
-            </div>
-        </div>
-        <script>document.getElementById('searchbox').style.display = "block"</script>
-                </div>
-        <div id="sidebarbutton" title="Collapse sidebar">
-        <span>Â«</span>
-        </div>
-
-              </div>
-              <div class="clearer"></div>
-            </div>
-            <div class="related" role="navigation" aria-label="related navigation">
-              <h3>Navigation</h3>
-              <ul>
-                <li class="right" style="margin-right: 10px">
-                  <a href="../../genindex.html" title="General Index"
-                     >index</a></li>
-                <li class="right" >
-                  <a href="slide-003.html" title="Editing headlines"
-                     >next</a> |</li>
-                <li class="right" >
-                  <a href="basics.html" title="Leoâ€™s Basics">previous</a> |</li>
-                <li class="nav-item nav-item-0"><a href="../../leo_toc.html">Leo 6.7.2 documentation</a> &#187;</li>
-                  <li class="nav-item nav-item-1"><a href="../../toc-more-links.html" >More Leo Links</a> &#187;</li>
-                  <li class="nav-item nav-item-2"><a href="../../slides.html" >Slides</a> &#187;</li>
-                  <li class="nav-item nav-item-3"><a href="basics.html" >Leoâ€™s Basics</a> &#187;</li>
-                <li class="nav-item nav-item-this"><a href="">The workbook file</a></li>
-              </ul>
-            </div>
-            <div class="footer" role="contentinfo">
-                &#169; Copyright 1997-2023, Edward K. Ream.
-              Last updated on January 24, 2023.
-              Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 6.1.2.
-            </div>
-          </body>
-        </html>
-        '''
-        #@-<< define s >>
-
-        # xml.preprocess_lines inserts several newlines.
-        # Modify the expected result accordingly.
-        expected_s = (s
-            .replace('</head><body>', '</head>\n<body>')
-            .replace('><meta', '>\n<meta')
-            .replace('index</a></li>', 'index</a>\n</li>')
-            # .replace('"><a', '">\n<a')  # This replacement would affect too many lines.
-            .replace('m-0"><a', 'm-0">\n<a')
-            .replace('m-1"><a', 'm-1">\n<a')
-            .replace('item-2"><a', 'item-2">\n<a')
-            .replace('m-3"><a', 'm-3">\n<a')
-            .replace('nav-item-this"><a', 'nav-item-this">\n<a')
-            .replace('<p class="logo"><a', '<p class="logo">\n<a')
-            .replace('</a></li>', '</a>\n</li>')
-            .replace('<p><strong>', '<p>\n<strong>')
-            .replace('</a></p>', '</a>\n</p>')
-        )
-        self.new_round_trip_test(s, expected_s)
     #@+node:ekr.20230123162321.1: *3* TestHtml.test_structure
     def test_structure(self):
 
@@ -1500,11 +1374,6 @@ class TestHtml(BaseTestImporter):
             ),
         )
         self.new_run_test(s, expected_results)
-    #@-others
-#@+node:ekr.20230826053559.1: ** class TestImporter(LeoUnitTest)
-class TestImporter(LeoUnitTest):
-    """General tests of the Importer class."""
-    #@+others
     #@-others
 #@+node:ekr.20211108062617.1: ** class TestIni (BaseTestImporter)
 class TestIni(BaseTestImporter):
@@ -1763,10 +1632,10 @@ class TestJavascript(BaseTestImporter):
             ),
         )
         self.new_run_test(s, expected_results)
-    #@+node:ekr.20210904065459.36: *3* TestJavascript.test var_equal_function
-    def var_equal_function(self):
+    #@+node:ekr.20210904065459.36: *3* TestJavascript.test_var_equal_function
+    def test_var_equal_function(self):
 
-        s = """
+        s = textwrap.dedent("""\
             var c3 = (function () {
                 "use strict";
 
@@ -1779,18 +1648,32 @@ class TestJavascript(BaseTestImporter):
 
                 return c3;
             }());
-        """
+        """)
 
         expected_results = (
             (0, '',  # Ignore the first headline.
-                '@others\n'
-                '@language javascript\n'
-                '@tabwidth -4\n'
+                    '@others\n'
+                    '@language javascript\n'
+                    '@tabwidth -4\n'
             ),
-            (1, 'function restart',
-                s
+            (1, 'function c3',
+                    'var c3 = (function () {\n'
+                    '    @others\n'
+                    '    return c3;\n'
+                    '}());\n'
+            ),
+            (2, 'function c3.someFunction',
+                    '"use strict";\n'
+                    '\n'
+                    '// Globals\n'
+                    'var c3 = { version: "0.0.1"   };\n'
+                    '\n'
+                    'c3.someFunction = function () {\n'
+                    '    console.log("Just a demo...");\n'
+                    '};\n'
             ),
         )
+        # g.printObj(g.splitLines(s), tag='source')
         self.new_run_test(s, expected_results)
     #@+node:ekr.20220814014851.1: *3* TestJavascript.test_comments
     def test_comments(self):
@@ -1813,6 +1696,18 @@ class TestJavascript(BaseTestImporter):
             };
             """
         self.new_round_trip_test(s)
+    #@+node:ekr.20231023061407.1: *3* TestJavascript.test_guide_lines
+    def test_guide_lines(self):
+
+        c = self.c
+        x = javascript.JS_Importer(c)
+
+        # Adapted from an import failure in leoJS: The USER_MESSAGES method in constants.ts.
+        s = r'''"1\"2\"3\n"'''
+        lines = g.splitLines(s)
+        guide_lines = x.delete_comments_and_strings(lines)
+        line1 = guide_lines[0]
+        assert not line1.strip(), repr(line1)
     #@-others
 #@+node:ekr.20220816082603.1: ** class TestLua (BaseTestImporter)
 class TestLua (BaseTestImporter):
@@ -1846,7 +1741,6 @@ class TestLua (BaseTestImporter):
         expected_results = (
             (0, '', # Ignore the first headline.
                     '@others\n'
-                    '\n'
                     'print("main", coroutine.resume(co, 1, 10))\n'
                     'print("main", coroutine.resume(co, "r"))\n'
                     'print("main", coroutine.resume(co, "x", "y"))\n'
@@ -1953,7 +1847,7 @@ class TestMarkdown(BaseTestImporter):
 
             section 1, line 1
             -- Not an underline
-            secttion 1, line 2
+            section 1, line 2
 
             Section 2
             ---------
@@ -1990,7 +1884,7 @@ class TestMarkdown(BaseTestImporter):
                 '\n'
                 'section 1, line 1\n'
                 '-- Not an underline\n'
-                'secttion 1, line 2\n'
+                'section 1, line 2\n'
                 '\n'
             ),
             (2, 'Section 2',
@@ -2789,7 +2683,7 @@ class TestPerl(BaseTestImporter):
             print "Hello
 
             sub World {
-                print "This is not a funtion!"
+                print "This is not a function!"
             }
 
             world\n";
@@ -2802,7 +2696,7 @@ class TestPerl(BaseTestImporter):
                     '            print "Hello\n'
                     '\n'
                     '            sub World {\n'
-                    '                print "This is not a funtion!"\n'
+                    '                print "This is not a function!"\n'
                     '            }\n'
                     '\n'
                     '            world\n'
@@ -2824,7 +2718,7 @@ class TestPerl(BaseTestImporter):
 
             =begin comment
             sub World {
-                print "This is not a funtion!"
+                print "This is not a function!"
             }
             =cut
 
@@ -2850,7 +2744,7 @@ class TestPerl(BaseTestImporter):
             (1, 'sub World',
                     '            =begin comment\n'
                     '            sub World {\n'
-                    '                print "This is not a funtion!"\n'
+                    '                print "This is not a function!"\n'
                     '            }\n'
             ),
             (1, 'sub Hello',
@@ -3027,7 +2921,6 @@ class TestPython(BaseTestImporter):
     #@+node:ekr.20230514195224.1: *3* TestPython.test_delete_comments_and_strings
     def test_delete_comments_and_strings(self):
 
-        from leo.plugins.importers.python import Python_Importer
         importer = Python_Importer(self.c)
 
         lines = [
@@ -3100,7 +2993,7 @@ class TestPython(BaseTestImporter):
                 def method23():
                     pass
 
-            class UnderindentedComment:
+            class Class3:
             # Outer underindented comment
                 def u1():
                 # Underindented comment in u1.
@@ -3117,16 +3010,12 @@ class TestPython(BaseTestImporter):
 
         expected_results = (
             (0, '',  # Ignore the first headline.
-                    '<< TestPython.test_general_test_1: preamble >>\n'
+                    'import sys\n'
                     '@others\n'
-                    '\n'
                     "if __name__ == '__main__':\n"
                     '    main()\n'
                     '@language python\n'
                     '@tabwidth -4\n'
-            ),
-            (1, '<< TestPython.test_general_test_1: preamble >>',
-                    'import sys\n'
             ),
             (1, 'function: f1',
                     'def f1():\n'
@@ -3173,11 +3062,11 @@ class TestPython(BaseTestImporter):
                        'def method23():\n'
                        '    pass\n'
             ),
-            (1, 'class UnderindentedComment',
-                'class UnderindentedComment:\n'
-                '@others\n'  # The underindented comments prevents indentaion
+            (1, 'class Class3',
+                'class Class3:\n'
+                '@others\n'  # The underindented comments prevents indention
             ),
-            (2, 'UnderindentedComment.u1',
+            (2, 'Class3.u1',
                     '# Outer underindented comment\n'
                     '    def u1():\n'
                     '    # Underindented comment in u1.\n'
@@ -3262,6 +3151,49 @@ class TestPython(BaseTestImporter):
             ),
         )
         self.new_run_test(s, expected_results)
+    #@+node:ekr.20230830100457.1: *3* TestPython.test_nested_defs
+    def test_nested_defs(self):
+        # See #3517
+
+        # A simplified version of code in mypy/build.py.
+        s = (
+        '''
+            def load_plugins_from_config(
+                options: Options, errors: Errors, stdout: TextIO
+            ) -> tuple[list[Plugin], dict[str, str]]:
+                """Load all configured plugins."""
+
+                snapshot: dict[str, str] = {}
+
+                def plugin_error(message: str) -> NoReturn:
+                    errors.report(line, 0, message)
+                    errors.raise_error(use_stdout=False)
+
+                custom_plugins: list[Plugin] = []
+        ''')
+
+        expected_results = (
+            (0, '',  # Ignore the first headline.
+                '@others\n'
+                '@language python\n'
+                '@tabwidth -4\n'
+            ),
+            (1, 'function: load_plugins_from_config',
+                'def load_plugins_from_config(\n'
+                '    options: Options, errors: Errors, stdout: TextIO\n'
+                ') -> tuple[list[Plugin], dict[str, str]]:\n'
+                '    """Load all configured plugins."""\n'
+                '\n'
+                '    snapshot: dict[str, str] = {}\n'
+                '\n'
+                '    def plugin_error(message: str) -> NoReturn:\n'
+                '        errors.report(line, 0, message)\n'
+                '        errors.raise_error(use_stdout=False)\n'
+                '\n'
+                '    custom_plugins: list[Plugin] = []\n'
+            ),
+        )
+        self.new_run_test(s, expected_results)
     #@+node:vitalije.20211207200701.1: *3* TestPython.test_no_methods
     def test_no_methods(self):
 
@@ -3310,16 +3242,12 @@ class TestPython(BaseTestImporter):
         # Note: new_gen_block deletes leading and trailing whitespace from all blocks.
         expected_results = (
             (0, '',  # Ignore the first headline.
-                    '<< TestPython.test_oneliners: preamble >>\n'
+                    'import sys\n'
                     '@others\n'
-                    '\n'
                     "if __name__ == '__main__':\n"
                     '    main()\n'
                     '@language python\n'
                     '@tabwidth -4\n'
-            ),
-            (1, '<< TestPython.test_oneliners: preamble >>',
-                    'import sys\n'
             ),
             (1, 'function: f1',
                     'def f1():\n'
@@ -3361,23 +3289,20 @@ class TestPython(BaseTestImporter):
                 pass
 
             '''
+
         expected_results = (
             (0, '',  # Ignore the first headline.
                     '"""Module-level docstring"""\n'
-                    '<< TestPython.test_post_process: preamble >>\n'
+                    '\n'
+                    'from __future__ import annotations\n'
+                    '\n'
                     '@others\n'
                     '@language python\n'
                     '@tabwidth -4\n'
             ),
-            (1, '<< TestPython.test_post_process: preamble >>',
-                    '\n'
-                    'from __future__ import annotations\n'
-                    '\n'
-            ),
             (1, 'class C1',
                     'class C1:\n'
                     '    """Class docstring"""\n'
-                    '\n'
                     '    @others\n'
             ),
             (2, 'C1.__init__',
@@ -3390,43 +3315,56 @@ class TestPython(BaseTestImporter):
             ),
         )
         self.new_run_test(s, expected_results)
-    #@+node:ekr.20230612085239.1: *3* TestPython.test_preamble
-    def test_preamble(self):
+    #@+node:ekr.20230929051304.1: *3* TestPython.test_post_process_long_outer_docstring
+    def test_long_outer_docstring(self):
 
         s = '''
-            # This file is part of Leo: https://leo-editor.github.io/leo-editor
             """
-            This is a docstring.
-            """
-            import sys
-            from leo.core import leoGlobals as g
+            Multi-line module-level docstring
 
-            def f():
-                g.trace()
-        '''
+            Last line.
+            """
+
+            from __future__ import annotations
+
+            class C1:
+                """Class docstring"""
+
+                def __init__(self):
+                    pass
+
+            def f1():
+                pass
+
+            '''
+
         expected_results = (
             (0, '',  # Ignore the first headline.
-                    '<< TestPython.test_preamble: docstring >>\n'
-                    '<< TestPython.test_preamble: declarations >>\n'
-                   '@others\n'
-                   '@language python\n'
-                   '@tabwidth -4\n'
-            ),
-            (1, '<< TestPython.test_preamble: docstring >>',
-                    '# This file is part of Leo: https://leo-editor.github.io/leo-editor\n'
                     '"""\n'
-                    'This is a docstring.\n'
-                    '"""\n'
-            ),
-            (1, '<< TestPython.test_preamble: declarations >>',
-                    'import sys\n'
-                    'from leo.core import leoGlobals as g\n'
+                    'Multi-line module-level docstring\n'
                     '\n'
+                    'Last line.\n'
+                    '"""\n'
+                    '\n'
+                    'from __future__ import annotations\n'
+                    '\n'
+                    '@others\n'
+                    '@language python\n'
+                    '@tabwidth -4\n'
             ),
-            (1, 'function: f',
-                   'def f():\n'
-                   '    g.trace()\n'
-            )
+            (1, 'class C1',
+                    'class C1:\n'
+                    '    """Class docstring"""\n'
+                    '    @others\n'
+            ),
+            (2, 'C1.__init__',
+                    'def __init__(self):\n'
+                    '    pass\n'
+            ),
+            (1, 'function: f1',
+                   'def f1():\n'
+                   '    pass\n'
+            ),
         )
         self.new_run_test(s, expected_results)
     #@+node:vitalije.20211207183645.1: *3* TestPython.test_strange_indentation
@@ -3487,49 +3425,6 @@ class TestPython(BaseTestImporter):
                "    print('12')\n"
                '@language python\n'
                '@tabwidth -4\n'
-            ),
-        )
-        self.new_run_test(s, expected_results)
-    #@+node:ekr.20230830100457.1: *3* TestPython.test_nested_defs
-    def test_nested_defs(self):
-        # See #3517
-
-        # A simplified version of code in mypy/build.py.
-        s = (
-        '''
-            def load_plugins_from_config(
-                options: Options, errors: Errors, stdout: TextIO
-            ) -> tuple[list[Plugin], dict[str, str]]:
-                """Load all configured plugins."""
-
-                snapshot: dict[str, str] = {}
-
-                def plugin_error(message: str) -> NoReturn:
-                    errors.report(line, 0, message)
-                    errors.raise_error(use_stdout=False)
-
-                custom_plugins: list[Plugin] = []
-        ''')
-
-        expected_results = (
-            (0, '',  # Ignore the first headline.
-                '@others\n'
-                '@language python\n'
-                '@tabwidth -4\n'
-            ),
-            (1, 'function: load_plugins_from_config',
-                'def load_plugins_from_config(\n'
-                '    options: Options, errors: Errors, stdout: TextIO\n'
-                ') -> tuple[list[Plugin], dict[str, str]]:\n'
-                '    """Load all configured plugins."""\n'
-                '\n'
-                '    snapshot: dict[str, str] = {}\n'
-                '\n'
-                '    def plugin_error(message: str) -> NoReturn:\n'
-                '        errors.report(line, 0, message)\n'
-                '        errors.raise_error(use_stdout=False)\n'
-                '\n'
-                '    custom_plugins: list[Plugin] = []\n'
             ),
         )
         self.new_run_test(s, expected_results)
@@ -3934,7 +3829,7 @@ class TestRust(BaseTestImporter):
     ext = '.rs'
 
     #@+others
-    #@+node:ekr.20220814095025.1: *3* TestRust.test_1
+    #@+node:ekr.20220814095025.1: *3* TestRust.test_rust_1
     def test_1(self):
 
         s = """
@@ -3976,6 +3871,206 @@ class TestRust(BaseTestImporter):
             ),
         )
         self.new_run_test(s, expected_results)
+    #@+node:ekr.20231030054735.1: *3* TestRust.test_rust_import_fails
+    def test_rust_import_fails(self):
+
+        # From ruff/crates/ruff_formatter/shared_traits.rs
+        s = textwrap.dedent(
+    """
+        /// Used to get an object that knows how to format this object.
+        pub trait AsFormat<Context> {
+            type Format<'a>: ruff_formatter::Format<Context>
+            where
+                Self: 'a;
+
+            /// Returns an object that is able to format this object.
+            fn format(&self) -> Self::Format<'_>;
+        }
+
+        /// Implement [`AsFormat`] for references to types that implement [`AsFormat`].
+        impl<T, C> AsFormat<C> for &T
+        where
+            T: AsFormat<C>,
+        {
+            type Format<'a> = T::Format<'a> where Self: 'a;
+
+            fn format(&self) -> Self::Format<'_> {
+                AsFormat::format(&**self)
+            }
+        }
+    """)
+        expected_results = (
+            (0, '',  # Ignore the first headline.
+                    '@others\n'
+                    '@language rust\n'
+                    '@tabwidth -4\n'
+            ),
+            (1, 'trait AsFormat',
+                    '/// Used to get an object that knows how to format this object.\n'
+                    'pub trait AsFormat<Context> {\n'
+                    "    type Format<'a>: ruff_formatter::Format<Context>\n"
+                    '    where\n'
+                    "        Self: 'a;\n"
+                    '\n'
+                    '    /// Returns an object that is able to format this object.\n'
+                    "    fn format(&self) -> Self::Format<'_>;\n"
+                    '}\n'
+            ),
+            (1, 'impl AsFormat for &T',
+                    '/// Implement [`AsFormat`] for references to types that implement [`AsFormat`].\n'
+                    'impl<T, C> AsFormat<C> for &T\n'
+                    'where\n'
+                    '    T: AsFormat<C>,\n'
+                    '{\n'
+                    '    @others\n'
+                    '}\n'
+            ),
+            (2, 'fn format',
+                    "type Format<'a> = T::Format<'a> where Self: 'a;\n"
+                    '\n'
+                    "fn format(&self) -> Self::Format<'_> {\n"
+                    '    AsFormat::format(&**self)\n'
+                    '}\n'
+            ),
+        )
+        self.new_run_test(s, expected_results)
+    #@+node:ekr.20231031161514.1: *3* TestRust.test_rust_postpass
+    def test_rust_postpass(self):
+
+        # Modified from ruff/crates/ruff_formatter/src/arguments.rs
+        s = textwrap.dedent(
+    """
+    use super::{Buffer, Format, Formatter};
+    use crate::FormatResult;
+
+    /// Mono-morphed type to format an object.
+    /// Used by the [`crate::format`!].
+    ///
+    /// This struct is similar to a dynamic dispatch (using `dyn Format`)
+    /// because it stores a pointer to the value.
+    pub struct Argument<'fmt, Context> {
+        /// The value to format stored as a raw pointer where `lifetime` stores the value's lifetime.
+        value: *const c_void,
+
+        /// Stores the lifetime of the value.
+        lifetime: PhantomData<&'fmt ()>,
+
+        /// The function pointer to `value`'s `Format::format` method
+        formatter: fn(*const c_void, &mut Formatter<'_, Context>) -> FormatResult<()>,
+    }
+    """)
+        expected_results = (
+            (0, '',  # Ignore the first headline.
+                    'use super::{Buffer, Format, Formatter};\n'
+                    'use crate::FormatResult;\n'
+                    '\n'
+                    '@others\n'
+                    '@language rust\n'
+                    '@tabwidth -4\n'
+            ),
+            (1, "struct Argument",
+                    # '@\n'
+                    # 'Mono-morphed type to format an object.\n'
+                    # 'Used by the [`crate::format`!].\n'
+                    # '\n'
+                    # 'This struct is similar to a dynamic dispatch (using `dyn Format`)\n'
+                    # 'because it stores a pointer to the value.\n'
+                    # '@c\n'
+                    '/// Mono-morphed type to format an object.\n'
+                    '/// Used by the [`crate::format`!].\n'
+                    '///\n'
+                    '/// This struct is similar to a dynamic dispatch (using `dyn Format`)\n'
+                    '/// because it stores a pointer to the value.\n'
+                    "pub struct Argument<'fmt, Context> {\n"
+                    "    /// The value to format stored as a raw pointer where `lifetime` stores the value's lifetime.\n"
+                    '    value: *const c_void,\n'
+                    '\n'
+                    '    /// Stores the lifetime of the value.\n'
+                    "    lifetime: PhantomData<&'fmt ()>,\n"
+                    '\n'
+                    "    /// The function pointer to `value`'s `Format::format` method\n"
+                    "    formatter: fn(*const c_void, &mut Formatter<'_, Context>) -> FormatResult<()>,\n"
+                    '}\n'
+            ),
+        )
+        self.new_run_test(s, expected_results)
+    #@+node:ekr.20231113092341.1: *3* TestRust.test_invalid_runon_string
+    def test_invalid_runon_string(self):
+
+        # From ruff_linter/src/rules/eradicate/detection.rs
+        s = textwrap.dedent(
+    """
+        #[test]
+        fn comment_contains_code_basic() {
+            assert!(comment_contains_code("#import eradicate", &[]));
+            assert!(comment_contains_code(r#"#"key": value,"#, &[]));
+            assert!(comment_contains_code(r#"#"key": "value","#, &[]));
+        }
+    """)
+        expected_results = (
+            (0, '',  # Ignore the first headline.
+                    '@others\n'
+                    '@language rust\n'
+                    '@tabwidth -4\n'
+            ),
+            (1, 'fn comment_contains_code_basic',
+                    '#[test]\n'
+                    'fn comment_contains_code_basic() {\n'
+                    '    assert!(comment_contains_code("#import eradicate", &[]));\n'
+                    '    assert!(comment_contains_code(r#"#"key": value,"#, &[]));\n'
+                    '    assert!(comment_contains_code(r#"#"key": "value","#, &[]));\n'
+                    '}\n'
+            ),
+        )
+        self.new_run_test(s, expected_results)
+    #@-others
+#@+node:ekr.20231012142113.1: ** class TestScheme (BaseTestImporter)
+class TestScheme(BaseTestImporter):
+
+    ext = '.scm'
+
+    #@+others
+    #@+node:ekr.20231012142113.2: *3* TestScheme.test_scheme_1
+    def test_scheme_1(self):
+
+        # Add weird assignments for coverage.
+        s = """
+            ;;; comment
+            ;;; continue
+            ;;;
+
+            (define abc (a b)
+               (assn a "abc")
+               (assn b \\x)
+               (+ 1 2 3))
+
+            ; comment re cde
+            (define cde (a b)
+               (+ 1 2 3))
+        """
+        expected_results = (
+            (0, '', # Ignore the first headline.
+                    '@others\n'
+                    '@language scheme\n'
+                    '@tabwidth -4\n'
+            ),
+            (1, 'define abc',
+                    ';;; comment\n'
+                    ';;; continue\n'
+                    ';;;\n'
+                    '\n'
+                    '(define abc (a b)\n'
+                    '   (assn a "abc")\n'
+                    '   (assn b \\x)\n'
+                    '   (+ 1 2 3))\n'
+            ),
+            (1, 'define cde',
+                    '; comment re cde\n'
+                    '(define cde (a b)\n'
+                    '   (+ 1 2 3))\n'
+            ),
+        )
+        self.new_run_test(s, expected_results)
     #@-others
 #@+node:ekr.20220813174450.1: ** class TestTcl (BaseTestImporter)
 class TestTcl (BaseTestImporter):
@@ -4012,7 +4107,6 @@ class TestTcl (BaseTestImporter):
         expected_results = (
             (0, '',  # Ignore the first headline.
                     '@others\n'
-                    '\n'
                     ' # Main program\n'
                     '\n'
                     ' if { [info exists argv0] && [string equal $argv0 [info script]] } {\n'
@@ -4211,6 +4305,9 @@ class TestXML(BaseTestImporter):
         </html>
         """
 
+        # A good trace while single-stepping.
+        # g.printObj(g.splitLines(textwrap.dedent(s)), tag='Input File')
+
         expected_results = (
             (0, '',  # Ignore level 0 headlines.
                     '@others\n'
@@ -4221,7 +4318,7 @@ class TestXML(BaseTestImporter):
                     '<?xml version="1.0" encoding="UTF-8"?>\n'
                     '<!DOCTYPE note SYSTEM "Note.dtd">\n'
                     '<html>\n'
-                        '@others\n'
+                    '@others\n'
                     '</html>\n'
             ),
             (2, '<head>',
@@ -4230,7 +4327,6 @@ class TestXML(BaseTestImporter):
                     '</head>\n'
             ),
             (2, "<body class='bodystring'>",
-
                     "<body class='bodystring'>\n"
                     "<div id='bodydisplay'></div>\n"
                     '</body>\n'

@@ -49,7 +49,11 @@ def create_app(gui_name: str = 'null') -> Cmdr:
     from leo.core import leoCommands
     from leo.core.leoGui import NullGui
     if gui_name == 'qt':
-        from leo.plugins.qt_gui import LeoQtGui
+        # Don't fail if Qt has not been installed.
+        try:
+            from leo.plugins.qt_gui import LeoQtGui
+        except Exception:
+            gui_name = 'null'
     t2 = time.process_time()
     g.app.recentFilesManager = leoApp.RecentFilesManager()
     g.app.loadManager = lm = leoApp.LoadManager()
@@ -60,7 +64,6 @@ def create_app(gui_name: str = 'null') -> Cmdr:
     # Disable dangerous code.
     g.app.db = g.NullObject('g.app.db')  # type:ignore
     g.app.pluginsController = g.NullObject('g.app.pluginsController')  # type:ignore
-    g.app.commander_cacher = g.NullObject('g.app.commander_cacher')  # type:ignore
     if gui_name == 'null':
         g.app.gui = NullGui()
     elif gui_name == 'qt':
@@ -95,7 +98,7 @@ class LeoUnitTest(unittest.TestCase):
     """
     The base class for all unit tests in Leo.
 
-    Contains setUp/tearDown methods and various utilites.
+    Contains setUp/tearDown methods and various utilities.
 
     This class must not contain any  test_* methods!
     """

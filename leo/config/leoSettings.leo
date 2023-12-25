@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Created by Leo: https://leo-editor.github.io/leo-editor/leo_toc.html -->
-<leo_file xmlns:leo="http://leo-editor.github.io/leo-editor/namespaces/leo-python-editor/1.1" >
+<leo_file xmlns:leo="https://leo-editor.github.io/leo-editor/namespaces/leo-python-editor/1.1" >
 <leo_header file_format="2"/>
 <globals/>
 <preferences/>
@@ -602,6 +602,10 @@
 <v t="ekr.20060127050605"><vh>@int max-undo-stack-size = 0</vh></v>
 <v t="ekr.20050126083026"><vh>@string undo-granularity = None</vh></v>
 </v>
+<v t="peckj.20130514082859.5599"><vh>print settings</vh>
+<v t="peckj.20130514082859.5600"><vh>@string printing-font-size = 12</vh></v>
+<v t="peckj.20130514082859.5601"><vh>@string printing-font-family = DejaVu Sans Mono</vh></v>
+</v>
 </v>
 <v t="ekr.20070926132045"><vh>Common @button nodes</vh>
 <v t="ekr.20070926082407"><vh>@buttons</vh></v>
@@ -950,14 +954,13 @@
 <v t="ekr.20070925144552"><vh>Menus</vh>
 <v t="ekr.20071010123015"><vh>@@menu 文件</vh>
 <v t="ekr.20071010123015.1"><vh>@item new</vh></v>
-<v t="ekr.20071010123223.1"><vh>@item open-outline</vh></v>
+<v t="ekr.20071010123223.1"><vh>@item open-file</vh></v>
 </v>
 <v t="ekr.20131213135427.21826"><vh>@menus</vh>
 <v t="ekr.20131213135427.21827"><vh>@menu &amp;File</vh>
 <v t="ekr.20131213135427.21833"><vh>@item &amp;close-window</vh></v>
-<v t="ekr.20140917063815.21917"><vh>@item &amp;file-open-by-name</vh></v>
 <v t="ekr.20131213135427.21828"><vh>@item &amp;new</vh></v>
-<v t="ekr.20131213135427.21829"><vh>@item &amp;open-outline</vh></v>
+<v t="ekr.20131213135427.21829"><vh>@item &amp;open-file</vh></v>
 <v t="ekr.20180403155811.1"><vh>@item -</vh></v>
 <v t="ekr.20131213135427.21830"><vh>@menu Open &amp;With</vh></v>
 <v t="ekr.20151225142626.1"><vh>@menu Open Specific &amp;Leo File</vh>
@@ -1407,13 +1410,6 @@
 <v t="ekr.20131213135427.22196"><vh>@item &amp;keyboard-quit</vh></v>
 <v t="ekr.20131213135427.22197"><vh>@item &amp;repeat-complex-command</vh></v>
 <v t="ekr.20131213135427.22198"><vh>@item &amp;view-lossage</vh></v>
-<v t="ekr.20180405112939.1"><vh>@item -</vh></v>
-<v t="ekr.20180403105526.1"><vh>@item &amp;eval</vh></v>
-<v t="ekr.20180403105636.1"><vh>@item &amp;eval-block</vh></v>
-<v t="ekr.20180403105541.1"><vh>@item &amp;eval-last</vh></v>
-<v t="ekr.20180403105609.1"><vh>@item &amp;eval-last-pretty</vh></v>
-<v t="ekr.20180403105722.1"><vh>@item &amp;eval-replace</vh></v>
-<v t="ekr.20180405112923.1"><vh>@item -</vh></v>
 <v t="ekr.20131213135427.22131"><vh>@menu &amp;Control Garbage Collection</vh>
 <v t="ekr.20131213135427.22132"><vh>@item gc-&amp;collect-garbage</vh></v>
 <v t="ekr.20131213135427.22133"><vh>@item gc-dump-&amp;all-objects</vh></v>
@@ -1933,8 +1929,6 @@
 </v>
 <v t="ekr.20110611092035.16483"><vh>mod_scripting plugin</vh>
 <v t="tbrown.20100524101550.4704"><vh>@string mod-scripting-subtext = ▼</vh></v>
-<v t="ekr.20181018105342.1"><vh>@bool eval-redirect = False</vh></v>
-<v t="ekr.20181018105355.1"><vh>@bool legacy-eval = False</vh></v>
 </v>
 <v t="TL.20090225102340.33"><vh>nodeActions plugin</vh>
 <v t="TL.20090225102340.34"><vh>@bool nodeActions-save-atFile-nodes = False</vh></v>
@@ -1956,10 +1950,6 @@
 <v t="ekr.20060919173031.1"><vh>@bool opml-write-leo-globals-attributes = True</vh></v>
 <v t="ekr.20060922110220"><vh>@bool opml-write-uAs = True</vh></v>
 <v t="ekr.20060919171527.2"><vh>@string opml-namespace = leo:com:leo-opml-version-1</vh></v>
-</v>
-<v t="peckj.20130514082859.5599"><vh>printing plugin</vh>
-<v t="peckj.20130514082859.5600"><vh>@string printing-font-size = 12</vh></v>
-<v t="peckj.20130514082859.5601"><vh>@string printing-font-family = DejaVu Sans Mono</vh></v>
 </v>
 <v t="tbrown.20130813134319.7223"><vh>richtext plugin</vh>
 <v t="tbrown.20130813134319.7224"><vh>@bool richtext-cke-autosave = False</vh></v>
@@ -2284,7 +2274,8 @@
 </v>
 </v>
 <v t="ekr.20140915194122.23428"></v>
-<v t="ekr.20230627131213.1"></v>
+<v t="ekr.20051101160257"></v>
+<v t="ekr.20051007200824.1"></v>
 </vnodes>
 <tnodes>
 <t tx="TL.20080702085131.2">If True: Save the Leo file and all modified derived files every time the external editor saves a modified file.
@@ -2710,16 +2701,14 @@ script can find them.
 
 - The *active* set should be *outside* of the @ignore and its descendants.
 </t>
-<t tx="ekr.20051007200824.1">The following special single characters may be used in the tails of shortcuts.
-They are listed along with their associated Tk binding value. Leo contains
-special code to handle these characters. No other single characters may be
-specified.
+<t tx="ekr.20051007200824.1">Leo uses Tk key names internally, even when using the Qt gui. 
 
-For example, you could specify Ctrl+! as a shortcut, and Leo will create a
-binding for &lt;Control+exclam&gt;. Some of these values may be invalid on some
-machines.
+See https://www.tcl.tk/man/tcl8.4/TkCmd/keysyms.html for the full list of Tk key names.
 
-The full list is at http://tcl.activestate.com/man/tcl8.4/TkCmd/keysyms.htm
+For convenience (and compatibility with existing settings files), Leo
+translates non-Tk names to Tk names in two ways:
+
+1. Leo translates the following single characters to longer binding names:
 
 ! exclam
 " quotedbl
@@ -2754,8 +2743,10 @@ _ underscore
 } braceright
 ~ asciitilde
 
-Leo recognizes the following mult-character names, and translates the indicated
-strings in the menu items:
+For example, you could specify Ctrl+! as a shortcut, and Leo will create a
+binding for &lt;Control+exclam&gt;.
+
+2. Leo also translates these strings in menu items:
     
 "bksp"     : "BkSp"
 "dnarrow"  : "DnArrow"
@@ -2765,27 +2756,7 @@ strings in the menu items:
 "pageup"   : "PgUp"),
 "pagedn"   : "PgDn")
 
-For example, "Ctrl-uparrow"  will appear as "Ctrl+UpArrow" in the menu.
-
-Leo passes all other mult-character names verbatim to Qt, so on some platforms
-you may be able to use any of the following. Most appear on the numeric keypad.
-For example, the following may work on some systems:
-    
-"Ctrl+BackSpace"
-
-Don't use these if you want to be sure that the binding work on all platforms.
-The complete list of names may be found at:
-http://tcl.activestate.com/man/tcl8.4/TkCmd/keysyms.htm.
-    
-F1, F2, F3, F4, F5, F6, F7, F8, F9, F10,
-BackSpace, Break, Clear, Delete, Escape, Linefeed, Return, Tab, 
-Down, Left, Right, Up,
-Begin, End, Home, Next, Prior,
-Num_Lock, Pause, Scroll_Lock, Sys_Req,
-KP_Add, KP_Decimal, KP_Divide, KP_Enter, KP_Equal,
-KP_Multiply, KP_Separator, KP_Space, KP_Subtract, KP_Tab,
-KP_F1, KP_F2, KP_F3, KP_F4,
-KP_0, KP_1, KP_2, KP_3, KP_4, KP_5, KP_6, KP_7, KP_8, KP_9</t>
+For example, "Ctrl-uparrow"  will appear as "Ctrl+UpArrow" in the menu.</t>
 <t tx="ekr.20051020125928">#d6c7d3
 #d2cad0
 #c6d3d7</t>
@@ -2831,11 +2802,16 @@ Notes:
 
 1. The case of plain letters is significant:  a is not A.
 
-2. The Shift- (or Shift+) prefix can be applied *only* to letters or multi-letter tails. Leo will ignore (with a warning) the shift prefix applied to other single letters, e.g., Ctrl-Shift-(
+2. The Shift- (or Shift+) prefix can be applied *only* to letters or
+   multi-letter tails. Leo will ignore (with a warning) the shift prefix
+   applied to other single letters, e.g., Ctrl-Shift-(
 
-3. The case of letters prefixed by Ctrl-, Alt-, Key- or Shift- is *not* significant.
+3. The case of letters prefixed by Ctrl-, Alt-, Key- or Shift- is *not*
+   significant.
 
-The following table illustrates these rules.  In each row, the first entry is the key (for k.bindingsDict) and the other entries are equivalents that the user may specify in leoSettings.leo:
+The following table illustrates these rules. In each row, the first entry
+is the key (for k.bindingsDict) and the other entries are equivalents that
+the user may specify in leoSettings.leo:
 
 a, Key-a, Key-A
 A, Shift-A
@@ -4619,7 +4595,7 @@ If &gt; 0, only nodes whose body text are smaller than this limit are colorized.
 For information about supported languages, see:
 http://pythonhosted.org/pyenchant/tutorial.html#adding-language-dictionaries
 </t>
-<t tx="ekr.20100904095239.8441">Defaults to leo/plugins/spellpyx.txt</t>
+<t tx="ekr.20100904095239.8441">Defaults to ~/.leo/spellpyx.txt</t>
 <t tx="ekr.20100904134301.11000">@language python
 </t>
 <t tx="ekr.20100904134301.11002"># Blanks lines and comments (lines starting with '#') are ignored.
@@ -8909,7 +8885,7 @@ QPlainTextEdit#screencastcaption {
     font-family:        @screencast-font-family;
     font-size:          @screencast-font-size;
     font-weight:        @screencast-font-weight;
-    font-style:         @screencast-font-style;
+    font-style:         @screencast-font-slant;
 }
 </t>
 <t tx="ekr.20140915194122.19466">/*  ========== Dialogs (QLabel) ========== 
@@ -9162,7 +9138,6 @@ Don't change these unless you are aware of the consequences</t>
 <t tx="ekr.20140916113003.19609"></t>
 <t tx="ekr.20140916113003.20415"></t>
 <t tx="ekr.20140917051508.19548">The children of this node determine how Leo looks.</t>
-<t tx="ekr.20140917063815.21917"></t>
 <t tx="ekr.20140918165611.38050">'''
 Show a color wheel.
 Writes the selected color to the clipboard.
@@ -10861,11 +10836,6 @@ Use different names instead.</t>
 <t tx="ekr.20180403104732.1"></t>
 <t tx="ekr.20180403104751.1"></t>
 <t tx="ekr.20180403105112.1"></t>
-<t tx="ekr.20180403105526.1"></t>
-<t tx="ekr.20180403105541.1"></t>
-<t tx="ekr.20180403105609.1"></t>
-<t tx="ekr.20180403105636.1"></t>
-<t tx="ekr.20180403105722.1"></t>
 <t tx="ekr.20180403114533.1"></t>
 <t tx="ekr.20180403114558.1"></t>
 <t tx="ekr.20180403114818.1"></t>
@@ -10896,8 +10866,6 @@ Use different names instead.</t>
 <t tx="ekr.20180405110859.1"></t>
 <t tx="ekr.20180405112647.1"></t>
 <t tx="ekr.20180405112755.1"></t>
-<t tx="ekr.20180405112923.1"></t>
-<t tx="ekr.20180405112939.1"></t>
 <t tx="ekr.20180406013812.1"></t>
 <t tx="ekr.20180411070112.1">The setting only has effect on MacOS.
 False: Legacy operation.
@@ -11063,8 +11031,6 @@ See https://jedi.readthedocs.io/en/latest/index.html
 </t>
 <t tx="ekr.20181018103813.1">True: use verbose mode.</t>
 <t tx="ekr.20181018104056.1">True: use smart quotes when typing.</t>
-<t tx="ekr.20181018105342.1"></t>
-<t tx="ekr.20181018105355.1"></t>
 <t tx="ekr.20181018105433.1"></t>
 <t tx="ekr.20181018105440.1"></t>
 <t tx="ekr.20181018105515.1"></t>
@@ -11652,7 +11618,7 @@ date;;={|{x=time.asctime()}|}
 <t tx="ekr.20230316031838.1">screencast_font_family = Times New Roman
 screencast_font_size = 18pt
 screencast_font_weight = normal
-screencast_font_style = normal
+screencast_font_slant = normal
 </t>
 <t tx="ekr.20230327033157.1">True: expand/contract nodes when the mouse hovers over the outline:
     &lt;CTRL-hover&gt;: expand.
@@ -11728,7 +11694,7 @@ Leo accepts outline 'paste' data in both XML Leo format, or JSON format</t>
 <t tx="peckj.20130514082859.5599"></t>
 <t tx="peckj.20130514082859.5600">This defines the font size for body text in print outs.
 
-Size is in px.  Default 12.</t>
+Size is in points.  Default 12.</t>
 <t tx="peckj.20130514082859.5601">This determines the font family for print outs.  It's highly recommended
 to choose a monospaced font.
 

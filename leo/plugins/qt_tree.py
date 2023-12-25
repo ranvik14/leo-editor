@@ -103,7 +103,7 @@ class LeoQtTree(leoFrame.LeoTree):
         tw = self.treeWidget
         tw.itemDoubleClicked.connect(self.onItemDoubleClicked)
         tw.itemClicked.connect(self.onItemClicked)
-        if self.use_mouse_expand_gestures:  
+        if self.use_mouse_expand_gestures:
             tw.setMouseTracking(True)
             tw.itemEntered.connect(self.onItemEntered)
         tw.itemSelectionChanged.connect(self.onTreeSelect)
@@ -127,7 +127,7 @@ class LeoQtTree(leoFrame.LeoTree):
         self.use_chapters = c.config.getBool('use-chapters')
         self.use_declutter = c.config.getBool('tree-declutter', default=False)
         self.use_mouse_expand_gestures = c.config.getBool('use-mouse-expand-gestures',
-                                                           default = False)
+                                                           default=False)
     #@+node:ekr.20110605121601.17940: *4* qtree.wrapQLineEdit
     def wrapQLineEdit(self, w: Wrapper) -> Wrapper:
         """A wretched kludge for MacOs k.masterMenuHandler."""
@@ -154,7 +154,7 @@ class LeoQtTree(leoFrame.LeoTree):
         w = self.treeWidget
         w.clear()
     #@+node:ekr.20110605121601.17873: *4* qtree.full_redraw & helpers
-    def full_redraw(self, p: Position=None) -> Position:
+    def full_redraw(self, p: Position = None) -> Position:
         """
         Redraw all visible nodes of the tree.
         Preserve the vertical scrolling unless scroll is True.
@@ -244,7 +244,7 @@ class LeoQtTree(leoFrame.LeoTree):
             elif cmd == 'REPLACE-TAIL':
                 s = text[m.end() :].lstrip()
             elif cmd == 'REPLACE-REST':
-                s = (text[:m.start()] + text[m.end() :]).strip()
+                s = (text[: m.start()] + text[m.end() :]).strip()
 
             # 's' is string when 'cmd' is recognized
             # and is None otherwise
@@ -345,8 +345,7 @@ class LeoQtTree(leoFrame.LeoTree):
             new_icons = []
             modifiers_and_args = []
             for pattern, cmds in self.get_declutter_patterns():
-                m = pattern.match(text) or pattern.search(text)
-                if m:
+                if m := pattern.match(text) or pattern.search(text):
                     modifiers_and_args.extend(apply_declutter_rules(cmds))
             # Save the lists of the icons and the adjusting operations.
             dd[(v.h, iconVal)] = new_icons, modifiers_and_args
@@ -385,7 +384,7 @@ class LeoQtTree(leoFrame.LeoTree):
                     patterns.append((re.compile(arg), []))
                 except re.error:
                     g.log('Invalid declutter pattern: %r' % (arg,), color='error')
-                    patterns.append((re.compile('a^'), [])) # create a rule that matches nothing
+                    patterns.append((re.compile('a^'), []))  # create a rule that matches nothing
             else:
                 if patterns:
                     patterns[-1][1].append((cmd, arg))
@@ -474,7 +473,7 @@ class LeoQtTree(leoFrame.LeoTree):
             t2 = time.process_time()
             g.trace(f"{t2 - t1:5.2f} sec.", g.callers(5))
     #@+node:ekr.20110605121601.17877: *5* qtree.drawTree
-    def drawTree(self, p: Position, parent_item: Item=None) -> None:
+    def drawTree(self, p: Position, parent_item: Item = None) -> None:
         if g.app.gui.isNullGui:
             return
         # Draw the (visible) parent node.
@@ -518,7 +517,7 @@ class LeoQtTree(leoFrame.LeoTree):
                         icon = self.declutter_node(c, p, item)
                         item.setIcon(0, icon)  # 0 is the column number.
     #@+node:ekr.20110605121601.17884: *4* qtree.redraw_after_select
-    def redraw_after_select(self, p: Position=None) -> None:
+    def redraw_after_select(self, p: Position = None) -> None:
         """Redraw the entire tree when an invisible node is selected."""
         if self.busy:
             return
@@ -557,7 +556,7 @@ class LeoQtTree(leoFrame.LeoTree):
     #@+node:ekr.20110605121601.17885: *3* qtree.Event handlers
     #@+node:ekr.20110605121601.17887: *4*  qtree.Click Box
     #@+node:ekr.20110605121601.17888: *5* qtree.onClickBoxClick
-    def onClickBoxClick(self, event: Event, p: Position=None) -> None:
+    def onClickBoxClick(self, event: Event, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -565,7 +564,7 @@ class LeoQtTree(leoFrame.LeoTree):
         g.doHook("boxclick2", c=c, p=p, event=event)
         c.outerUpdate()
     #@+node:ekr.20110605121601.17889: *5* qtree.onClickBoxRightClick
-    def onClickBoxRightClick(self, event: Event, p: Position=None) -> None:
+    def onClickBoxRightClick(self, event: Event, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -573,7 +572,7 @@ class LeoQtTree(leoFrame.LeoTree):
         g.doHook("boxrclick2", c=c, p=p, event=event)
         c.outerUpdate()
     #@+node:ekr.20110605121601.17890: *5* qtree.onPlusBoxRightClick
-    def onPlusBoxRightClick(self, event: Event, p: Position=None) -> None:
+    def onPlusBoxRightClick(self, event: Event, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -582,7 +581,7 @@ class LeoQtTree(leoFrame.LeoTree):
     #@+node:ekr.20110605121601.17891: *4*  qtree.Icon Box
     # For Qt, there seems to be no way to trigger these events.
     #@+node:ekr.20110605121601.17892: *5* qtree.onIconBoxClick
-    def onIconBoxClick(self, event: Event, p: Position=None) -> None:
+    def onIconBoxClick(self, event: Event, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -590,7 +589,7 @@ class LeoQtTree(leoFrame.LeoTree):
         g.doHook("iconclick2", c=c, p=p, event=event)
         c.outerUpdate()
     #@+node:ekr.20110605121601.17893: *5* qtree.onIconBoxRightClick
-    def onIconBoxRightClick(self, event: Event, p: Position=None) -> None:
+    def onIconBoxRightClick(self, event: Event, p: Position = None) -> None:
         """Handle a right click in any outline widget."""
         if self.busy:
             return
@@ -599,7 +598,7 @@ class LeoQtTree(leoFrame.LeoTree):
         g.doHook("iconrclick2", c=c, p=p, event=event)
         c.outerUpdate()
     #@+node:ekr.20110605121601.17894: *5* qtree.onIconBoxDoubleClick
-    def onIconBoxDoubleClick(self, event: Event, p: Position=None) -> None:
+    def onIconBoxDoubleClick(self, event: Event, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -741,7 +740,7 @@ class LeoQtTree(leoFrame.LeoTree):
     #@+node:tom.20230324155453.1: *3* qtree.onItemEntered
     def onItemEntered(self, item: Item, col: int):
         """Expand/Contract a node when mouse moves over it.
-        
+
         <CTRL-hover> -- expand;
         <SHIFT-hover> -- contract.
         """
@@ -889,10 +888,9 @@ class LeoQtTree(leoFrame.LeoTree):
         def editingFinished_callback() -> None:
             """Called when Qt emits the editingFinished signal."""
             s = e.text()
-            i = s.find('\n')
-            # Truncate to one line.
-            if i > -1:
-                s = s[:i]
+            # #3633: Replace newlines with a blank.
+            if '\n' in s:
+                s = re.sub(r'\s*\n\s*', ' ', s).replace('  ', ' ').rstrip()
             # #1310: update the tooltip.
             if p.h != s:
                 # Update p.h and handle undo.
@@ -1112,7 +1110,7 @@ class LeoQtTree(leoFrame.LeoTree):
         return None
     #@+node:ekr.20110605121601.17909: *4* qtree.editLabel and helper
     def editLabel(self,
-        p: Position, selectAll: bool=False, selection: tuple=None,
+        p: Position, selectAll: bool = False, selection: tuple = None,
     ) -> tuple[Editor, Any]:
         """Start editing p's headline."""
         if self.busy:
@@ -1136,7 +1134,7 @@ class LeoQtTree(leoFrame.LeoTree):
         return e, wrapper
     #@+node:ekr.20110605121601.18422: *5* qtree.editLabelHelper
     def editLabelHelper(self,
-        item: Any, selectAll: bool=False, selection: tuple=None,
+        item: Any, selectAll: bool = False, selection: tuple = None,
     ) -> tuple[Item, Any]:
         """Helper for qtree.editLabel."""
         c, vc = self.c, self.c.vimCommands

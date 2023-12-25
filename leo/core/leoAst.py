@@ -19,29 +19,35 @@ This file requires Python 3.9 or above.
 **Stand-alone operation**
 
 usage:
-    leoAst.py --help
-    leoAst.py [--fstringify | --fstringify-diff | --orange | --orange-diff] PATHS
-    leoAst.py --py-cov [ARGS]
-    leoAst.py --pytest [ARGS]
-    leoAst.py --unittest [ARGS]
+    python -m leo.core.leoAst.py --help
+    python -m leo.core.leoAst.py --fstringify [ARGS] PATHS
+    python -m leo.core.leoAst.py --fstringify-diff [ARGS] PATHS
+    python -m leo.core.leoAst.py --orange [ARGS] PATHS
+    python -m leo.core.leoAst.py --orange-diff [ARGS] PATHS
+    python -m leo.core.leoAst.py --py-cov [ARGS]
+    python -m leo.core.leoAst.py --pytest [ARGS]
+    python -m leo.core.leoAst.py --unittest [ARGS]
 
 examples:
-    --py-cov "-f TestOrange"
-    --pytest "-f TestOrange"
-    --unittest TestOrange
+    python -m leo.core.leoAst.py --orange --force --verbose PATHS
+    python -m leo.core.leoAst.py --py-cov "-f TestOrange"
+    python -m leo.core.leoAst.py --pytest "-f TestOrange"
+    python -m leo.core.leoAst.py --unittest TestOrange
 
 positional arguments:
   PATHS              directory or list of files
 
 optional arguments:
   -h, --help         show this help message and exit
+  --force            operate on all files. Otherwise operate only on modified files
   --fstringify       leonine fstringify
   --fstringify-diff  show fstringify diff
-  --orange           leonine Black
+  --orange           leonine text formatter (Orange is the new Black)
   --orange-diff      show orange diff
   --py-cov           run pytest --cov on leoAst.py
   --pytest           run pytest on leoAst.py
   --unittest         run unittest on leoAst.py
+  --verbose          verbose output
 
 
 **Overview**
@@ -154,182 +160,23 @@ import difflib
 import glob
 import io
 import os
-import pprint
 import re
-import sys
+import subprocess
 import textwrap
 import tokenize
-import traceback
 from typing import Any, Generator, Optional, Union
+
+try:
+    from leo.core import leoGlobals as g
+except Exception:
+    # check_g function gives the message.
+    g = None
 
 Node = ast.AST
 Settings = Optional[dict[str, Any]]
-v1, v2, junk1, junk2, junk3 = sys.version_info
-py_version = (v1, v2)
-
 #@-<< leoAst imports & annotations >>
-#@+<< leoAst data >>
-#@+node:ekr.20220821044107.1: ** << leoAst data >>
 
-# Async tokens exist only in Python 3.5 and 3.6.
-# https://docs.python.org/3/library/token.html
-has_async_tokens = (3, 5) <= py_version <= (3, 6)
-#@-<< leoAst data >>
 #@+others
-#@+node:ekr.20191226175251.1: **  class LeoGlobals
-#@@nosearch
-
-
-class LeoGlobals:  # pragma: no cover
-    """
-    Simplified version of functions in leoGlobals.py.
-    """
-
-    total_time = 0.0  # For unit testing.
-
-    #@+others
-    #@+node:ekr.20191226175903.1: *3* LeoGlobals._caller_name
-    def _caller_name(self, n: int) -> str:
-        """Return the name of the caller n levels back in the call stack."""
-        try:
-            # Get the function name from the call stack.
-            frame = sys._getframe(n)  # The stack frame, n levels up.
-            code = frame.f_code  # The code object
-            locals_ = frame.f_locals  # The local namespace.
-            name = code.co_name
-            obj = locals_.get("self")
-            if obj and name == "__init__":
-                return f"{obj.__class__.__name__}.{name}"
-            return name
-        except ValueError:
-            # The stack is not deep enough OR
-            # sys._getframe does not exist on this platform.
-            return ""
-        except Exception:
-            return ""  # "<no caller name>"
-    #@+node:ekr.20230208055034.1: *3* LeoGlobals.caller
-    def caller(self, i: int = 1) -> str:
-        """Return the caller name i levels up the call stack."""
-        return self.callers(i + 1).split(",")[0]
-    #@+node:ekr.20191226175426.1: *3* LeoGlobals.callers
-    def callers(self, n: int = 4) -> str:
-        """
-        Return a string containing a comma-separated list of the callers
-        of the function that called g.caller_list.
-        """
-        i, result = 2, []
-        while True:
-            s = self._caller_name(n=i)
-            if s:
-                result.append(s)
-            if not s or len(result) >= n:
-                break
-            i += 1
-        return ','.join(reversed(result))
-    #@+node:ekr.20191226190709.1: *3* leoGlobals.es_exception & helper
-    def es_exception(self) -> None:
-        typ, val, tb = sys.exc_info()
-        for line in traceback.format_exception(typ, val, tb):
-            print(line)
-    #@+node:ekr.20191226192030.1: *4* LeoGlobals.getLastTracebackFileAndLineNumber
-    def getLastTracebackFileAndLineNumber(self) -> tuple[str, int]:
-        typ, val, tb = sys.exc_info()
-        if typ == SyntaxError:
-            # IndentationError is a subclass of SyntaxError.
-            # SyntaxError *does* have 'filename' and 'lineno' attributes.
-            return val.filename, val.lineno
-        #
-        # Data is a list of tuples, one per stack entry.
-        # The tuples have the form (filename, lineNumber, functionName, text).
-        data = traceback.extract_tb(tb)
-        item = data[-1]  # Get the item at the top of the stack.
-        filename, n, functionName, text = item
-        return filename, n
-    #@+node:ekr.20191226190425.1: *3* LeoGlobals.plural
-    def plural(self, obj: Any) -> str:
-        """Return "s" or "" depending on n."""
-        if isinstance(obj, (list, tuple, str)):
-            n = len(obj)
-        else:
-            n = obj
-        return '' if n == 1 else 's'
-    #@+node:ekr.20191226175441.1: *3* LeoGlobals.print_obj
-    def print_obj(self, obj: Any, *, tag: str = None) -> None:
-        """Print an object."""
-        print(self.to_string(obj, tag=tag))
-    #@+node:ekr.20220327120618.1: *3* LeoGlobals.short_file_name
-    def short_file_name(self, fileName: str) -> str:
-        """Return the base name of a path."""
-        return os.path.basename(fileName) if fileName else ''
-    #@+node:ekr.20191226190131.1: *3* LeoGlobals.split_lines
-    def split_lines(self, s: str) -> list[str]:
-        """Split s into lines, preserving the number of lines and
-        the endings of all lines, including the last line."""
-        if s:
-            return s.splitlines(True)  # This is a Python string function!
-        return []
-    #@+node:ekr.20200220065737.1: *3* LeoGlobals.to_string
-    def to_string(self, obj: Any, *, indent: int = 0, tag: str = None, width: int = 120) -> str:
-        """
-        Pretty print any Python object to a string.
-        """
-        if not isinstance(obj, str):
-            result = pprint.pformat(obj, indent=indent, width=width)
-        elif "\n" not in obj:
-            result = repr(obj)
-        else:
-            # Return the enumerated lines of the string.
-            lines = "".join([f"  {i:4}: {z!r}\n" for i, z in enumerate(self.split_lines(obj))])
-            result = f"[\n{lines}]\n"
-        return f"{tag.strip()}: {result}" if tag and tag.strip() else result
-    #@+node:ekr.20191226190844.1: *3* LeoGlobals.to_encoded_string
-    def to_encoded_string(self, s: Any, *, encoding: str = 'utf-8') -> bytes:
-        """Convert unicode string to an encoded string."""
-        if not isinstance(s, str):
-            return s
-        try:
-            s = s.encode(encoding, "strict")
-        except UnicodeError:
-            s = s.encode(encoding, "replace")
-            print(f"to_encoded_string: Error converting {s!r} to {encoding}")
-        return s
-    #@+node:ekr.20191226190006.1: *3* LeoGlobals.to_unicode
-    def to_unicode(self, s: Any, *, encoding: str = 'utf-8') -> str:
-        """Convert bytes to unicode if necessary."""
-        tag = 'g.to_unicode'
-        if isinstance(s, str):
-            return s
-        if not isinstance(s, bytes):
-            print(f"{tag}: bad s: {s!r}")
-            return ''
-        b: bytes = s
-        try:
-            s2 = b.decode(encoding, 'strict')
-        except(UnicodeDecodeError, UnicodeError):  # noqa
-            s2 = b.decode(encoding, 'replace')
-            print(f"{tag}: unicode error. encoding: {encoding!r}, s2:\n{s2!r}")
-            g.trace(g.callers())
-        except Exception:
-            g.es_exception()
-            print(f"{tag}: unexpected error! encoding: {encoding!r}, s2:\n{s2!r}")
-            g.trace(g.callers())
-        return s2
-    #@+node:ekr.20191226175436.1: *3* LeoGlobals.trace
-    def trace(self, *args: Any) -> None:
-        """Print the name of the calling function followed by all the args."""
-        name = self._caller_name(2)
-        if name.endswith(".pyc"):
-            name = name[:-1]
-        args_s = " ".join(str(z) for z in args)
-        print(f"{name} {args_s}")
-    #@+node:ekr.20191226190241.1: *3* LeoGlobals.truncate
-    def truncate(self, s: str, n: int) -> str:
-        """Return s truncated to n characters."""
-        if len(s) <= n:
-            return s
-        s2 = s[: n - 3] + f"...({len(s)})"
-        return s2 + '\n' if s.endswith('\n') else s2
-    #@-others
 #@+node:ekr.20200702114522.1: **  leoAst.py: top-level commands
 # Don't bother covering top-level commands.
 if 1:  # pragma: no cover
@@ -341,6 +188,8 @@ if 1:  # pragma: no cover
 
         Fstringify the given file, overwriting the file.
         """
+        if not check_g():
+            return
         for filename in files:
             if os.path.exists(filename):
                 print(f"fstringify {filename}")
@@ -354,6 +203,8 @@ if 1:  # pragma: no cover
 
         Print the diff that would be produced by fstringify.
         """
+        if not check_g():
+            return
         for filename in files:
             if os.path.exists(filename):
                 print(f"fstringify-diff {filename}")
@@ -363,6 +214,8 @@ if 1:  # pragma: no cover
     #@+node:ekr.20200702115002.1: *3* command: orange_command
     def orange_command(files: list[str], settings: Settings = None) -> None:
 
+        if not check_g():
+            return
         for filename in files:
             if os.path.exists(filename):
                 # print(f"orange {filename}")
@@ -373,6 +226,8 @@ if 1:  # pragma: no cover
     #@+node:ekr.20200702121315.1: *3* command: orange_diff_command
     def orange_diff_command(files: list[str], settings: Settings = None) -> None:
 
+        if not check_g():
+            return
         for filename in files:
             if os.path.exists(filename):
                 print(f"orange-diff {filename}")
@@ -383,8 +238,36 @@ if 1:  # pragma: no cover
 #@+node:ekr.20160521104628.1: **  leoAst.py: top-level utils
 if 1:  # pragma: no cover
     #@+others
+    #@+node:ekr.20231212071217.1: *3* function: check_g
+    def check_g() -> bool:
+        """print an error message if g is None"""
+        if not g:
+            print('This statement failed: `from leo.core import leoGlobals as g`')
+            print('Please adjust your Python path accordingly')
+        return bool(g)
+    #@+node:ekr.20231114133501.1: *3* function: get_modified_files
+    def get_modified_files(repo_path: str) -> list[str]:
+        """Return the modified files in the given repo."""
+        if not repo_path:
+            return []
+        old_cwd = os.getcwd()
+        os.chdir(repo_path)
+        try:
+            # We are not checking the return code here, so:
+            # pylint: disable=subprocess-run-check
+            result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+            if result.returncode != 0:
+                print("Error running git command")
+                return []
+            modified_files = []
+            for line in result.stdout.split('\n'):
+                if line.startswith((' M', 'M ', 'A ', ' A')):
+                    modified_files.append(line[3:])
+            return [os.path.abspath(z) for z in modified_files]
+        finally:
+            os.chdir(old_cwd)
     #@+node:ekr.20220404062739.1: *3* function: scan_ast_args
-    def scan_ast_args() -> tuple[Any, dict[str, Any], list[str], bool]:
+    def scan_ast_args() -> tuple[Any, dict[str, Any], list[str]]:
         description = textwrap.dedent("""\
             Execute fstringify or beautify commands contained in leoAst.py.
         """)
@@ -410,29 +293,35 @@ if 1:  # pragma: no cover
             help='max unsplit line length (default 0)')
         add2('--max-split', dest='max_split', metavar='N', type=int,
             help='max unjoined line length (default 0)')
-        add2('--recursive', dest='recursive', action='store_true',
-            help='include directories recursively')
         add2('--tab-width', dest='tab_width', metavar='N', type=int,
             help='tab-width (default -4)')
+        # Newer arguments.
+        add2('--force', dest='force', action='store_true',
+            help='force beautification of all files')
+        add2('--verbose', dest='verbose', action='store_true',
+            help='verbose (per-file) output')
         # Create the return values, using EKR's prefs as the defaults.
         parser.set_defaults(
             allow_joined=False,
+            force=False,
             max_join=0,
             max_split=0,
             recursive=False,
             tab_width=4,
+            verbose=False
         )
-        args = parser.parse_args()
+        args: Any = parser.parse_args()
         files = args.PATHS
-        recursive = args.recursive
         # Create the settings dict, ensuring proper values.
         settings_dict: dict[str, Any] = {
             'allow_joined_strings': bool(args.allow_joined),
+            'force': bool(args.force),
             'max_join_line_length': abs(args.max_join),
             'max_split_line_length': abs(args.max_split),
             'tab_width': abs(args.tab_width),  # Must be positive!
+            'verbose': bool(args.verbose),
         }
-        return args, settings_dict, files, recursive
+        return args, settings_dict, files
     #@+node:ekr.20200107114409.1: *3* functions: reading & writing files
     #@+node:ekr.20200218071822.1: *4* function: regularize_nls
     def regularize_nls(s: str) -> str:
@@ -511,7 +400,7 @@ if 1:  # pragma: no cover
         if not e:
             # Python's encoding comments override everything else.
             e = get_encoding_directive(bb)
-        s = g.to_unicode(bb, encoding=e)
+        s = g.toUnicode(bb, encoding=e)
         s = regularize_nls(s)
         return e, s
     #@+node:ekr.20200106174158.1: *4* function: strip_BOM
@@ -632,7 +521,7 @@ if 1:  # pragma: no cover
             name = node.__class__.__name__
             if abs(i - j) > 3:
                 tag = f"get_node_token_list: {name} {i}..{j}"
-                g.print_obj(global_tokens_list[i : j + 1], tag=tag)
+                g.printObj(global_tokens_list[i : j + 1], tag=tag)
             else:
                 g.trace(f"{i!r:>3}..{j!r:3} {name} {global_tokens_list[i : j + 1]}")
         return global_tokens_list[i : j + 1]
@@ -644,8 +533,15 @@ if 1:  # pragma: no cover
         """
         # Making 'endmarker' significant ensures that all tokens are synced.
         return (
-            kind in ('async', 'await', 'endmarker', 'name', 'number', 'string') or
-            kind == 'op' and value not in ',;()')
+            kind in ('async', 'await', 'endmarker', 'name', 'number', 'string')
+            or kind.startswith('fstring')
+            or kind == 'op' and value not in ',;()')
+
+    def is_significant_kind(kind: str) -> bool:
+        return (
+            kind in ('async', 'await', 'endmarker', 'name', 'number', 'string')
+            or kind.startswith('fstring')
+        )
 
     def is_significant_token(token: Token) -> bool:
         """Return True if the given token is a synchronizing token"""
@@ -679,10 +575,11 @@ if 1:  # pragma: no cover
         if level != 0:  # pragma: no cover.
             line_n = tokens[i].line_number
             raise AssignLinksError(
-                f"\n"
+                'In match_parens\n'
                 f"Unmatched parens: level={level}\n"
                 f"            file: {filename}\n"
-                f"            line: {line_n}\n")
+                f"            line: {line_n}\n"
+            )
         return j
     #@+node:ekr.20191223053324.1: *4* function: tokens_for_node
     def tokens_for_node(filename: str, node: Node, global_token_list: list[Token]) -> list[Token]:
@@ -873,9 +770,9 @@ if 1:  # pragma: no cover
             if not ok:
                 print('\nRound-trip check FAILS')
                 print('Contents...\n')
-                g.print_obj(contents)
+                g.printObj(contents)
                 print('\nResult...\n')
-                g.print_obj(result)
+                g.printObj(result)
             return ok
 
         try:
@@ -898,11 +795,11 @@ if 1:  # pragma: no cover
         def oops(message: str) -> None:
             print('')
             print(f"parse_ast: {message}")
-            g.print_obj(s)
+            g.printObj(s)
             print('')
 
         try:
-            s1 = g.to_encoded_string(s)
+            s1 = g.toEncodedString(s)
             tree = ast.parse(s1, filename='before', mode='exec')
             return tree
         except IndentationError:
@@ -917,12 +814,12 @@ if 1:  # pragma: no cover
     #@+node:ekr.20191027074436.1: *4* function: dump_ast
     def dump_ast(ast: Node, tag: str = 'dump_ast') -> None:
         """Utility to dump an ast tree."""
-        g.print_obj(AstDumper().dump_ast(ast), tag=tag)
+        g.printObj(AstDumper().dump_ast(ast), tag=tag)
     #@+node:ekr.20191228095945.4: *4* function: dump_contents
     def dump_contents(contents: str, tag: str = 'Contents') -> None:
         print('')
         print(f"{tag}...\n")
-        for i, z in enumerate(g.split_lines(contents)):
+        for i, z in enumerate(g.splitLines(contents)):
             print(f"{i+1:<3} ", z.rstrip())
         print('')
     #@+node:ekr.20191228095945.5: *4* function: dump_lines
@@ -947,7 +844,7 @@ if 1:  # pragma: no cover
         print(f"{tag}...\n")
         if not tokens:
             return
-        print("Note: values shown are repr(value) *except* for 'string' tokens.")
+        print("Note: values shown are repr(value) *except* for 'string' and 'fstring*' tokens.")
         tokens[0].dump_header()
         for z in tokens:
             print(z.dump())
@@ -961,14 +858,14 @@ if 1:  # pragma: no cover
     def show_diffs(s1: str, s2: str, filename: str = '') -> None:
         """Print diffs between strings s1 and s2."""
         lines = list(difflib.unified_diff(
-            g.split_lines(s1),
-            g.split_lines(s2),
+            g.splitLines(s1),
+            g.splitLines(s2),
             fromfile=f"Old {filename}",
             tofile=f"New {filename}",
         ))
         print('')
         tag = f"Diffs for {filename}" if filename else 'Diffs'
-        g.print_obj(lines, tag=tag)
+        g.printObj(lines, tag=tag)
     #@+node:ekr.20191225061516.1: *3* node/token replacers...
     # Functions that replace tokens or nodes.
     #@+node:ekr.20191231162249.1: *4* function: add_token_to_token_list
@@ -1011,13 +908,11 @@ if 1:  # pragma: no cover
 class AssignLinksError(Exception):
     """Assigning links to ast nodes failed."""
 
-
 class AstNotEqual(Exception):
     """The two given AST's are not equivalent."""
 
 class BeautifyError(Exception):
     """Leading tabs found."""
-
 
 class FailFast(Exception):
     """Abort tests in TestRunner class."""
@@ -1082,13 +977,22 @@ class AstDumper:  # pragma: no cover
             results = []
             fstrings, strings = 0, 0
             for z in values:
-                assert isinstance(z, (ast.FormattedValue, ast.Str))
-                if isinstance(z, ast.Str):
-                    results.append(z.s)
-                    strings += 1
+                if g.python_version_tuple < (3, 12, 0):
+                    assert isinstance(z, (ast.FormattedValue, ast.Str))
+                    if isinstance(z, ast.Str):
+                        results.append(z.s)
+                        strings += 1
+                    else:
+                        results.append(z.__class__.__name__)
+                        fstrings += 1
                 else:
-                    results.append(z.__class__.__name__)
-                    fstrings += 1
+                    assert isinstance(z, (ast.FormattedValue, ast.Constant))
+                    if isinstance(z, ast.Constant):
+                        results.append(z.value)
+                        strings += 1
+                    else:
+                        results.append(z.__class__.__name__)
+                        fstrings += 1
             val = f"{strings} str, {fstrings} f-str"
         elif class_name == 'keyword':
             if isinstance(node.value, ast.Str):
@@ -1238,12 +1142,14 @@ class Fstringify:
         self.tree = tree
         # Prepass: reassign tokens.
         ReassignTokens().reassign(filename, tokens, tree)
+
         # Main pass.
+        string_node = ast.Str if g.python_version_tuple < (3, 12, 0) else ast.Constant
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.BinOp)
                 and op_name(node.op) == '%'
-                and isinstance(node.left, ast.Str)
+                and isinstance(node.left, string_node)
             ):
                 self.make_fstring(node)
         results = tokens_to_string(self.tokens)
@@ -1343,7 +1249,7 @@ class Fstringify:
     def make_fstring(self, node: Node) -> None:
         """
         node is BinOp node representing an '%' operator.
-        node.left is an ast.Str node.
+        node.left is an ast.Str or ast.Constant node.
         node.right represents the RHS of the '%' operator.
 
         Convert this tree to an f-string, if possible.
@@ -1351,8 +1257,10 @@ class Fstringify:
         Replace all the relevant tokens with a single new 'string' token.
         """
         trace = False
-        assert isinstance(node.left, ast.Str), (repr(node.left), g.callers())
-        # Careful: use the tokens, not Str.s.  This preserves spelling.
+        string_node = ast.Str if g.python_version_tuple < (3, 12, 0) else ast.Constant
+        assert isinstance(node.left, string_node), (repr(node.left), g.callers())
+
+        # Careful: use the tokens, not Str.s or Constant.value. This preserves spelling.
         lt_token_list = get_node_token_list(node.left, self.tokens)
         if not lt_token_list:  # pragma: no cover
             print('')
@@ -1546,7 +1454,8 @@ class Fstringify:
         """
         trace = False
         # First, Try the most common cases.
-        if isinstance(node, ast.Str):
+        string_node = ast.Str if g.python_version_tuple < (3, 12, 0) else ast.Constant
+        if isinstance(node, string_node):
             token_list = get_node_token_list(node, self.tokens)
             return [token_list]
         if isinstance(node, (list, tuple, ast.Tuple)):
@@ -1557,7 +1466,7 @@ class Fstringify:
                 result.append(tokens)
                 if trace:  # pragma: no cover
                     g.trace(f"item: {i}: {elt.__class__.__name__}")
-                    g.print_obj(tokens, tag=f"Tokens for item {i}")
+                    g.printObj(tokens, tag=f"Tokens for item {i}")
             return result
         # Now we expect only one result.
         tokens = tokens_for_node(self.filename, node, self.tokens)
@@ -1603,7 +1512,7 @@ class Fstringify:
         # Print a leading blank line.
         print('')
         # Calculate the padding.
-        lines = g.split_lines(message)
+        lines = g.splitLines(message)
         pad = max(lines[0].find(':'), 30)
         # Print the first line.
         z = lines[0]
@@ -1638,7 +1547,7 @@ class Fstringify:
     #@+node:ekr.20191225054848.1: *4* fs.replace
     def replace(self, node: Node, s: str, values: list[list[Token]]) -> None:
         """
-        Replace node with an ast.Str node for s.
+        Replace node with an ast.Str or ast.Constant node for s.
         Replace all tokens in the range of values with a single 'string' node.
         """
         # Replace the tokens...
@@ -1650,8 +1559,13 @@ class Fstringify:
             replace_token(self.tokens[i1 + j], 'killed', '')
             j += 1
         # Replace the node.
-        new_node = ast.Str()
-        new_node.s = s
+        new_node: ast.AST
+        if g.python_version_tuple < (3, 12, 0):
+            new_node = ast.Str()
+            new_node.s = s
+        else:
+            new_node = ast.Constant()
+            new_node.value = s
         replace_node(new_node, node)
         # Update the token.
         token = self.tokens[i1]
@@ -1691,18 +1605,22 @@ class Orange:
             settings = {}
         valid_keys = (
             'allow_joined_strings',
+            'force',
             'max_join_line_length',
             'max_split_line_length',
             'orange',
             'tab_width',
+            'verbose',
         )
         # For mypy...
         self.kind: str = ''
         # Default settings...
         self.allow_joined_strings = False  # EKR's preference.
+        self.force = False
         self.max_join_line_length = 88
         self.max_split_line_length = 88
         self.tab_width = 4
+        self.verbose = False
         # Override from settings dict...
         for key in settings:  # pragma: no cover
             value = settings.get(key)
@@ -1720,9 +1638,10 @@ class Orange:
     def oops(self) -> None:  # pragma: no cover
         g.trace(f"Unknown kind: {self.kind}")
 
-    def beautify(self, contents: str, filename: str, tokens: list[Token], tree: Node,
-
-        max_join_line_length: Optional[int] = None, max_split_line_length: Optional[int] = None,
+    def beautify(self,
+        contents: str, filename: str, tokens: list[Token], tree: Node,
+        max_join_line_length: Optional[int] = None,
+        max_split_line_length: Optional[int] = None,
     ) -> str:
         """
         The main line. Create output tokens and return the result as a string.
@@ -1738,6 +1657,7 @@ class Orange:
         self.curly_brackets_level = 0  # Number of unmatched '{' tokens.
         self.decorator_seen = False  # Set by do_name for do_op.
         self.in_arg_list = 0  # > 0 if in an arg list of a def.
+        self.in_fstring = False  # True: scanning an f-string.
         self.level = 0  # Set only by do_indent and do_dedent.
         self.lws = ''  # Leading whitespace.
         self.paren_level = 0  # Number of unmatched '(' tokens.
@@ -1757,6 +1677,8 @@ class Orange:
             self.kind, self.val, self.line = token.kind, token.value, token.line
             if self.verbatim:
                 self.do_verbatim()
+            elif self.in_fstring:
+                self.continue_fstring()
             else:
                 func = getattr(self, f"do_{token.kind}", self.oops)
                 func()
@@ -1785,7 +1707,7 @@ class Orange:
         if 0:  # This obscures more import error messages.
             show_diffs(contents, results, filename=filename)
         # Write the results
-        print(f"Beautified: {g.short_file_name(filename)}")
+        print(f"Beautified: {g.shortFileName(filename)}")
         write_file(filename, results, encoding=encoding)
         return True
     #@+node:ekr.20200107172512.1: *5* orange.beautify_file_diff (entry)
@@ -1857,8 +1779,7 @@ class Orange:
             val = self.line.rstrip()
             # #3056: Insure one space after '#' in non-sentinel comments.
             #        Do not change bang lines or '##' comments.
-            m = self.comment_pat.match(val)
-            if m:
+            if m := self.comment_pat.match(val):
                 i = len(m.group(1))
                 val = val[:i] + '# ' + val[i + 1 :]
         else:
@@ -1877,6 +1798,20 @@ class Orange:
         # Ensure exactly one blank at the end of the file.
         self.clean_blank_lines()
         self.add_token('line-end', '\n')
+    #@+node:ekr.20231215212951.1: *5* orange.do_fstring_start & continue_fstring
+    def do_fstring_start(self) -> None:
+        """Handle the 'fstring_start' token. Enter f-string mode."""
+        self.in_fstring = True
+        self.add_token('verbatim', self.val)
+
+    def continue_fstring(self) -> None:
+        """
+        Put the next token in f-fstring mode.
+        Exit f-string mode if the token is 'fstring_end'.
+        """
+        self.add_token('verbatim', self.val)
+        if self.kind == 'fstring_end':
+            self.in_fstring = False
     #@+node:ekr.20200107165250.18: *5* orange.do_indent & do_dedent & helper
     # Note: other methods use self.level.
 
@@ -2060,7 +1995,7 @@ class Orange:
             # '==','+=','-=','*=','**=','/=','//=','%=','!=','<=','>=','<','>',
             # '^','~','*','**','&','|','/','//',
             # Pep 8: If operators with different priorities are used,
-            # consider adding whitespace around the operators with the lowest priority(ies).
+            # consider adding whitespace around the operators with the lowest priorities.
             self.blank()
             self.add_token('op', val)
             self.blank()
@@ -2223,9 +2158,10 @@ class Orange:
             """True if node is any expression other than += number."""
             if isinstance(node, (ast.BinOp, ast.Call, ast.IfExp)):
                 return True
+            num_node = ast.Num if g.python_version_tuple < (3, 12, 0) else ast.Constant
             return (
                 isinstance(node, ast.UnaryOp)
-                and not isinstance(node.operand, ast.Num)
+                and not isinstance(node.operand, num_node)
             )
 
         node = self.token.node
@@ -2663,7 +2599,7 @@ class Token:
 
     def __repr__(self) -> str:  # pragma: no cover
         s = f"{self.index:<3} {self.kind:}"
-        return f"Token {s}:{self.show_val(20)}"
+        return f"Token {s}: {self.show_val(20)}"
 
     __str__ = __repr__
 
@@ -2677,7 +2613,7 @@ class Token:
         """Dump a token."""
         return (
             f"{self.index:>3} line: {self.line_number:<2} "
-            f"{self.kind:>11} {self.show_val(100)}")
+            f"{self.kind:>15} {self.show_val(100)}")
     #@+node:ekr.20200223022950.11: *4* token.dump
     def dump(self) -> str:  # pragma: no cover
         """Dump a token and related links."""
@@ -2687,16 +2623,16 @@ class Token:
         return (
             f"{self.line_number:4} "
             f"{node_id:5} {node_cn:16} "
-            f"{self.index:>5} {self.kind:>11} "
+            f"{self.index:>5} {self.kind:>15} "
             f"{self.show_val(100)}")
     #@+node:ekr.20200121081151.1: *4* token.dump_header
     def dump_header(self) -> None:  # pragma: no cover
         """Print the header for token.dump"""
         print(
             f"\n"
-            f"         node    {'':10} token          token\n"
-            f"line index class {'':10} index        kind value\n"
-            f"==== ===== ===== {'':10} =====        ==== =====\n")
+            f"         node    {'':10} token {'':10}   token\n"
+            f"line index class {'':10} index {'':10} kind value\n"
+            f"==== ===== ===== {'':10} ===== {'':10} ==== =====\n")
     #@+node:ekr.20191116154328.1: *4* token.error_dump
     def error_dump(self) -> str:  # pragma: no cover
         """Dump a token or result node for error message."""
@@ -2713,9 +2649,8 @@ class Token:
         """Return the token.value field."""
         if self.kind in ('ws', 'indent'):
             val = str(len(self.value))
-        elif self.kind == 'string':
-            # Important: don't add a repr for 'string' tokens.
-            # repr just adds another layer of confusion.
+        elif self.kind == 'string' or self.kind.startswith('fstring'):
+            # repr would be confusing.
             val = g.truncate(self.value, truncate_n)
         else:
             val = g.truncate(repr(self.value), truncate_n)
@@ -2752,7 +2687,7 @@ class Tokenizer:
 
         # Split the results into lines.
         result = ''.join([z.to_string() for z in self.results])
-        result_lines = g.split_lines(result)
+        result_lines = g.splitLines(result)
         # Check.
         ok = result == contents and result_lines == self.lines
         assert ok, (
@@ -2824,6 +2759,8 @@ class Tokenizer:
 class TokenOrderGenerator:
     """
     A class that traverses ast (parse) trees in token order.
+    
+    Requires Python 3.9+.
 
     Overview: https://github.com/leo-editor/leo-editor/issues/1440#issue-522090981
 
@@ -2837,11 +2774,13 @@ class TokenOrderGenerator:
     """
 
     begin_end_stack: list[str] = []
+    debug_flag: bool = False  # Set by 'debug' in trace_list kwarg.
     equal_sign_spaces = True  # A flag for orange.do_equal_op
     n_nodes = 0  # The number of nodes that have been visited.
     node_index = 0  # The index into the node_stack.
     node_stack: list[ast.AST] = []  # The stack of parent nodes.
     try_stack: list[str] = []  # A stack of either '' (Try) or '*' (TryStar)
+    trace_token_method: bool = False  # True: trace the token method
 
     #@+others
     #@+node:ekr.20200103174914.1: *4* tog: Init...
@@ -2967,12 +2906,14 @@ class TokenOrderGenerator:
         if token.node is not None:  # pragma: no cover
             line_s = f"line {token.line_number}:"
             raise AssignLinksError(
-                    f"       file: {self.filename}\n"
-                    f"{line_s:>12} {token.line.strip()}\n"
-                    f"token index: {self.px}\n"
-                    f"token.node is not None\n"
-                    f" token.node: {token.node.__class__.__name__}\n"
-                    f"    callers: {g.callers()}")
+                'set_links\n'
+                f"       file: {self.filename}\n"
+                f"{line_s:>12} {token.line.strip()}\n"
+                f"token index: {self.px}\n"
+                f"token.node is not None\n"
+                f" token.node: {token.node.__class__.__name__}\n"
+                f"    callers: {g.callers()}"
+            )
         # Assign newlines to the previous statement node, if any.
         if token.kind in ('newline', 'nl'):
             # Set an *auxiliary* link for the split/join logic.
@@ -2987,33 +2928,30 @@ class TokenOrderGenerator:
             # Special case. Inject equal_sign_spaces into '=' tokens.
             if token.kind == 'op' and token.value == '=':
                 token.equal_sign_spaces = self.equal_sign_spaces
-    #@+node:ekr.20191124083124.1: *5* tog.sync_name (aka name)
-    def sync_name(self, val: str) -> None:
+    #@+node:ekr.20191124083124.1: *5* tog.name
+    def name(self, val: str) -> None:
+        """Sync to the given name token."""
         aList = val.split('.')
         if len(aList) == 1:
-            self.sync_token('name', val)
+            self.token('name', val)
         else:
             for i, part in enumerate(aList):
-                self.sync_token('name', part)
+                self.token('name', part)
                 if i < len(aList) - 1:
-                    self.sync_op('.')
-
-    name = sync_name  # for readability.
-    #@+node:ekr.20220402052102.1: *5* tog.sync_op (aka op)
-    def sync_op(self, val: str) -> None:
+                    self.op('.')
+    #@+node:ekr.20220402052102.1: *5* tog.op
+    def op(self, val: str) -> None:
         """
         Sync to the given operator.
 
         val may be '(' or ')' *only* if the parens *will* actually exist in the
         token list.
         """
-        self.sync_token('op', val)
-
-    op = sync_op  # For readability.
-    #@+node:ekr.20191113063144.7: *5* tog.sync_token (aka token)
+        self.token('op', val)
+    #@+node:ekr.20191113063144.7: *5* tog.token
     px = -1  # Index of the previously synced token.
 
-    def sync_token(self, kind: str, val: str) -> None:
+    def token(self, kind: str, val: str) -> None:
         """
         Sync to a token whose kind & value are given. The token need not be
         significant, but it must be guaranteed to exist in the token list.
@@ -3029,12 +2967,13 @@ class TokenOrderGenerator:
         """
         node, tokens = self.node, self.tokens
         assert isinstance(node, ast.AST), repr(node)
-        if 0:  # A Superb trace.
+
+        if self.trace_token_method:  # A Superb trace.
             g.trace(
                 f"px: {self.px:4} "
-                f"node: {node.__class__.__name__:<12} "
+                f"node: {node.__class__.__name__:<14} "
                 f"significant? {int(is_significant(kind, val))} "
-                f"kind/val: {kind:>10}: {val!r}")
+                f"{kind:>10}: {val!r}")
         #
         # Step one: Look for token T.
         old_px = px = self.px + 1
@@ -3049,19 +2988,23 @@ class TokenOrderGenerator:
                 line_s = f"line {token.line_number}:"
                 val = str(val)  # for g.truncate.
                 raise AssignLinksError(
+                    'tog.token\n'
                     f"       file: {self.filename}\n"
-                    f"{line_s:>12} {token.line.strip()}\n"
+                    f"{line_s:>12} {g.truncate(token.line.strip(), 40)!r}\n"
                     f"Looking for: {kind}.{g.truncate(val, 40)!r}\n"
-                    f"      found: {token.kind}.{token.value!r}\n"
-                    f"token.index: {token.index}\n")
+                    f"      found: {token.kind}.{g.truncate(token.value, 40)!r}\n"
+                    f"token.index: {token.index}\n"
+                )
             # Skip the insignificant token.
             px += 1
         else:  # pragma: no cover
             val = str(val)  # for g.truncate.
             raise AssignLinksError(
+                'tog.token 2\n'
                  f"       file: {self.filename}\n"
                  f"Looking for: {kind}.{g.truncate(val, 40)}\n"
-                 f"      found: end of token list")
+                 f"      found: end of token list"
+            )
         #
         # Step two: Assign *secondary* links only for newline tokens.
         #           Ignore all other non-significant tokens.
@@ -3077,8 +3020,56 @@ class TokenOrderGenerator:
         #
         # Step four: Advance.
         self.px = px
+    #@+node:ekr.20231214173003.1: *5* tog.string_helper & helpers
+    def string_helper(self, node: Node) -> None:
+        """
+        Common string and f-string handling for Constant, JoinedStr and Str nodes.
+        
+        Handle all concatenated strings, that is, strings separated only by whitespace.
+        """
 
-    token = sync_token  # For readability.
+        # The next significant token must be a string or f-string.
+        message1 = f"Old token: self.px: {self.px} token @ px: {self.tokens[self.px]}\n"
+        token = self.find_next_significant_token()
+        message2 = f"New token: self.px: {self.px} token @ px: {self.tokens[self.px]}\n"
+        fail_s = f"tog.string_helper: no string!\n{message1}{message2}"
+        assert token and token.kind in ('string', 'fstring_start'), fail_s
+
+        # Handle all adjacent strings.
+        while token and token.kind in ('string', 'fstring_start'):
+            if token.kind == 'string':
+                self.token(token.kind, token.value)
+            else:
+                self.token(token.kind, token.value)
+                self.sync_to_kind('fstring_end')
+            # Check for concatenated strings.
+            token = self.find_next_non_ws_token()
+    #@+node:ekr.20231213174617.1: *6* tog.sync_to_kind
+    def sync_to_kind(self, kind: str) -> None:
+        """Sync to the next significant token of the given kind."""
+        assert is_significant_kind(kind), repr(kind)
+        while next_token := self.find_next_significant_token():
+            self.token(next_token.kind, next_token.value)
+            if next_token.kind in (kind, 'endtoken'):
+                break
+
+    #@+node:ekr.20231214054225.1: *6* tog.find_next_non_ws_token
+    def find_next_non_ws_token(self) -> Optional[Token]:
+        """
+        Scan from *after* self.tokens[px] looking for the next token that isn't
+        whitespace.
+
+        Return the token, or None. Never change self.px.
+        """
+        px = self.px + 1
+        while px < len(self.tokens):
+            token = self.tokens[px]
+            px += 1
+            if token.kind not in ('comment', 'encoding', 'indent', 'newline', 'nl', 'ws'):
+                return token
+
+        # This should never happen: endtoken isn't whitespace.
+        return None  # pragma: no cover
     #@+node:ekr.20191223052749.1: *4* tog: Traversal...
     #@+node:ekr.20191113063144.3: *5* tog.enter_node
     def enter_node(self, node: Node) -> None:
@@ -3149,9 +3140,9 @@ class TokenOrderGenerator:
         # tog.handle_call_arguments calls self.visit(kwarg_arg.value) instead.
         filename = getattr(self, 'filename', '<no file>')
         raise AssignLinksError(
+            f"do_keyword called: {g.callers(8)}\n"
             f"file: {filename}\n"
-            f"do_keyword should never be called\n"
-            f"{g.callers(8)}")
+        )
     #@+node:ekr.20191113063144.14: *5* tog: Contexts
     #@+node:ekr.20191113063144.28: *6*  tog.arg
     # arg = (identifier arg, expr? annotation)
@@ -3233,8 +3224,7 @@ class TokenOrderGenerator:
                 self.visit(z)
         # 'asynch def (%s): -> %s\n'
         # 'asynch def %s(%s):\n'
-        async_token_type = 'async' if has_async_tokens else 'name'
-        self.token(async_token_type, 'async')
+        self.token('name', 'async')
         self.name('def')
         self.name(node.name)  # A string
         self.op('(')
@@ -3377,7 +3367,9 @@ class TokenOrderGenerator:
             self.name('if')
             self.visit(z)
     #@+node:ekr.20191113063144.34: *6* tog.Constant
-    def do_Constant(self, node: Node) -> None:  # pragma: no cover
+    # Constant(constant value, string? kind)
+
+    def do_Constant(self, node: Node) -> None:
         """
         https://greentreesnakes.readthedocs.io/en/latest/nodes.html
 
@@ -3386,15 +3378,20 @@ class TokenOrderGenerator:
         immutable container types (tuples and frozensets) if all of their
         elements are constant.
         """
-        # Support Python 3.8.
-        if node.value is None or isinstance(node.value, bool):
-            # Weird: return a name!
-            self.token('name', repr(node.value))
-        elif node.value == Ellipsis:
+        if node.value == Ellipsis:
             self.op('...')
         elif isinstance(node.value, str):
-            self.do_Str(node)
-        elif isinstance(node.value, (int, float)):
+            self.string_helper(node)
+        elif isinstance(node.value, int):
+            # Look at the next token to distinguish 0/1 from True/False.
+            token = self.find_next_significant_token()
+            kind, value = token.kind, token.value
+            assert kind in ('name', 'number'), (kind, value, g.callers())
+            if kind == 'name':
+                self.name(value)
+            else:
+                self.token(kind, repr(value))
+        elif isinstance(node.value, float):
             self.token('number', repr(node.value))
         elif isinstance(node.value, bytes):
             self.do_Bytes(node)
@@ -3402,9 +3399,11 @@ class TokenOrderGenerator:
             self.do_Tuple(node)
         elif isinstance(node.value, frozenset):
             self.do_Set(node)
+        elif node.value is None:
+            self.name('None')
         else:
             # Unknown type.
-            g.trace('----- Oops -----', repr(node.value), g.callers())
+            g.trace('----- Oops -----', repr(node), g.callers())
     #@+node:ekr.20191113063144.35: *6* tog.Dict
     # Dict(expr* keys, expr* values)
 
@@ -3450,35 +3449,24 @@ class TokenOrderGenerator:
             self.visit(z)
             if i < len(node.dims) - 1:
                 self.op(',')
-    #@+node:ekr.20191113063144.40: *6* tog.Index
-    def do_Index(self, node: Node) -> None:  # pragma: no cover (deprecated)
-
-        self.visit(node.value)
-    #@+node:ekr.20191113063144.39: *6* tog.FormattedValue: not called!
-    # FormattedValue(expr value, int? conversion, expr? format_spec)
+    #@+node:ekr.20191113063144.39: *6* tog.FormattedValue
+    # FormattedValue(expr value, int conversion, expr? format_spec)  Python 3.12+
 
     def do_FormattedValue(self, node: Node) -> None:  # pragma: no cover
         """
         This node represents the *components* of a *single* f-string.
 
-        Happily, JoinedStr nodes *also* represent *all* f-strings,
-        so the TOG should *never visit this node!
+        Happily, JoinedStr nodes *also* represent *all* f-strings.
+        
+        JoinedStr does *not* visit the FormattedValue node,
+        so the TOG should *never* visit this node!
         """
-        filename = getattr(self, 'filename', '<no file>')
-        raise AssignLinksError(
-            f"file: {filename}\n"
-            f"do_FormattedValue should never be called")
+        raise AssignLinksError(f"do_FormattedValue called: {g.callers()}")
+    #@+node:ekr.20191113063144.40: *6* tog.Index
+    def do_Index(self, node: Node) -> None:  # pragma: no cover (deprecated)
 
-        # This code has no chance of being useful...
-
-            # conv = node.conversion
-            # spec = node.format_spec
-            # self.visit(node.value)
-            # if conv is not None:
-                # self.token('number', conv)
-            # if spec is not None:
-                # self.visit(node.format_spec)
-    #@+node:ekr.20191113063144.41: *6* tog.JoinedStr & helpers
+        self.visit(node.value)
+    #@+node:ekr.20191113063144.41: *6* tog.JoinedStr
     # JoinedStr(expr* values)
 
     def do_JoinedStr(self, node: Node) -> None:
@@ -3491,8 +3479,12 @@ class TokenOrderGenerator:
 
         Instead, we get the tokens *from the token list itself*!
         """
-        for z in self.get_concatenated_string_tokens():
-            self.token(z.kind, z.value)
+
+        # Everything in the JoinedStr tree is a string.
+        # Do *not* call self.visit.
+
+        # This works for all versions of Python!
+        self.string_helper(node)
     #@+node:ekr.20191113063144.42: *6* tog.List
     def do_List(self, node: Node) -> None:
 
@@ -3510,19 +3502,11 @@ class TokenOrderGenerator:
         for z in node.generators:
             self.visit(z)
         self.op(']')
-    #@+node:ekr.20191113063144.44: *6* tog.Name & NameConstant
+    #@+node:ekr.20191113063144.44: *6* tog.Name
     def do_Name(self, node: Node) -> None:
 
         self.name(node.id)
 
-    def do_NameConstant(self, node: Node) -> None:  # pragma: no cover (Does not exist in Python 3.8+)
-
-        self.name(repr(node.value))
-
-    #@+node:ekr.20191113063144.45: *6* tog.Num
-    def do_Num(self, node: Node) -> None:  # pragma: no cover (Does not exist in Python 3.8+)
-
-        self.token('number', node.n)
     #@+node:ekr.20191113063144.47: *6* tog.Set
     # Set(expr* elts)
 
@@ -3563,62 +3547,15 @@ class TokenOrderGenerator:
         else:
             self.op(':')
             self.visit(step)
-    #@+node:ekr.20191113063144.50: *6* tog.Str & helper
-    def do_Str(self, node: Node) -> None:
-        """This node represents a string constant."""
-        # This loop is necessary to handle string concatenation.
-        for z in self.get_concatenated_string_tokens():
-            self.token(z.kind, z.value)
-    #@+node:ekr.20200111083914.1: *7* tog.get_concatenated_tokens
-    def get_concatenated_string_tokens(self) -> list[Token]:
-        """
-        Return the next 'string' token and all 'string' tokens concatenated to
-        it. *Never* update self.px here.
-        """
-        trace = False
-        tag = 'tog.get_concatenated_string_tokens'
-        i = self.px
-        # First, find the next significant token.  It should be a string.
-        i, token = i + 1, None
-        while i < len(self.tokens):
-            token = self.tokens[i]
-            i += 1
-            if token.kind == 'string':
-                # Rescan the string.
-                i -= 1
-                break
-            # An error.
-            if is_significant_token(token):  # pragma: no cover
-                break
-        # Raise an error if we didn't find the expected 'string' token.
-        if not token or token.kind != 'string':  # pragma: no cover
-            if not token:
-                token = self.tokens[-1]
-            filename = getattr(self, 'filename', '<no filename>')
-            raise AssignLinksError(
-                f"\n"
-                f"{tag}...\n"
-                f"file: {filename}\n"
-                f"line: {token.line_number}\n"
-                f"   i: {i}\n"
-                f"expected 'string' token, got {token!s}")
-        # Accumulate string tokens.
-        assert self.tokens[i].kind == 'string'
-        results = []
-        while i < len(self.tokens):
-            token = self.tokens[i]
-            i += 1
-            if token.kind == 'string':
-                results.append(token)
-            elif token.kind == 'op' or is_significant_token(token):
-                # Any significant token *or* any op will halt string concatenation.
-                break
-            # 'ws', 'nl', 'newline', 'comment', 'indent', 'dedent', etc.
-        # The (significant) 'endmarker' token ensures we will have result.
-        assert results
-        if trace:  # pragma: no cover
-            g.print_obj(results, tag=f"{tag}: Results")
-        return results
+    #@+node:ekr.20191113063144.50: *6* tog.Str (deprecated)
+    # DeprecationWarning: ast.Str is deprecated and will be removed in Python 3.14;
+    # use ast.Constant instead
+
+    if g.python_version_tuple < (3, 12, 0):
+
+        def do_Str(self, node: Node) -> None:
+            """This node represents a string constant."""
+            self.string_helper(node)
     #@+node:ekr.20191113063144.51: *6* tog.Subscript
     # Subscript(expr value, slice slice, expr_context ctx)
 
@@ -3734,9 +3671,7 @@ class TokenOrderGenerator:
     def do_AsyncFor(self, node: Node) -> None:
 
         # The def line...
-        # Py 3.8 changes the kind of token.
-        async_token_type = 'async' if has_async_tokens else 'name'
-        self.token(async_token_type, 'async')
+        self.token('name', 'async')
         self.name('for')
         self.visit(node.target)
         self.name('in')
@@ -3754,8 +3689,7 @@ class TokenOrderGenerator:
     #@+node:ekr.20191113063144.65: *6* tog.AsyncWith
     def do_AsyncWith(self, node: Node) -> None:
 
-        async_token_type = 'async' if has_async_tokens else 'name'
-        self.token(async_token_type, 'async')
+        self.token('name', 'async')
         self.do_With(node)
     #@+node:ekr.20191113063144.66: *6* tog.AugAssign
     # AugAssign(expr target, operator op, expr value)
@@ -3772,8 +3706,7 @@ class TokenOrderGenerator:
 
     def do_Await(self, node: Node) -> None:
 
-        async_token_type = 'await' if has_async_tokens else 'name'
-        self.token(async_token_type, 'await')
+        self.token('name', 'await')
         self.visit(node.value)
     #@+node:ekr.20191113063144.68: *6* tog.Break
     def do_Break(self, node: Node) -> None:
@@ -3832,69 +3765,31 @@ class TokenOrderGenerator:
             return line * 1000 + col
 
         if 0:  # pragma: no cover
-            g.print_obj([ast.dump(z) for z in args], tag='args')
-            g.print_obj([ast.dump(z) for z in keywords], tag='keywords')
+            g.printObj([ast.dump(z) for z in args], tag='args')
+            g.printObj([ast.dump(z) for z in keywords], tag='keywords')
 
-        if py_version >= (3, 9):
-            places = [get_pos(z) for z in args + keywords]
-            places.sort(key=sort_key)
-            ordered_args = [z[2] for z in places]
-            for z in ordered_args:
-                if isinstance(z, ast.Starred):
-                    self.op('*')
-                    self.visit(z.value)
-                elif isinstance(z, ast.keyword):
-                    if getattr(z, 'arg', None) is None:
-                        self.op('**')
-                        self.arg_helper(z.value)
-                    else:
-                        self.arg_helper(z.arg)
-                        old = self.equal_sign_spaces
-                        try:
-                            self.equal_sign_spaces = False
-                            self.op('=')
-                        finally:
-                            self.equal_sign_spaces = old
-                        self.arg_helper(z.value)
+        places = [get_pos(z) for z in args + keywords]
+        places.sort(key=sort_key)
+        ordered_args = [z[2] for z in places]
+        for z in ordered_args:
+            if isinstance(z, ast.Starred):
+                self.op('*')
+                self.visit(z.value)
+            elif isinstance(z, ast.keyword):
+                if getattr(z, 'arg', None) is None:
+                    self.op('**')
+                    self.arg_helper(z.value)
                 else:
-                    self.arg_helper(z)
-        else:  # pragma: no cover
-            #
-            # Legacy code: May fail for Python 3.8
-            #
-            # Scan args for *arg and *[...]
-            kwarg_arg = star_arg = None
-            for z in args:
-                if isinstance(z, ast.Starred):
-                    if isinstance(z.value, ast.Name):  # *Name.
-                        star_arg = z
-                        args.remove(z)
-                        break
-                    elif isinstance(z.value, (ast.List, ast.Tuple)):  # *[...]
-                        # star_list = z
-                        break
-                    raise AttributeError(f"Invalid * expression: {ast.dump(z)}")  # pragma: no cover
-            # Scan keywords for **name.
-            for z in keywords:
-                if hasattr(z, 'arg') and z.arg is None:
-                    kwarg_arg = z
-                    keywords.remove(z)
-                    break
-            # Sync the plain arguments.
-            for z in args:
+                    self.arg_helper(z.arg)
+                    old = self.equal_sign_spaces
+                    try:
+                        self.equal_sign_spaces = False
+                        self.op('=')
+                    finally:
+                        self.equal_sign_spaces = old
+                    self.arg_helper(z.value)
+            else:
                 self.arg_helper(z)
-            # Sync the keyword args.
-            for z in keywords:
-                self.arg_helper(z.arg)
-                self.op('=')
-                self.arg_helper(z.value)
-            # Sync the * arg.
-            if star_arg:
-                self.arg_helper(star_arg)
-            # Sync the ** kwarg.
-            if kwarg_arg:
-                self.op('**')
-                self.visit(kwarg_arg.value)
     #@+node:ekr.20191113063144.69: *6* tog.Continue
     def do_Continue(self, node: Node) -> None:
 
@@ -4025,7 +3920,7 @@ class TokenOrderGenerator:
 
     # match_case = (pattern pattern, expr? guard, stmt* body)
 
-    # Full syntax diagram: # https://peps.python.org/pep-0634/#appendix-a
+    # https://docs.python.org/3/reference/compound_stmts.html#match
 
     def do_Match(self, node: Node) -> None:
 
@@ -4060,10 +3955,12 @@ class TokenOrderGenerator:
             self.visit(pattern)
             self.name('as')
             self.name(name)
+        elif name:
+            self.name(name)
         elif pattern:
             self.visit(pattern)  # pragma: no cover
         else:
-            self.name(name or '_')
+            self.token('name', '_')
     #@+node:ekr.20220401034726.4: *7* tog.MatchClass
     # MatchClass(expr cls, pattern* patterns, identifier* kwd_attrs, pattern* kwd_patterns)
 
@@ -4121,7 +4018,7 @@ class TokenOrderGenerator:
                 token = None
                 break
         else:
-            raise AssignLinksError('Ill-formed tuple')  # pragma: no cover
+            raise AssignLinksError('do_MatchSequence: Ill-formed tuple')  # pragma: no cover
         if token:
             self.op(token.value)
         for pattern in patterns:
@@ -4293,21 +4190,79 @@ class TokenOrderGenerator:
         self.name('yield')
         self.name('from')
         self.visit(node.value)
+    #@+node:ekr.20231208092310.1: *5* tog: Types
+    #@+node:ekr.20231208092945.1: *6* tog.ParamSpec
+    # ParamSpec(identifier name)
+
+    def do_ParamSpec(self, node: Node) -> None:
+
+        self.visit(node.name)
+    #@+node:ekr.20231208092326.1: *6* tog.TypeAlias
+    # TypeAlias(expr name, type_param* type_params, expr value)
+
+    def do_TypeAlias(self, node: Node) -> None:
+
+        params = getattr(node, 'type_params', [])
+        self.visit(node.name)
+        for param in params:
+            self.visit(param)
+        self.visit(node.value)
+    #@+node:ekr.20231208092726.1: *6* tog.TypeVar
+    #  TypeVar(identifier name, expr? bound)
+
+    def do_TypeVar(self, node: Node) -> None:
+
+        bound = getattr(node, 'bound', None)
+        self.visit(node.name)
+        if bound:
+            self.visit(bound)
+    #@+node:ekr.20231208093043.1: *6* tog.TypeVarTuple
+    # TypeVarTuple(identifier name)
+
+    def do_TypeVarTuple(self, node: Node) -> None:
+
+        self.visit(node.name)
     #@-others
 #@+node:ekr.20200702102239.1: ** function: main (leoAst.py)
 def main() -> None:  # pragma: no cover
     """Run commands specified by sys.argv."""
-    args, settings_dict, arg_files, recursive = scan_ast_args()
+    args, settings_dict, arg_files = scan_ast_args()
     # Finalize arguments.
-    cwd, files = os.getcwd(), []
+    cwd = os.getcwd()
+    # Calculate requested files.
+    requested_files: list[str] = []
     for path in arg_files:
-        root_dir = os.path.join(cwd, path)
-        files = glob.glob(f'{root_dir}**{os.sep}*.py', recursive=recursive)
-    if not files:
-        print('No files found')
+        if path.endswith('.py'):
+            requested_files.append(os.path.join(cwd, path))
+        else:
+            root_dir = os.path.join(cwd, path)
+            requested_files.extend(glob.glob(f'{root_dir}**{os.sep}*.py', recursive=True))
+    if not requested_files:
+        print(f"No files in {arg_files!r}")
         return
-    # Execute the command.
-    # print(f"Found {len(files)} file{g.plural(len(files))}.")
+    files: list[str]
+    if args.force:
+        # Handle all requested files.
+        files = requested_files
+    else:
+        # Handle only modified files.
+        modified_files = get_modified_files(cwd)
+        files = [z for z in requested_files if os.path.abspath(z) in modified_files]
+    if not files:
+        return
+    if args.verbose:
+        kind = (
+            'fstringify' if args.f else
+            'fstringify-diff' if args.fd else
+            'orange' if args.o else
+            'orange-diff' if args.od else
+            None
+        )
+        if kind:
+            n = len(files)
+            n_s = f" {n:>3} file" if n == 1 else f"{n:>3} files"
+            print(f"{kind}: {n_s} in {', '.join(arg_files)}")
+    # Do the command.
     if args.f:
         fstringify_command(files)
     if args.fd:
@@ -4317,7 +4272,6 @@ def main() -> None:  # pragma: no cover
     if args.od:
         orange_diff_command(files, settings_dict)
 #@-others
-g = LeoGlobals()
 if __name__ == '__main__':
     main()  # pragma: no cover
 #@@language python

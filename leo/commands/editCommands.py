@@ -34,13 +34,11 @@ def find_next_trace(ins: int, p: Position) -> tuple[int, int, Position]:
     while p:
         ins = max(0, ins - 1)  # Back up over newline.
         s = p.b[ins:]
-        m = re.search(skip_pat, s)
-        if m:
+        if m := re.search(skip_pat, s):
             # Skip this node.
             g.es_print('Skipping', p.h)
         else:
-            m = re.search(if_pat, s)
-            if m:
+            if m := re.search(if_pat, s):
                 i = m.start() + 1
                 j = m.end()
                 k = find_trace_block(i, j, s)
@@ -327,20 +325,23 @@ def show_clone_ancestors(event: Event = None) -> None:
     c = event.get('c')
     if not c:
         return
-    p = c.p
-    g.es(f"Ancestors of {p.h}...")
-    for clone in c.all_positions():
-        if clone.v == p.v:
-            unl = message = clone.get_legacy_UNL()
+    g.es(f"Ancestors of {c.p.h}...")
+    seen: set[str] = set()
+    for p in c.vnode2allPositions(c.p.v):
+        for ancestor in p.parents():
+            unl = message = ancestor.get_legacy_UNL()
             # Drop the file part.
             i = unl.find('#')
-            if i > 0:
+            if i >= 0:
                 message = unl[i + 1 :]
-            # Drop the target node from the message.
-            parts = message.split('-->')
-            if len(parts) > 1:
-                message = '-->'.join(parts[:-1])
-            c.frame.log.put(message + '\n', nodeLink=f"{unl}::1")
+            if 0:  # Too confusing.
+                # Drop the target node from the message.
+                parts = message.split('-->')
+                if len(parts) > 1:
+                    message = '-->'.join(parts[:-1])
+            if message not in seen:
+                seen.add(message)
+                c.frame.log.put(message + '\n', nodeLink=f"{unl}::1")
 #@+node:ekr.20191007034723.1: *3* @g.command('show-clone-parents')
 @g.command('show-clone-parents')
 def show_clones(event: Event = None) -> None:
@@ -348,18 +349,19 @@ def show_clones(event: Event = None) -> None:
     c = event.get('c')
     if not c:
         return
-    seen = []
+    seen: set[str] = set()
+    g.es(f"Parents of {c.p.h}...")
     for clone in c.vnode2allPositions(c.p.v):
         parent = clone.parent()
-        if parent and parent not in seen:
-            seen.append(parent)
+        if parent:
             unl = message = parent.get_legacy_UNL()
             # Drop the file part.
             i = unl.find('#')
-            if i > 0:
+            if i >= 0:
                 message = unl[i + 1 :]
-            c.frame.log.put(message + '\n', nodeLink=f"{unl}::1")
-
+            if message not in seen:
+                seen.add(message)
+                c.frame.log.put(message + '\n', nodeLink=f"{unl}::1")
 #@+node:ekr.20180210161001.1: *3* @g.command('unmark-node-and-parents')
 @g.command('unmark-node-and-parents')
 def unmark_node_and_parents(event: Event = None) -> list[Position]:
@@ -429,13 +431,11 @@ class EditCommandsClass(BaseEditCommandsClass):
     def clearAllCaches(self, event: Event = None) -> None:  # pragma: no cover
         """Clear all of Leo's file caches."""
         g.app.global_cacher.clear()
-        g.app.commander_cacher.clear()
 
     @cmd('dump-caches')
     def dumpCaches(self, event: Event = None) -> None:  # pragma: no cover
         """Dump, all of Leo's file caches."""
         g.app.global_cacher.dump()
-        g.app.commander_cacher.dump()
     #@+node:ekr.20150514063305.118: *3* ec.doNothing
     @cmd('do-nothing')
     def doNothing(self, event: Event) -> None:
@@ -1262,8 +1262,7 @@ class EditCommandsClass(BaseEditCommandsClass):
     def hn_delete(self, p: Position) -> None:
         """Helper: delete the headline number in p.h."""
         c = self.c
-        m = re.match(self.hn_pattern, p.h)
-        if m:
+        if m := re.match(self.hn_pattern, p.h):
             # Do not strip the headline!
             n = len(m.group(0))
             c.setHeadString(p, p.v.h[n:])
@@ -1697,23 +1696,25 @@ class EditCommandsClass(BaseEditCommandsClass):
         if not w:
             return
         tag = 'clean-all-lines'
+        roots = g.findRootsWithPredicate(c, c.p)
         u.beforeChangeGroup(c.p, tag)
         n = 0
-        for p in c.p.self_and_subtree():
-            lines = []
-            for line in g.splitLines(p.b):
-                if line.rstrip():
-                    lines.append(line.rstrip())
-                if line.endswith('\n'):
-                    lines.append('\n')
-            s2 = ''.join(lines)
-            if s2 != p.b:
-                print(p.h)
-                bunch = u.beforeChangeNodeContents(p)
-                p.b = s2
-                p.setDirty()
-                n += 1
-                u.afterChangeNodeContents(p, tag, bunch)
+        for root in roots:
+            for p in root.self_and_subtree():
+                lines = []
+                for line in g.splitLines(p.b):
+                    if line.rstrip():
+                        lines.append(line.rstrip())
+                    if line.endswith('\n'):
+                        lines.append('\n')
+                s2 = ''.join(lines)
+                if s2 != p.b:
+                    print(p.h)
+                    bunch = u.beforeChangeNodeContents(p)
+                    p.b = s2
+                    p.setDirty()
+                    n += 1
+                    u.afterChangeNodeContents(p, tag, bunch)
         u.afterChangeGroup(c.p, tag)
         g.es(f"cleaned {n} nodes")
     #@+node:ekr.20150514063305.256: *4* ec.cleanLines

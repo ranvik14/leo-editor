@@ -37,7 +37,8 @@ class SessionManager:
         else:
             outlines = [i.c for i in g.app.windowList]
         for c in outlines:
-            result.append(c.p.get_full_gnx_UNL())
+            if c.fileName():
+                result.append(c.p.get_full_gnx_UNL())
         return result
     #@+node:ekr.20120420054855.14416: *3* SessionManager.get_session_path
     def get_session_path(self) -> Optional[str]:
@@ -63,17 +64,18 @@ class SessionManager:
             fn = g.getUNLFilePart(unl)
             exists = fn and g.os_path_exists(fn)
             if not exists:
-                g.trace('File part does not exist', repr(fn))
-                g.trace(f"Bad unl: {unl!r}")
+                g.trace(f"Ignoring invalid session {'unl'}: {unl!r}")
                 continue
             if 'startup' in g.app.debug:
                 g.trace('loading session file:', fn)
             # This selects the proper position.
-            g.app.loadManager.loadLocalFile(fn, gui=g.app.gui, old_c=c)
+            g.openWithFileName(fn, gui=g.app.gui, old_c=c)
     #@+node:ekr.20120420054855.14248: *3* SessionManager.load_snapshot
-    def load_snapshot(self) -> str:
+    def load_snapshot(self) -> list[str]:
         """
         Load a snapshot of a session from the leo.session file.
+
+        Return a list of unls.
         """
         try:
             session = g.app.db['session']
@@ -162,8 +164,7 @@ def session_snapshot_load_command(event: Event) -> None:
 @g.command('session-snapshot-save')
 def session_snapshot_save_command(event: Event) -> None:
     """Save a snapshot of the present session to the leo.session file."""
-    m = g.app.sessionManager
-    if m:
+    if m := g.app.sessionManager:
         m.save_snapshot()
 #@-others
 #@@language python

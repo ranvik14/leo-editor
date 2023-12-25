@@ -9,7 +9,7 @@ import os
 import sys
 import re
 import textwrap
-from typing import Any, Generator, TYPE_CHECKING
+from typing import Any, Generator, Optional, TYPE_CHECKING
 from leo.core.leoCommands import Commands as Cmdr
 from leo.plugins.mod_scripting import build_rclick_tree
 from leo.core import leoGlobals as g
@@ -977,32 +977,34 @@ class ActiveSettingsOutline:
         """Create the new commander, and load all settings files."""
         lm = g.app.loadManager
         old_c = self.c
+
         # Save any changes so they can be seen.
         if old_c.isChanged():
             old_c.save()
         old_c.outerUpdate()
-        # From file-new...
+
+        # Suppress redraws until later.
         g.app.disable_redraw = True
         g.app.setLog(None)
         g.app.lockLog()
+
         # Switch to the new commander. Do *not* use previous settings.
         fileName = f"{old_c.fileName()}-active-settings"
         g.es(fileName, color='red')
         c = g.app.newCommander(fileName=fileName)
+
         # Restore the layout, if we have ever saved this file.
         if not old_c:
             c.frame.setInitialWindowGeometry()
+
         # #1340: Don't do this. It is no longer needed.
             # g.app.restoreWindowState(c)
+
         c.frame.resizePanesToRatio(c.frame.ratio, c.frame.secondary_ratio)
-        # From file-new...
-        g.app.unlockLog()
-        lm.createMenu(c)
-        lm.finishOpen(c)
-        g.app.writeWaitingLog(c)
-        c.setLog()
         c.clearChanged()  # Clears all dirty bits.
-        g.app.disable_redraw = False
+
+        # Finish.
+        lm.finishOpen(c)
         return c
     #@+node:ekr.20190905091614.6: *3* aso.create_outline & helper
     def create_outline(self) -> None:
@@ -1207,7 +1209,7 @@ class GlobalConfigManager:
         self.default_derived_file_encoding = 'utf-8'
         self.enabledPluginsFileName = None
         self.enabledPluginsString = ''
-        self.menusList: list[Any] = []  # pbc.doMenu comment: likely buggy.
+        self.menusList: list[Any] = []
         self.menusFileName = ''
         self.modeCommandsDict: dict[str, g.SettingsDict] = g.SettingsDict('modeCommandsDict')
         self.panes = None
@@ -1447,10 +1449,10 @@ class GlobalConfigManager:
         val = self.get('openwithtable', 'openwithtable')
         return val
     #@+node:ekr.20041122070752: *4* gcm.getRatio
-    def getRatio(self, setting: str) -> float:
-        """Return the value of @float setting.
-
-        Warn if the value is less than 0.0 or greater than 1.0."""
+    def getRatio(self, setting: str) -> Optional[float]:
+        """
+        Return the value of @float setting, or None if there is an error.
+        """
         val = self.get(setting, "ratio")
         try:
             val = float(val)
@@ -1792,11 +1794,9 @@ class LocalConfigManager:
         val = self.get('openwithtable', 'openwithtable')
         return val
     #@+node:ekr.20120215072959.12536: *5* c.config.getRatio
-    def getRatio(self, setting: str) -> float:
+    def getRatio(self, setting: str) -> Optional[float]:
         """
-        Return the value of @float setting.
-
-        Warn if the value is less than 0.0 or greater than 1.0.
+        Return the value of @float setting, or None if there is an error.
         """
         val = self.get(setting, "ratio")
         try:

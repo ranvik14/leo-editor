@@ -605,6 +605,7 @@ class LeoImportCommands:
             self.scanUnknownFileType(s, p, ext)
         if g.unitTesting:
             return p
+
         # #488894: unsettling dialog when saving Leo file
         # #889175: Remember the full fileName.
         c.atFileCommands.rememberReadPath(fileName, p)
@@ -617,8 +618,7 @@ class LeoImportCommands:
     def dispatch(self, ext: str, p: Position) -> Optional[Callable]:
         """Return the correct scanner function for p, an @auto node."""
         # Match the @auto type first, then the file extension.
-        c = self.c
-        return g.app.scanner_for_at_auto(c, p) or g.app.scanner_for_ext(c, ext)
+        return g.app.scanner_for_at_auto(p) or g.app.scanner_for_ext(ext)
     #@+node:ekr.20170405191106.1: *5* ic.import_binary_file
     def import_binary_file(self, fileName: str, parent: Position) -> Position:
 
@@ -1348,12 +1348,10 @@ class MindMapImporter:
                 p.b = self.csv_string(row)
                 n = p.level()
         for p in target.unique_subtree():
-            if len(p.b.splitlines()) == 1:
-                if len(p.b.splitlines()[0]) < max_chars_in_header:
-                    p.h = p.b.splitlines()[0]
-                    p.b = ""
-                else:
-                    p.h = "@node_with_long_text"
+            lines = p.b.splitlines()
+            if len(lines) == 1 and len(lines[0]) < max_chars_in_header:
+                p.h = lines[0]
+                p.b = ""
             else:
                 p.h = "@node_with_long_text"
     #@+node:ekr.20160503130810.4: *4* mindmap.csv_level
@@ -1620,7 +1618,7 @@ class RecursiveImportController:
             files = [dir_]
         else:
             if self.verbose:
-                g.es_print(f"importing directory: {os.path.normpath(dir_)}")
+                print(f"importing: {os.path.normpath(dir_)}")
             files = list(sorted(os.listdir(dir_)))
         dirs, files2 = [], []
         for path in files:
@@ -1645,7 +1643,6 @@ class RecursiveImportController:
                     if not self.ignore_pattern.search(f):
                         self.import_one_file(f, parent=parent)
             if dirs:
-                assert self.recursive
                 for dir_ in sorted(dirs):
                     self.import_dir(dir_, parent)
     #@+node:ekr.20170404103953.1: *3* ric.import_one_file
@@ -1731,8 +1728,7 @@ class RecursiveImportController:
         outline_dir = norm(self.outline_directory.replace('\\', '/'))
         len_outline_dir = len(outline_dir)
 
-        m = self.file_pattern.match(p.h)
-        if m:
+        if m := self.file_pattern.match(p.h):
             # p is an @file node of some kind.
             kind = m.group(0)
             path = p.h[len(kind) :].strip()
@@ -1860,7 +1856,7 @@ class RecursiveImportController:
                 if self.verbose:
                     # Only print this message if importing a *single* file.
                     print('')
-                    g.es_print(f"importing file: {os.path.normpath(dir_)}")
+                    print(f"importing file: {os.path.normpath(dir_)}")
                 self.import_one_file(dir_, parent)
             else:
                 self.import_dir(dir_, parent)

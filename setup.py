@@ -34,7 +34,7 @@ classifiers = [
 #@+<< define install_requires >>
 #@+node:maphew.20171120133429.1: ** << define install_requires >>
 install_requires = [
-    'PyQt5 >= 5.15',  # #2884: reuire v5.15. #1217: require v5.12+.
+    'PyQt5 >= 5.15',  # #2884: require v5.15. #1217: require v5.12+.
     'PyQtWebEngine',
     'asttokens',  # abstract syntax tree text parsing
     'build >= 0.6.0',  # simple PEP 517 package builder
@@ -47,7 +47,8 @@ install_requires = [
     'pyshortcuts >= 1.7',  # desktop integration (#1243)
     'sphinx',  # rST plugin
     'tk',  # tkinter.
-    'windows-curses; platform_system=="Windows"',  # for console mode on Windows
+    # #3603: windows-curses doesn't work with Python 3.12.
+    # 'windows-curses; platform_system=="Windows"',  # for console mode on Windows
 ]
 #@-<< define install_requires >>
 #@+others  # Define helpers
@@ -126,7 +127,7 @@ def test_is_valid_version():
 production = True
 testing = False
 # Dashes are not allowed.
-version = '6.7.4'  ##version Should match version in leoVersion.py
+version = '6.7.6'  ##version Should match version in leoVersion.py
 entry_points = define_entry_points()
 long_description = get_readme_contents()
 assert is_valid_version(version), version

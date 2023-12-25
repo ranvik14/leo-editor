@@ -4,7 +4,7 @@
 from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
-from leo.plugins.importers.base_importer import Block, Importer
+from leo.plugins.importers.base_importer import Importer
 
 if TYPE_CHECKING:
     from leo.core.leoCommands import Commands as Cmdr
@@ -21,9 +21,9 @@ class Org_Importer(Importer):
     #@+node:ekr.20230529063312.1: *3* org_i.gen_block
     section_pat = re.compile(r'(\*+)\s(.*)')
 
-    def gen_block(self, block: Block, parent: Position) -> None:
+    def gen_block(self, parent: Position) -> None:
         """
-        Org_Importer: gen_block. The `block` arg is unused.
+        Org_Importer: gen_block.
 
         Create all descendant blocks and their nodes from self.lines.
 
@@ -39,8 +39,7 @@ class Org_Importer(Importer):
         while i < len(lines):
             line = lines[i]
             i += 1
-            m = self.section_pat.match(line)
-            if m:
+            if m := self.section_pat.match(line):
                 level = len(m.group(1))
                 headline = m.group(2)  # Don't strip.
                 # Cut back the stack.

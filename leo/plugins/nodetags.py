@@ -102,8 +102,11 @@ import re
 from typing import Any, Generator, TYPE_CHECKING
 from leo.core import leoGlobals as g
 from leo.core import leoNodes
-from leo.core.leoQt import QtCore, QtWidgets
-from leo.core.leoQt import MouseButton
+try:
+    from leo.core.leoQt import QtCore, QtWidgets
+    from leo.core.leoQt import MouseButton
+except Exception:
+    QtCore = QtWidgets = None
 
 if TYPE_CHECKING:  # pragma: no cover
     from leo.core.leoCommands import Commands as Cmdr
@@ -264,7 +267,7 @@ if QtWidgets:
     class LeoTagWidget(QtWidgets.QWidget):  # type:ignore
         #@+others
         #@+node:peckj.20140804114520.15200: *3* tag_w.__init__
-        def __init__(self, c: Cmdr, parent: Widget=None) -> None:
+        def __init__(self, c: Cmdr, parent: Widget = None) -> None:
             super().__init__(parent)
             self.c = c
             self.tc = self.c.theTagController
@@ -465,7 +468,7 @@ if QtWidgets:
             self.update_list()
             self.update_current_tags(self.c.p)
         #@+node:peckj.20140806145948.6579: *4* tag_w.add_tag
-        def add_tag(self, event: Event=None) -> None:
+        def add_tag(self, event: Event = None) -> None:
             p = self.c.p
             tag = str(self.comboBox.currentText()).strip()
             if not tag:

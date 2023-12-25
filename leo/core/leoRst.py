@@ -382,9 +382,10 @@ class RstCommands:
         i = s.find('<title></title>')
         if i == -1:
             return s
-        m = re.search(r'<h1>([^<]*)</h1>', s)
-        if not m:
-            m = re.search(r'<h1><[^>]+>([^<]*)</a></h1>', s)
+        m = (
+            re.search(r'<h1>([^<]*)</h1>', s) or
+            re.search(r'<h1><[^>]+>([^<]*)</a></h1>', s)
+        )
         if m:
             s = s.replace('<title></title>',
                 f"<title>{m.group(1)}</title>")
@@ -393,7 +394,7 @@ class RstCommands:
     def computeOutputFileName(self, fn: str) -> str:
         """Return the full path to the output file."""
         c = self.c
-        openDirectory = c.frame.openDirectory
+        openDirectory = g.os_path_dirname(c.fileName())
         if self.default_path:
             path = g.finalize_join(self.path, self.default_path, fn)
         elif self.path:
@@ -448,11 +449,12 @@ class RstCommands:
     #@+node:ekr.20090502071837.65: *5* rst.writeToDocutils & helper
     def writeToDocutils(self, s: str, ext: str) -> Optional[str]:
         """Send s to docutils using the writer implied by ext and return the result."""
+        c = self.c
         if not docutils:
             g.error('writeToDocutils: docutils not present')
             return None
         join = g.finalize_join
-        openDirectory = self.c.frame.openDirectory
+        openDirectory = g.os_path_dirname(c.fileName())
         overrides = {'output_encoding': self.encoding}
         #
         # Compute the args list if the stylesheet path does not exist.

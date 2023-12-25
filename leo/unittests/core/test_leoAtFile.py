@@ -48,6 +48,7 @@ class TestAtFile(LeoUnitTest):
     #@+node:ekr.20200204094139.1: *3* TestAtFile.test_bug_1469
     def test_bug_1469(self):
         # Test #1469: saves renaming an external file
+        # https://github.com/leo-editor/leo-editor/issues/1469
         # Create a new outline with @file node and save it
         bridge = self.bridge()
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -63,9 +64,9 @@ class TestAtFile(LeoUnitTest):
             c.save()
             # Remove the original "@file 1" from the disk
             external_filename = f"{temp_dir}{os.sep}1"
-            assert os.path.exists(external_filename)
+            assert os.path.exists(external_filename), external_filename
             os.remove(external_filename)
-            assert not os.path.exists(external_filename)
+            assert not os.path.exists(external_filename), external_filename
             # Change the @file contents, save and reopen the outline
             p1.b = "b_1_changed"
             c.save()
@@ -255,7 +256,7 @@ class TestAtFile(LeoUnitTest):
         contents = textwrap.dedent('''\
             ATall
         ''').replace('AT', '@')
-        expected = textwrap.dedent('''\
+        expected_contents = textwrap.dedent('''\
             #AT+all
             #AT+node:<GNX>: ** child
             def spam():
@@ -264,11 +265,24 @@ class TestAtFile(LeoUnitTest):
             @ A single-line doc part.
             #AT-all
         ''').replace('AT', '@')
-        root.b = contents
-        at.initWriteIvars(root)
-        at.putBody(root)
-        result = ''.join(at.outputList)
-        self.assertEqual(result, expected)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = expected_contents.replace('#@', '# @') if blacken else expected_contents
+
+            root.b = test_s 
+            at.initWriteIvars(root)
+            at.putBody(root)
+            results = ''.join(at.outputList)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
     #@+node:ekr.20211102111413.1: *3* TestAtFile.test_putBody_at_all_after_at_doc
     def test_putBody_at_all_after_at_doc(self):
 
@@ -280,16 +294,33 @@ class TestAtFile(LeoUnitTest):
             doc line 1
             ATall
         ''').replace('AT', '@')
-        expected = textwrap.dedent('''\
+
+        # Only @c or @code end an @doc part.
+        # Therefore, the @all line is part of the @doc part.
+
+        expected_contents = textwrap.dedent('''\
             #AT+doc
             # doc line 1
             # ATall
         ''').replace('AT', '@')
-        root.b = contents
-        at.initWriteIvars(root)
-        at.putBody(root)
-        result = ''.join(at.outputList)
-        self.assertEqual(result, expected)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = expected_contents.replace('#@', '# @') if blacken else expected_contents
+        
+            root.b = test_s 
+            at.initWriteIvars(root)
+            at.putBody(root)
+            results = ''.join(at.outputList)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
     #@+node:ekr.20211102150707.1: *3* TestAtFile.test_putBody_at_others
     def test_putBody_at_others(self):
 
@@ -303,18 +334,38 @@ class TestAtFile(LeoUnitTest):
         contents = textwrap.dedent('''\
             ATothers
         ''').replace('AT', '@')
-        expected = textwrap.dedent('''\
+        expected_contents = textwrap.dedent('''\
             #AT+others
             #AT+node:<GNX>: ** child
             #AT+others
             #AT-others
             #AT-others
         ''').replace('AT', '@')
-        root.b = contents
-        at.initWriteIvars(root)
-        at.putBody(root)
-        result = ''.join(at.outputList)
-        self.assertEqual(result, expected)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = expected_contents.replace('#@', '# @') if blacken else expected_contents
+
+            root.b = test_s 
+            at.initWriteIvars(root)
+            at.putBody(root)
+            results = ''.join(at.outputList)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+        
+        
+        # root.b = contents
+        # at.initWriteIvars(root)
+        # at.putBody(root)
+        # result = ''.join(at.outputList)
+        # self.assertEqual(result, expected)
     #@+node:ekr.20211102102024.1: *3* TestAtFile.test_putBody_unterminated_at_doc_part
     def test_putBody_unterminated_at_doc_part(self):
 
@@ -548,7 +599,8 @@ class TestFastAtRead(LeoUnitTest):
         #@+<< define contents >>
         #@+node:ekr.20211106112233.1: *4* << define contents >>
         # Be careful: no line should look like a Leo sentinel!
-        contents = textwrap.dedent(f'''\
+        # Use neither a raw string nor an f-string here.
+        contents = textwrap.dedent('''
             #AT+leo-ver=5-thin
             #AT+node:{root.gnx}: * {h}
             #AT@language python
@@ -563,23 +615,28 @@ class TestFastAtRead(LeoUnitTest):
              ):
                 a = 2
             #AT-leo
-        ''').replace('AT', '@').replace('LB', '<<')
+        ''').lstrip()
+        contents = contents.replace('AT', '@').replace('LB', '<<')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
         #@-<< define contents >>
         #@+<< define expected_body >>
         #@+node:ekr.20211106115654.1: *4* << define expected_body >>
-        expected_body = textwrap.dedent('''\
+        # Be careful: no line should look like a Leo sentinel!
+        # Use neither a raw string nor an f-string here.
+        expected_body = textwrap.dedent('''
             ATlanguage python
 
             a = 1
             if (
             LB test >> ):
                 a = 2
-        ''').replace('AT', '@').replace('LB', '<<')
+        ''').lstrip().replace('AT', '@').replace('LB', '<<')
         #@-<< define expected_body >>
         #@+<< define expected_contents >>
         #@+node:ekr.20211107053133.1: *4* << define expected_contents >>
         # Be careful: no line should look like a Leo sentinel!
-        expected_contents = textwrap.dedent(f'''\
+        # Use neither a raw string nor an f-string here.
+        expected_contents = textwrap.dedent('''
             #AT+leo-ver=5-thin
             #AT+node:{root.gnx}: * {h}
             #AT@language python
@@ -589,14 +646,27 @@ class TestFastAtRead(LeoUnitTest):
             LB test >> ):
                 a = 2
             #AT-leo
-        ''').replace('AT', '@').replace('LB', '<<')
+        ''').lstrip().replace('AT', '@').replace('LB', '<<')
+        expected_contents = expected_contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
         #@-<< define expected_contents >>
-        x.read_into_root(contents, path='test', root=root)
-        self.assertEqual(root.b, expected_body, msg='mismatch in body')
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        # Leo has *never* round-tripped the contents without change!
-        self.assertEqual(s, expected_contents, msg='mismatch in contents')
+        
+        for blacken in (True, False):
 
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = expected_contents.replace('#@', '# @') if blacken else expected_contents
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+            
+            self.assertEqual(root.b, expected_body, msg='mismatch in body')
     #@+node:ekr.20211103093332.1: *3* TestFastAtRead.test_at_all
     def test_at_all(self):
 
@@ -607,7 +677,8 @@ class TestFastAtRead(LeoUnitTest):
         #@+<< define contents >>
         #@+node:ekr.20211103093424.1: *4* << define contents >> (test_at_all)
         # Be careful: no line should look like a Leo sentinel!
-        contents = textwrap.dedent(f'''\
+        # Use neither a raw string nor an f-string here.
+        contents = textwrap.dedent('''
         #AT+leo-ver=5-thin
         #AT+node:{root.gnx}: * {h}
         # This is Leo's final resting place for dead code.
@@ -622,17 +693,31 @@ class TestFastAtRead(LeoUnitTest):
         LB missing reference >>
         #AT+node:ekr.20211103093633.1: ** node 2
         #ATverbatim
-        # ATothers doesn't matter
-
+        #ATothers doesn't generate anything.
         ATothers
         #AT-all
         #AT@nosearch
         #AT-leo
-        ''').replace('AT', '@').replace('LB', '<<')
+        ''').lstrip()
+        contents = contents.replace('AT', '@').replace('LB', '<<')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
         #@-<< define contents >>
-        x.read_into_root(contents, path='test', root=root)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = test_s.replace("# @others doesn't", "#@others doesn't")
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
     #@+node:ekr.20211101085019.1: *3* TestFastAtRead.test_at_comment (and @first)
     def test_at_comment(self):
 
@@ -643,7 +728,8 @@ class TestFastAtRead(LeoUnitTest):
         #@+<< define contents >>
         #@+node:ekr.20211101090447.1: *4* << define contents >> (test_at_comment)
         # Be careful: no line should look like a Leo sentinel!
-        contents = textwrap.dedent(f'''\
+        # Use neither a raw string nor an f-string here.
+        contents = textwrap.dedent('''
         !!! -*- coding: utf-8 -*-
         !!!AT+leo-ver=5-thin
         !!!AT+node:{root.gnx}: * {h}
@@ -670,21 +756,37 @@ class TestFastAtRead(LeoUnitTest):
 
         !!!AT@language plain
         !!!AT-leo
-        ''').replace('AT', '@').replace('LB', '<<')
+        ''').lstrip()
+        contents = contents.replace('AT', '@').replace('LB', '<<')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
         #@-<< define contents >>
-        x.read_into_root(contents, path='test', root=root)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
-        child1 = root.firstChild()
-        child2 = child1.next()
-        child3 = child2.next()
-        table = (
-            (child1, g.angleBrackets(' test ')),
-            (child2, 'spam'),
-            (child3, 'eggs'),
-        )
-        for child, h in table:
-            self.assertEqual(child.h, h)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents
+            expected = test_s
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+
+            child1 = root.firstChild()
+            child2 = child1.next()
+            child3 = child2.next()
+            table = (
+                (child1, g.angleBrackets(' test ')),
+                (child2, 'spam'),
+                (child3, 'eggs'),
+            )
+            for child, h in table:
+                self.assertEqual(child.h, h)
     #@+node:ekr.20211101111636.1: *3* TestFastAtRead.test_at_delims
     def test_at_delims(self):
         c, x = self.c, self.x
@@ -694,8 +796,9 @@ class TestFastAtRead(LeoUnitTest):
         #@+<< define contents >>
         #@+node:ekr.20211101111652.1: *4* << define contents >> (test_at_delims)
         # Be careful: no line should look like a Leo sentinel!
-        contents = textwrap.dedent(f'''\
-        !! -*- coding: utf-8 -*-
+        # Use neither a raw string nor an f-string here.
+        contents = textwrap.dedent('''
+        # -*- coding: utf-8 -*-
         #AT+leo-ver=5-thin
         #AT+node:{root.gnx}: * {h}
         #AT@first
@@ -719,21 +822,38 @@ class TestFastAtRead(LeoUnitTest):
 
         !!AT@language python
         !!AT-leo
-        ''').replace('AT', '@').replace('LB', '<<').replace('SPACE', ' ')
+        ''').lstrip()
+        contents = contents.replace('AT', '@').replace('LB', '<<').replace('SPACE', ' ')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
+
         #@-<< define contents >>
-        x.read_into_root(contents, path='test', root=root)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
-        child1 = root.firstChild()
-        child2 = child1.next()
-        child3 = child2.next()
-        table = (
-            (child1, g.angleBrackets(' test ')),
-            (child2, 'spam'),
-            (child3, 'eggs'),
-        )
-        for child, h in table:
-            self.assertEqual(child.h, h)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @').replace('!!@', '!! @') if blacken else contents
+            expected = test_s
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+
+            child1 = root.firstChild()
+            child2 = child1.next()
+            child3 = child2.next()
+            table = (
+                (child1, g.angleBrackets(' test ')),
+                (child2, 'spam'),
+                (child3, 'eggs'),
+            )
+            for child, h in table:
+                self.assertEqual(child.h, h)
     #@+node:ekr.20211103095616.1: *3* TestFastAtRead.test_at_last
     def test_at_last(self):
 
@@ -744,7 +864,8 @@ class TestFastAtRead(LeoUnitTest):
         #@+<< define contents >>
         #@+node:ekr.20211103095959.1: *4* << define contents >> (test_at_last)
         # Be careful: no line should look like a Leo sentinel!
-        contents = textwrap.dedent(f'''\
+        # Use neither a raw string nor an f-string here.
+        contents = textwrap.dedent('''
         #AT+leo-ver=5-thin
         #AT+node:{root.gnx}: * {h}
         # Test of ATlast
@@ -757,21 +878,41 @@ class TestFastAtRead(LeoUnitTest):
         #AT@last
         #AT-leo
         # last line
-        ''').replace('AT', '@')
+        ''').lstrip()
+        contents = contents.replace('AT', '@')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
+
+
         #@-<< define contents >>
         #@+<< define expected_body >>
         #@+node:ekr.20211104052937.1: *4* << define expected_body >> (test_at_last)
-        expected_body = textwrap.dedent('''\
-        # Test of ATlast
+        # Use neither a raw string nor an f-string here.
+        # Be careful: no line should look like a Leo sentinel!
+        expected_body = textwrap.dedent('''
+        # Test of @last
         ATothers
         ATlanguage python
         ATlast # last line
-        ''').replace('AT', '@')
+        ''').lstrip().replace('AT', '@')
         #@-<< define expected_body >>
-        x.read_into_root(contents, path='test', root=root)
-        self.assertEqual(root.b, expected_body)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = test_s
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+
+            self.assertEqual(root.b, expected_body)
     #@+node:ekr.20211103092228.1: *3* TestFastAtRead.test_at_others
     def test_at_others(self):
 
@@ -797,11 +938,27 @@ class TestFastAtRead(LeoUnitTest):
         #AT-leo
         ''').replace('AT', '@').replace('LB', '<<')
         #@-<< define contents >>
-        x.read_into_root(contents, path='test', root=root)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = test_s
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+
     #@+node:ekr.20211031093209.1: *3* TestFastAtRead.test_at_section_delim
     def test_at_section_delim(self):
+
+        # Test the contents of personal test file, slightly altered.
 
         c, x = self.c, self.x
         h = '@file /test/at_section_delim.py'
@@ -809,47 +966,63 @@ class TestFastAtRead(LeoUnitTest):
         root.h = h  # To match contents.
         #@+<< define contents >>
         #@+node:ekr.20211101050923.1: *4* << define contents >> (test_at_section_delim)
-        # The contents of a personal test file, slightly altered.
-        contents = textwrap.dedent(f'''\
-        #AT+leo-ver=5-thin
-        #AT+node:{root.gnx}: * {h}
+        # Be careful: no line should look like a Leo sentinel!
+        # Use neither a raw string nor an f-string here.
+        contents = textwrap.dedent('''
+        AT+leo-ver=5-thin
+        AT+node:{root.gnx}: * {h}
 
         """Classes to read and write @file nodes."""
 
-        #AT@section-delims <!< >!>
+        AT@section-delims <!< >!>
 
-        #AT+<!< test >!>
-        #AT+node:ekr.20211029054238.1: ** <!< test >!>
+        AT+<!< test >!>
+        AT+node:ekr.20211029054238.1: ** <!< test >!>
         print('in test section')
         print('done')
-        #AT-<!< test >!>
+        AT-<!< test >!>
 
-        #AT+others
-        #AT+node:ekr.20211030052810.1: ** spam
+        AT+others
+        AT+node:ekr.20211030052810.1: ** spam
         def spam():
         pass
-        #AT+node:ekr.20211030053502.1: ** eggs
+        AT+node:ekr.20211030053502.1: ** eggs
         def eggs():
         pass
-        #AT-others
+        AT-others
 
-        #AT@language python
-        #AT-leo
-        ''').replace('#AT', '#@')
+        AT@language python
+        AT-leo
+        ''').lstrip().replace('AT', '#@')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
         #@-<< define contents >>
-        x.read_into_root(contents, path='test', root=root)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
-        child1 = root.firstChild()
-        child2 = child1.next()
-        child3 = child2.next()
-        table = (
-            (child1, '<!< test >!>'),
-            (child2, 'spam'),
-            (child3, 'eggs'),
-        )
-        for child, h in table:
-            self.assertEqual(child.h, h)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = test_s
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+
+            child1 = root.firstChild()
+            child2 = child1.next()
+            child3 = child2.next()
+            table = (
+                (child1, '<!< test >!>'),
+                (child2, 'spam'),
+                (child3, 'eggs'),
+            )
+            for child, h in table:
+                self.assertEqual(child.h, h)
     #@+node:ekr.20211101155930.1: *3* TestFastAtRead.test_clones
     def test_clones(self):
 
@@ -880,26 +1053,40 @@ class TestFastAtRead(LeoUnitTest):
         #AT-leo
         ''').replace('AT', '@').replace('LB', '<<')
         #@-<< define contents >>
-        x.read_into_root(contents, path='test', root=root)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
-        child1 = root.firstChild()
-        child2 = child1.next()
-        grand_child1 = child1.firstChild()
-        grand_child2 = child2.firstChild()
-        table = (
-            (child1, 'cloned node'),
-            (child2, 'cloned node'),
-            (grand_child1, 'child'),
-            (grand_child2, 'child'),
-        )
-        for child, h in table:
-            self.assertEqual(child.h, h)
-        self.assertTrue(child1.isCloned())
-        self.assertTrue(child2.isCloned())
-        self.assertEqual(child1.v, child2.v)
-        self.assertFalse(grand_child1.isCloned())
-        self.assertFalse(grand_child2.isCloned())
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = test_s
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+
+            child1 = root.firstChild()
+            child2 = child1.next()
+            grand_child1 = child1.firstChild()
+            grand_child2 = child2.firstChild()
+            table = (
+                (child1, 'cloned node'),
+                (child2, 'cloned node'),
+                (grand_child1, 'child'),
+                (grand_child2, 'child'),
+            )
+            for child, h in table:
+                self.assertEqual(child.h, h)
+            self.assertTrue(child1.isCloned())
+            self.assertTrue(child2.isCloned())
+            self.assertEqual(child1.v, child2.v)
+            self.assertFalse(grand_child1.isCloned())
+            self.assertFalse(grand_child2.isCloned())
     #@+node:ekr.20211103080718.1: *3* TestFastAtRead.test_cweb
     #@@language python
 
@@ -911,44 +1098,59 @@ class TestFastAtRead(LeoUnitTest):
         root.h = h  # To match contents.
         #@+<< define contents >>
         #@+node:ekr.20211103080718.2: *4* << define contents >> (test_cweb)
-        # pylint: disable=anomalous-backslash-in-string
-        contents = textwrap.dedent(f'''\
-            ATq@@+leo-ver=5-thin@>
-            ATq@@+node:{root.gnx}: * @{h}@>
-            ATq@@@@language cweb@>
-            ATq@@@@comment @@q@@ @@>@>
+        # Lines must not look like Leo sentinels!
+        # Use neither a raw string nor an f-string here.
+        contents = textwrap.dedent('''
+        ATq@@+leo-ver=5-thin@>
+        ATq@@+node:{root.gnx}: * @{h}@>
+        ATq@@@@language cweb@>
 
-            % This is limbo in cweb mode... It should be in BSLaTeX mode, not BSc mode.
-            % The following should not be colorized: class,if,else.
+        % This is limbo in cweb mode... It should be in BSLaTeX mode, not BSc mode.
+        % The following should not be colorized: class,if,else.
 
-            @* this is a _cweb_ comment.  Code is written in BSc.
-            "strings" should not be colorized.
-            It should be colored in BSLaTeX mode.
-            The following are not keywords in latex mode: if, else, etc.
-            Section references are _valid_ in cweb comments!
-            ATq@@+LB section ref 1 >>@>
-            ATq@@+node:ekr.20211103082104.1: ** LB section ref 1 >>@>
-            This is section 1.
-            ATq@@-LB section ref 1 >>@>
-            @c
+        @* this is a _cweb_ comment.  Code is written in BSc.
+        "strings" should not be colorized.
+        It should be colored in BSLaTeX mode.
+        The following are not keywords in latex mode: if, else, etc.
+        Section references are _valid_ in cweb comments!
+        ATq@@+LB section ref 1 >>@>
+        ATq@@+node:ekr.20211103082104.1: ** LB section ref 1 >>@>
+        This is section 1.
+        ATq@@-LB section ref 1 >>@>
+        ATc
 
-            and this is C code. // It is colored in BSLaTeX mode by default.
-            /* This is a C block comment.  It may also be colored in restricted BSLaTeX mode. */
+        and this is C code. // It is colored in BSLaTeX mode by default.
+        /* This is a C block comment.  It may also be colored in restricted BSLaTeX mode. */
 
-            // Section refs are valid in code too, of course.
-            ATq@@+LB section ref 2 >>@>
-            ATq@@+node:ekr.20211103083538.1: ** LB section ref 2 >>@>
-            This is section 2.
-            ATq@@-LB section ref 2 >>@>
+        // Section refs are valid in code too, of course.
+        ATq@@+LB section ref 2 >>@>
+        ATq@@+node:ekr.20211103083538.1: ** LB section ref 2 >>@>
+        This is section 2.
+        ATq@@-LB section ref 2 >>@>
 
-            BSLaTeX and BSc should not be colored.
-            if else, while, do // C keywords.
-            ATq@@-leo@>
-        ''').replace('AT', '@').replace('LB', '<<').replace('BS', '\\')
+        BSLaTeX and BSc should not be colored.
+        if else, while, do // C keywords.
+        ATq@@-leo@>
+        ''').lstrip()
+        contents = contents.replace('AT', '@').replace('LB', '<<')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
         #@-<< define contents >>
-        x.read_into_root(contents, path='test', root=root)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = test_s
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
     #@+node:ekr.20211101152817.1: *3* TestFastAtRead.test_doc_parts
     def test_doc_parts(self):
 
@@ -956,44 +1158,133 @@ class TestFastAtRead(LeoUnitTest):
         h = '@file /test/test_directives.py'
         root = c.rootPosition()
         root.h = h  # To match contents.
-
         #@+<< define contents >>
         #@+node:ekr.20211101152843.1: *4* << define contents >> (test_doc_parts)
         # Be careful: no line should look like a Leo sentinel!
-        contents = textwrap.dedent(f'''\
-        #AT+leo-ver=5-thin
-        #AT+node:{root.gnx}: * {h}
-        #AT@language python
+        # Use neither a raw string nor an f-string here.
+        # The doc part should contain at least one blank line.
+        contents = textwrap.dedent('''
+            #AT+leo-ver=5-thin
+            #AT+node:{root.gnx}: * {h}
+            #AT@language python
 
-        a = 1
+            a = 1
 
-        #AT+at A doc part
-        # Line 2.
-        #AT@c
+            #AT+at A doc part
+            # Line 2.
+            #AT@c
 
-        #AT+doc
-        # Line 2
-        #
-        # Line 3
-        #AT@c
+            #AT+doc
+            # Line 2
+            #
+            # Line 3
+            #AT@c
 
-        #AT-leo
-        ''').replace('AT', '@').replace('LB', '<<')
+            #AT-leo
+        ''').lstrip().replace('AT', '@').replace('LB', '<<')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
         #@-<< define contents >>
+        for blacken in (True, False):
 
-        # Test 1: without black delims.
-        g.app.write_black_sentinels = False
-        x.read_into_root(contents, path='test', root=root)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s, msg='Test 1')
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = test_s
+            
+            x.read_into_root(test_s, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+           
+            self.assertEqual(results, expected)
+    #@+node:ekr.20231207083858.1: *3* TestFastAtRead.test_doc_parts_html
+    def test_doc_parts_html(self):
 
-        # Test 2: with black delims.
-        g.app.write_black_sentinels = True
-        contents = contents.replace('#@', '# @')
-        x.read_into_root(contents, path='test', root=root)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        # g.printObj(contents2, tag='contents2')
-        self.assertEqual(contents, s, 'Test 2: -b')
+        c, x = self.c, self.x
+        h = '@file /test/test_directives.html'
+        root = c.rootPosition()
+        root.h = h  # To match contents.
+        #@+<< define contents >>
+        #@+node:ekr.20231207083858.2: *4* << define contents >> (test_doc_parts_html)
+        # Be careful: no line should look like a Leo sentinel!
+        # Use neither a raw string nor an f-string here.
+
+        # The doc part should contain at least one blank line.
+        contents = textwrap.dedent('''
+            <!--AT+leo-ver=5-thin-->
+            <!--AT+node:{root.gnx}: * {h}-->
+            <!--AT@language html-->
+
+            a = 1
+
+            <!--AT+at A doc part-->
+            <!--
+            Line 2.
+            -->
+            <!--AT@c-->
+
+            <!--AT+doc-->
+            <!--
+            Line 3.
+
+            Line 4.
+            -->
+            <!--AT@c-->
+
+            <!--AT-leo
+        ''').lstrip().replace('AT', '@').replace('LB', '<<')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
+        #@-<< define contents >>
+        #@+<< define expected_contents >>
+        #@+node:ekr.20231207121222.1: *4* << define expected_contents >> (test_doc_parts_html)
+        # For languages with a trailing delim,
+        #@verbatim
+        # @doc parts contain extra lines for the start/end delims.
+        expected_contents = textwrap.dedent('''
+            <!--AT+leo-ver=5-thin-->
+            <!--AT+node:{root.gnx}: * {h}-->
+            <!--AT@language html-->
+
+            a = 1
+
+            <!--AT+at A doc part-->
+            <!--
+            Line 2.
+            -->
+            <!--AT@c-->
+
+            <!--AT+doc-->
+            <!--
+            Line 3.
+
+            Line 4.
+            -->
+            <!--AT@c-->
+
+            <!--AT-leo-->
+        ''').lstrip().replace('AT', '@').replace('LB', '<<')
+        expected_contents = expected_contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
+        #@-<< define expected_contents >>
+
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            
+            # --black-sentinels applies only to python files.
+            test_s = contents
+            expected = expected_contents
+            
+            x.read_into_root(test_s, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+           
+            self.assertEqual(results, expected)
     #@+node:ekr.20211101154632.1: *3* TestFastAtRead.test_html_doc_part
     def test_html_doc_part(self):
 
@@ -1001,14 +1292,32 @@ class TestFastAtRead(LeoUnitTest):
         h = '@file /test/test_html_doc_part.py'
         root = c.rootPosition()
         root.h = h  # To match contents.
+
         #@+<< define contents >>
         #@+node:ekr.20211101154651.1: *4* << define contents >> (test_html_doc_part)
         # Be careful: no line should look like a Leo sentinel!
-        contents = textwrap.dedent(f'''\
+        # Use neither a raw string nor an f-string here.
+        contents = textwrap.dedent('''
         <!--AT+leo-ver=5-thin-->
         <!--AT+node:{root.gnx}: * {h}-->
         <!--AT@language html-->
+        <!--AT+at-->
+        Line 1.
 
+        Line 2.
+        <!--AT@c-->
+        <!--AT-leo-->
+        ''').lstrip().replace('AT', '@').replace('LB', '<<')
+        contents = contents.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
+        #@-<< define contents >>
+        #@+<< define expected >>
+        #@+node:ekr.20231204050205.1: *4* << define expected >> (test_html_doc_part)
+        # Be careful: no line should look like a Leo sentinel!
+        # Use neither a raw string nor an f-string here.
+        expected = textwrap.dedent('''
+        <!--AT+leo-ver=5-thin-->
+        <!--AT+node:{root.gnx}: * {h}-->
+        <!--AT@language html-->
         <!--AT+at-->
         <!--
         Line 1.
@@ -1017,11 +1326,80 @@ class TestFastAtRead(LeoUnitTest):
         -->
         <!--AT@c-->
         <!--AT-leo-->
-        ''').replace('AT', '@').replace('LB', '<<')
-        #@-<< define contents >>
+        ''').lstrip().replace('AT', '@')
+        expected = expected.replace('{root.gnx}', root.gnx).replace('{h}', root.h)
+        #@-<< define expected >>
+
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = expected.replace('#@', '# @') if blacken else expected
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+        
         x.read_into_root(contents, path='test', root=root)
         s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
+        # g.printObj(g.splitLines(s), tag='s')
+        
+        self.assertEqual(s, expected)
+    #@+node:ekr.20231203092436.1: *3* TestFastAtRead.test_minimal_cweb
+    #@@language python
+
+    def test_minimal_cweb(self):
+
+        c, x = self.c, self.x
+        h = '@file /test/test_cweb.w'
+        root = c.rootPosition()
+        root.h = h  # To match contents.
+        #@+<< define contents >>
+        #@+node:ekr.20231203092436.2: *4* << define contents >> (test_cweb)
+        # Be careful: no line should look like a Leo sentinel!
+        # Use a raw string so pyflakes won't complain about \document.
+        contents = textwrap.dedent(r'''
+        ATq@@+leo-ver=5-thin@>
+        ATq@@+node:{root.gnx}: * @{h}@>
+        ATq@@@@language cweb@>
+        % $Id: minimal.w,v 1.4 1995/08/25 19:12:41 schrod Exp $
+        %----------------------------------------------------------------------
+
+        % tests minimal CWEB w/ LaTeX input file
+
+        \documentclass{cweb}
+        \begin{document}
+
+        Test.
+
+        AT
+        \end{document}
+        ATq@@-leo@>
+        ''').lstrip()
+        contents = contents.replace('AT', '@').replace('{root.gnx}', root.gnx).replace('{h}', root.h)
+        #@-<< define contents >>
+        
+        for blacken in (True, False):
+
+            g.app.write_black_sentinels = blacken
+            test_s = contents.replace('#@', '# @') if blacken else contents
+            expected = test_s
+
+            x.read_into_root(contents, path='test', root=root)
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+            
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
     #@+node:ekr.20211101180354.1: *3* TestFastAtRead.test_verbatim
     def test_verbatim(self):
 
@@ -1039,7 +1417,7 @@ class TestFastAtRead(LeoUnitTest):
             # Test of @verbatim
             print('hi')
             #ATverbatim
-            #AT+node (should be protected by verbatim)
+            #AT+node (verbatim)
             #AT-leo
         ''').replace('AT', '@') # .replace('LB', '<<')
         #@-<< define contents >>
@@ -1049,26 +1427,97 @@ class TestFastAtRead(LeoUnitTest):
         ATlanguage python
         # Test of @verbatim
         print('hi')
-        #AT+node (should be protected by verbatim)
+        #AT+node (verbatim)
+        ''').replace('AT', '@')
+        #@-<< define expected_body >>
+        for blacken in (True, False):
+            g.app.write_black_sentinels = blacken
+            test_s = expected = contents
+
+            if blacken:
+                # All true sentinels should be blackened.
+                expected = test_s.replace('#@', '# @')
+                # Protect the @verbatim line.
+                expected = expected.replace('# @+node (verbatim)', '#@+node (verbatim)')
+
+            x.read_into_root(test_s, path='test', root=root)
+            
+            if root.b != expected_body:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(root.b), tag='root.b')
+                g.printObj(g.splitLines(expected_body), tag='expected_body')
+
+            self.assertEqual(root.b, expected_body)
+
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
+    #@+node:ekr.20231207080536.1: *3* TestFastAtRead.test_verbatim_html
+    def test_verbatim_html(self):
+
+        c, x = self.c, self.x
+        h = '@file /test/test_verbatim.html'
+        root = c.rootPosition()
+        root.h = h  # To match contents.
+        #@+<< define contents >>
+        #@+node:ekr.20231207080536.2: *4* << define contents >> (test_verbatim_html)
+        # Be careful: no line should look like a Leo sentinel!
+        contents = textwrap.dedent(f'''\
+            <!--AT+leo-ver=5-thin-->
+            <!--AT+node:{root.gnx}: * {h}-->
+            <!--AT@language html-->
+            <!-- Test of @verbatim-->
+            print('hi')
+            <!--ATverbatim-->
+            <!--AT+node (verbatim)-->
+                <!--ATverbatim-->
+                <!--AT+node (verbatim)-->
+            <!--AT-leo-->
+        ''').replace('AT', '@') # .replace('LB', '<<')
+        #@-<< define contents >>
+        #@+<< define expected_body >>
+        #@+node:ekr.20231207080536.3: *4* << define expected_body >> (test_verbatim_html)
+        expected_body = textwrap.dedent('''\
+        ATlanguage html
+        <!-- Test of @verbatim-->
+        print('hi')
+        <!--AT+node (verbatim)-->
+            <!--AT+node (verbatim)-->
         ''').replace('AT', '@')
         #@-<< define expected_body >>
 
-        # Test 1: without black delims.
-        g.app.write_black_sentinels = False
-        x.read_into_root(contents, path='test', root=root)
-        self.assertEqual(root.b, expected_body)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
+        for blacken in (True, False):
+            g.app.write_black_sentinels = blacken
+            test_s = expected = contents
 
-        # Test 2: with black delims.
-        g.app.write_black_sentinels = True
-        contents = contents.replace('#@', '# @')
-        expected_body = expected_body.replace('#@', '# @')
-        x.read_into_root(contents, path='test', root=root)
-        self.assertEqual(root.b, expected_body)
-        s = c.atFileCommands.atFileToString(root, sentinels=True)
-        self.assertEqual(contents, s)
+            if blacken:
+                # All true sentinels should be blackened.
+                expected = test_s.replace('#@', '# @')
+                # Protect the @verbatim line.
+                expected = expected.replace('<!-- @+node (verbatim)', '<!--@+node (verbatim)')
 
+            x.read_into_root(test_s, path='test', root=root)
+            
+            if root.b != expected_body:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(root.b), tag='root.b')
+                g.printObj(g.splitLines(expected_body), tag='expected_body')
+
+            self.assertEqual(root.b, expected_body)
+
+            results = c.atFileCommands.atFileToString(root, sentinels=True)
+
+            if results != expected:
+                g.printObj(g.splitLines(test_s), tag='test_s')
+                g.printObj(g.splitLines(results), tag='results')
+                g.printObj(g.splitLines(expected), tag='expected')
+
+            self.assertEqual(results, expected)
     #@-others
 #@-others
 #@-leo

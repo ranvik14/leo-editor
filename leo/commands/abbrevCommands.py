@@ -143,7 +143,7 @@ class AbbrevCommandsClass(BaseEditCommandsClass):
             try:
                 exec(script, c.abbrev_subst_env, c.abbrev_subst_env)  # type:ignore
             except Exception:
-                g.es('Error exec\'ing @data abbreviations-subst-env')
+                g.es('Error executing @data abbreviations-subst-env')
                 g.es_exception()
         else:
             c.abbrev_subst_start = ''  # Was False.
@@ -468,8 +468,7 @@ class AbbrevCommandsClass(BaseEditCommandsClass):
         ))
         changed = False
         # Perform at most one scripting substitution.
-        m = pattern.match(p.h)
-        if m:
+        if m := pattern.match(p.h):
             content = m.group(2)
             c.abbrev_subst_env['x'] = ''
             try:

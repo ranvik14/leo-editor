@@ -19,10 +19,20 @@ rem echo reindent leo/commands
 call py %REINDENT_PATH% -r leo\commands
 rem echo reindent leo/plugins/importers
 call py %REINDENT_PATH% -r leo\plugins\importers
+rem echo reindent leo/plugins/commands
+call py %REINDENT_PATH% leo\plugins\qt_commands.py
+call py %REINDENT_PATH% leo\plugins\qt_events.py
+call py %REINDENT_PATH% leo\plugins\qt_frame.py
+call py %REINDENT_PATH% leo\plugins\qt_gui.py
+call py %REINDENT_PATH% leo\plugins\qt_idle_time.py
+call py %REINDENT_PATH% leo\plugins\qt_text.py
+call py %REINDENT_PATH% leo\plugins\qt_tree.py
 rem echo reindent leo/plugins/writers
 call py %REINDENT_PATH% -r leo\plugins\writers
 rem echo reindent leo/unittests
 call py %REINDENT_PATH% -r leo\unittests
+rem echo reindent official plugins.
+call py %REINDENT_PATH% leo\plugins\indented_languages.py
 goto done
 
 :no_reindent

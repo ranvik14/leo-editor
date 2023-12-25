@@ -160,19 +160,40 @@ class Commands:
                 f"    2: {t3-t2:5.2f}\n"  # 0.53 sec: c.finishCreate.
                 f"total: {t3-t1:5.2f}"
             )
-    #@+node:ekr.20120217070122.10475: *5* c.computeWindowTitle
-    def computeWindowTitle(self, fileName: str) -> str:
-        """Set the window title and fileName."""
-        if fileName:
-            title = g.computeWindowTitle(fileName)
-        else:
-            s = "untitled"
-            n = g.app.numberOfUntitledWindows
-            if n > 0:
-                s += str(n)
-            title = g.computeWindowTitle(s)
-            g.app.numberOfUntitledWindows = n + 1
+    #@+node:ekr.20231123014221.1: *5* c.computeTabTitle
+    def computeTabTitle(self) -> str:
+        """
+        Return the tab title for this commander.
+        """
+        c = self
+        file_name = c.fileName()
+        if file_name:
+            return file_name
+        # Return 'untitled' or 'untitled{n}
+        n = g.app.numberOfUntitledWindows
+        n_s = '' if n < 2 else str(n)
+        title = f"untitled{n_s}"
         return title
+    #@+node:ekr.20120217070122.10475: *5* c.computeWindowTitle
+    def computeWindowTitle(self, fileName: str = None) -> str:
+        """
+        Return the title for the top-level window.
+        """
+        c = self
+        file_name = fileName or c.fileName()
+        if not file_name:
+            return 'untitled'
+        if re.match(r'^untitled\d+$', file_name):
+            return file_name
+        branch = g.gitBranchName(file_name)
+        branch_s = f"{branch}: " if branch else ''
+        # Pretty-print file_name.
+        path, fn = g.os_path_split(file_name)
+        name_s = f"{fn} in {path}" if path else fn
+        # Regularize slashes.
+        if os.sep in '/\\':
+            name_s = name_s.replace('/', os.sep).replace('\\', os.sep)
+        return f"{branch_s}{name_s}"
     #@+node:ekr.20120217070122.10473: *5* c.initCommandIvars
     def initCommandIvars(self) -> None:
         """Init ivars used while executing a command."""
@@ -189,7 +210,6 @@ class Commands:
         self.navPrefix: str = ''  # Must always be a string.
         self.navTime: Optional[float] = None
         self.recent_commands_list: list[str] = []  # List of command names.
-        self.sqlite_connection: Any = None
     #@+node:ekr.20120217070122.10466: *5* c.initDebugIvars
     def initDebugIvars(self) -> None:
         """Init Commander debugging ivars."""
@@ -228,30 +248,7 @@ class Commands:
         self.last_dir: str = None  # The last used directory.
         self.mFileName: str = fileName or ''  # Do _not_ use os_path_norm: it converts an empty path to '.' (!!)
         self.mRelativeFileName = relativeFileName or ''  #
-        self.openDirectory: Optional[str] = None  #
         self.orphan_at_file_nodes: list[Position] = []  # List of orphaned nodes for c.raise_error_dialogs.
-        self.wrappedFileName: Optional[str] = None  # The name of the wrapped file, for wrapper commanders.
-
-    #@+node:ekr.20120217070122.10469: *5* c.initOptionsIvars
-    def initOptionsIvars(self) -> None:
-        """Init Commander ivars corresponding to user options."""
-        self.fixed = False
-        self.fixedWindowPosition: list[tuple[int, int, int, int]] = []
-        self.forceExecuteEntireBody = False
-        self.focus_border_color = 'white'
-        self.focus_border_width = 1  # pixels
-        self.outlineHasInitialFocus = False
-        self.page_width = 132
-        self.sparse_find = True
-        self.sparse_move = True
-        self.sparse_spell = True
-        self.sparse_goto_visible = False
-        self.stayInTreeAfterSelect = False
-        self.tab_width = -4
-        self.tangle_batch_flag = False
-        self.target_language = "python"
-        self.untangle_batch_flag = False
-        self.vim_mode = False
     #@+node:ekr.20120217070122.10470: *5* c.initObjects
     #@@nobeautify
 
@@ -261,7 +258,7 @@ class Commands:
         self.hiddenRootNode = leoNodes.VNode(context=c, gnx='hidden-root-vnode-gnx')
         self.hiddenRootNode.h = '<hidden root vnode>'
         # Create the gui frame.
-        title = c.computeWindowTitle(c.mFileName)
+        title = c.computeTabTitle()
         if not g.app.initing:
             g.doHook("before-create-leo-frame", c=c)
         self.frame = gui.createLeoFrame(c, title)
@@ -278,6 +275,7 @@ class Commands:
         from leo.core import leoAtFile
         from leo.core import leoBeautify  # So decorators are executed.
         assert leoBeautify  # for pyflakes.
+        from leo.core.leoCache import CommanderWrapper
         from leo.core import leoChapters
         # User commands...
         from leo.commands import abbrevCommands
@@ -376,10 +374,12 @@ class Commands:
             self.vimCommands,
             self.undoer,
         ]
+
         # Other objects
         # A list of other classes that have a reloadSettings method
         c.configurables = c.subCommanders[:]
-        c.db = g.app.commander_cacher.get_wrapper(c)
+        c.db = CommanderWrapper(c)
+        
         # #2485: Load the free_layout plugin in the proper context.
         #        g.app.pluginsController.loadOnePlugin won't work here.
         try:
@@ -393,6 +393,26 @@ class Commands:
             self.subCommanders.append(self.styleSheetManager)
         else:
             self.styleSheetManager = None
+    #@+node:ekr.20120217070122.10469: *5* c.initOptionsIvars
+    def initOptionsIvars(self) -> None:
+        """Init Commander ivars corresponding to user options."""
+        self.fixed = False
+        self.fixedWindowPosition: list[tuple[int, int, int, int]] = []
+        self.forceExecuteEntireBody = False
+        self.focus_border_color = 'white'
+        self.focus_border_width = 1  # pixels
+        self.outlineHasInitialFocus = False
+        self.page_width = 132
+        self.sparse_find = True
+        self.sparse_move = True
+        self.sparse_spell = True
+        self.sparse_goto_visible = False
+        self.stayInTreeAfterSelect = False
+        self.tab_width = -4
+        self.tangle_batch_flag = False
+        self.target_language = "python"
+        self.untangle_batch_flag = False
+        self.vim_mode = False
     #@+node:ekr.20140815160132.18837: *5* c.initSettings
     def initSettings(self, previousSettings: "PreviousSettings") -> None:
         """Instantiate c.config from previous settings."""
@@ -580,7 +600,6 @@ class Commands:
         c.make_node_conflicts_node = getBool('make-node-conflicts-node', default=True)
         c.outlineHasInitialFocus = getBool('outline-pane-has-initial-focus')
         c.page_width = getInt('page-width') or 132
-        # c.putBitsFlag = getBool('put-expansion-bits-in-leo-files', default=True)
         c.sparse_move = getBool('sparse-move-outline-left')
         c.sparse_find = getBool('collapse-nodes-during-finds')
         c.sparse_spell = getBool('collapse-nodes-while-spelling')
@@ -1121,8 +1140,8 @@ class Commands:
         # A mypy bug? the script can be str.
         rewrite_asserts(tree, script, config=cfg)  # type:ignore
         co = compile(tree, fname, "exec", dont_inherit=True)
-        sys.path.insert(0, '.')
-        sys.path.insert(0, c.frame.openDirectory)
+        sys.path.insert(0, os.getcwd())
+        sys.path.insert(0, g.os_path_dirname(c.fileName()))  # per SegundoBob
         try:
             exec(co, {'c': c, 'g': g, 'p': p})
         except KeyboardInterrupt:
@@ -1183,8 +1202,8 @@ class Commands:
             log = c.frame.log
             g.app.log = log
             if script.strip():
-                sys.path.insert(0, '.')  # New in Leo 5.0
-                sys.path.insert(0, c.frame.openDirectory)  # per SegundoBob
+                sys.path.insert(0, os.getcwd())
+                sys.path.insert(0, g.os_path_dirname(c.fileName()))  # per SegundoBob
                 script += '\n'  # Make sure we end the script properly.
                 try:
                     if not namespace or namespace.get('script_gnx') is None:
@@ -2349,20 +2368,19 @@ class Commands:
             raise
     #@+node:ekr.20171123200644.1: *3* c.Convenience methods
     #@+node:ekr.20230402232100.1: *4* c.fullPath
-    def fullPath(self, p: Position, simulate: bool = False) -> str:
+    def fullPath(self, p: Position) -> str:
         """
-        Return the full path (including fileName) in effect at p. Neither the
-        path nor the fileName will be created if it does not exist.
+        Return the full path in effect at p.
+        
+        If p is an @<file> node, return the path, including the filename.
+        Otherwise the return the path to the enclosing directory.
+        
+        Neither the path nor the fileName will be created if it does not exist.
         """
         c = self
-        # Search p and p's parents.
-        for p in p.self_and_parents(copy=False):
-            aList = g.get_directives_dict_list(p)
-            path = c.scanAtPathDirectives(aList)
-            fn = p.h if simulate else p.anyAtFileNodeName()  # Use p.h for unit tests.
-            if fn:
-                return g.finalize_join(path, fn)
-        return ''
+        aList = g.get_directives_dict_list(p)
+        path = c.scanAtPathDirectives(aList)
+        return g.finalize_join(path, p.anyAtFileNodeName())
     #@+node:ekr.20171123135625.39: *4* c.getTime
     def getTime(self, body: bool = True) -> str:
         c = self
@@ -2611,24 +2629,26 @@ class Commands:
     #@+node:ekr.20080828103146.15: *4* c.scanAtPathDirectives
     def scanAtPathDirectives(self, aList: list) -> str:
         """
-        Scan aList for @path directives.
+        Scan aList (created by g.get_directives_dict_list) for @path directives.
+
         Return a reasonable default if no @path directive is found.
         """
         c = self
         c.scanAtPathDirectivesCount += 1  # An important statistic.
-        base = c.openDirectory
-        absbase = g.finalize_join(g.app.loadDir, base)
+        if c.fileName():
+            absbase = g.os_path_dirname(c.fileName())
+        else:
+            absbase = os.getcwd()
 
         # Look for @path directives.
         paths = []
         for d in aList:
             # Look for @path directives.
             path = d.get('path')
-            warning = d.get('@path_in_body')
             if path is not None:  # retain empty paths for warnings.
                 # Convert "path" or <path> to path.
                 path = g.stripPathCruft(path)
-                if path and not warning:  # Silently ignore empty @path directives.
+                if path:
                     paths.append(path)
 
         # Add absbase and reverse the list.
@@ -3209,34 +3229,6 @@ class Commands:
         if g.app.externalFilesController:
             return g.app.externalFilesController.check_overwrite(c, fn)
         return True
-    #@+node:ekr.20090212054250.9: *4* c.createNodeFromExternalFile
-    def createNodeFromExternalFile(self, fn: str) -> None:
-        """
-        Read the file into a node.
-        Return None, indicating that c.open should set focus.
-        """
-        c = self
-        s, e = g.readFileIntoString(fn)
-        if s is None:
-            return
-        head, ext = g.os_path_splitext(fn)
-        if ext.startswith('.'):
-            ext = ext[1:]
-        language = g.app.extension_dict.get(ext)
-        if language:
-            prefix = f"@color\n@language {language}\n\n"
-        else:
-            prefix = '@killcolor\n\n'
-        # pylint: disable=no-member
-        # Defined in commanderOutlineCommands.py
-        p2 = c.insertHeadline(op_name='Open File', as_child=False)
-        p2.h = f"@edit {fn}"
-        p2.b = prefix + s
-        w = c.frame.body.wrapper
-        if w:
-            w.setInsertPoint(0)
-        c.redraw()
-        c.recolor()
     #@+node:ekr.20110530124245.18248: *4* c.looksLikeDerivedFile
     def looksLikeDerivedFile(self, fn: str) -> bool:
         """
@@ -3321,6 +3313,21 @@ class Commands:
             else:
                 g.internalError(f"no gnx for vnode: {v}")
         c.fileCommands.gnxDict = d
+    #@+node:ekr.20031218072017.2081: *4* c.openRecentFile
+    def openRecentFile(self, event: Event = None, fn: str = None) -> None:
+        """
+        c.openRecentFile: This is not a command!
+        
+        This method is a helper called only from the recentFilesCallback in
+        rf.createRecentFilesMenuItems.
+        """
+        c = self
+        if g.doHook("recentfiles1", c=c, p=c.p, v=c.p, fileName=fn):
+            return
+        c2 = g.openWithFileName(fn, old_c=c)
+        if c2:
+            g.app.makeAllBindings()
+            g.doHook("recentfiles2", c=c2, p=c2.p, v=c2.p, fileName=fn)
     #@+node:ekr.20180508111544.1: *3* c.Git
     #@+node:ekr.20180510104805.1: *4* c.diff_file
     def diff_file(self, fn: str, rev1: str = 'HEAD', rev2: str = '') -> None:
@@ -3370,6 +3377,7 @@ class Commands:
     #@+node:ekr.20111217154130.10284: *5* c.init_error_dialogs
     def init_error_dialogs(self) -> None:
         c = self
+        g.app.syntax_error_files = []
         c.import_error_nodes = []
         c.ignored_at_file_nodes = []
         c.orphan_at_file_nodes = []
@@ -3977,9 +3985,7 @@ class Commands:
     ) -> None:
         c = self
         if command:
-            # Command is always either:
-            # one of two callbacks defined in createMenuEntries or
-            # recentFilesCallback, defined in createRecentFilesMenuItems.
+            # Command is one of two callbacks defined in createMenuEntries.
 
             def add_commandCallback(c: Commands = c, command: Callable = command) -> Any:
                 val = command()

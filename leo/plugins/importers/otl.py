@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 from leo.core import leoGlobals as g
-from leo.plugins.importers.base_importer import Block, Importer
+from leo.plugins.importers.base_importer import Importer
 
 if TYPE_CHECKING:
     from leo.core.leoCommands import Commands as Cmdr
@@ -34,9 +34,9 @@ class Otl_Importer(Importer):
     otl_body_pattern = re.compile(r'^: (.*)$')
     otl_node_pattern = re.compile(r'^[ ]*(\t*)(.*)$')
 
-    def gen_block(self, block: Block, parent: Position) -> None:
+    def gen_block(self, parent: Position) -> None:
         """
-        Otl_Importer: gen_block. The `block` arg is unused.
+        Otl_Importer: gen_block.
 
         Node generator for otl (vim-outline) mode.
 
@@ -54,13 +54,11 @@ class Otl_Importer(Importer):
         for line in lines:
             if not line.strip():
                 continue  # New.
-            m = self.otl_body_pattern.match(line)
-            if m:
+            if m := self.otl_body_pattern.match(line):
                 top = parents[-1]
                 lines_dict[top.v].append(m.group(1) + '\n')
                 continue
-            m = self.otl_node_pattern.match(line)
-            if m:
+            if m := self.otl_node_pattern.match(line):
                 # Cut back the stack, then allocate a new node.
                 level = 1 + len(m.group(1))
                 parents = parents[:level]

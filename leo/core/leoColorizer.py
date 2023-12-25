@@ -12,7 +12,7 @@ from collections.abc import Callable
 import re
 import string
 import time
-from typing import Any, Generator, Sequence, Optional, TYPE_CHECKING
+from typing import Any, Generator, Sequence, Optional, Union, TYPE_CHECKING
 #
 # Third-part tools.
 try:
@@ -171,8 +171,7 @@ class BaseColorizer:
             for setting in sorted(c.config.settingsDict):
                 gs = c.config.settingsDict.get(setting)
                 if gs and gs.source:  # An @font setting.
-                    m = setting_pat.match(gs.source)
-                    if m:
+                    if m := setting_pat.match(gs.source):
                         language, tag = m.group(1), m.group(2)
                         if language in valid_languages and tag in valid_tags:
                             self.resolve_font(setting, language, tag, gs.val)
@@ -933,8 +932,7 @@ class JEditColorizer(BaseColorizer):
 
         def find_delims(v: VNode) -> Optional[re.Match]:
             for s in g.splitLines(v.b):
-                m = g.g_section_delims_pat.match(s)
-                if m:
+                if m := g.g_section_delims_pat.match(s):
                     return m
             return None
 
@@ -1627,8 +1625,7 @@ class JEditColorizer(BaseColorizer):
 
     def match_image(self, s: str, i: int) -> int:
         """Matcher for <img...>"""
-        m = self.image_url.match(s, i)
-        if m:
+        if m := self.image_url.match(s, i):
             self.image_src = src = m.group(1)
             j = len(src)
             doc = self.highlighter.document()
@@ -1848,6 +1845,123 @@ class JEditColorizer(BaseColorizer):
         # j = len(s)
         # self.colorRangeWithTag(s,i,j,kind,delegate=delegate)
         # return j
+    #@+node:ekr.20231209010844.1: *4* jedit.match_fstring
+    f_string_nesting_level = 0
+
+    def match_fstring(self, s: str, i: int) -> int:
+        """
+        Match a python 3.12 f-string.
+        
+        Called only for python 3.12+.
+        """
+        # Fail quickly if possible.
+        if i + 1 >= len(s):
+            return 0
+
+        # Make sure this is an f-string.
+        if 'f' not in s[i : i + 2].lower():
+            return 0
+
+        # Find the opening string delim.
+        j = 1 if s[i + 1] in 'rfRF' else 0
+        delim_offset = i + j + 1
+        if delim_offset >= len(s):
+            return 0
+        delim = s[delim_offset]
+        if delim not in ('"', '"'):
+            return 0
+
+        # Init.
+        self.f_string_nesting_level = 0
+        if g.match(s, delim_offset, delim * 3):
+            delim = delim * 3
+
+        # print(f"  match_fstring i: {i:2} delim: {delim} s: {s}")
+
+        # Similar to code for docstrings (match_span).
+        start = delim_offset
+        end = self.match_fstring_helper(s, start + len(delim), delim)
+        if end == -1:
+            return 0  # A real failure.
+
+        # Color this line.
+        self.colorRangeWithTag(s, start, end, tag='literal1')
+        self.prev = (i, end, delim)
+        self.trace_match(delim, s, i, end)
+
+        # Continue the f-string if necessary.
+        if end > len(s):
+            end = len(s) + 1
+
+            def fstring_restarter(s: str) -> int:
+                """Freeze the binding of delim"""
+                return self.restart_fstring(s, delim)
+
+            self.setRestart(fstring_restarter)
+
+        return end - i  # Correct, whatever end is.
+    #@+node:ekr.20231209015334.1: *5* jedit.match_fstring_helper
+    def match_fstring_helper(self, s: str, i: int, delim: str) -> int:
+        """
+        Return n >= 0 if s[i:] contains with a non-escaped delim at fstring-level 0.
+        
+        Return len(s) + 1 if the fstring should continue.
+        """
+        escape, escapes = '\\', 0
+        level = self.f_string_nesting_level
+        alt_delim = '"' if delim == "'" else "'"  # Works for triple delims.
+        in_alt_delim = False
+
+        # Scan, incrementing escape count and f-string level.
+        while i < len(s):
+            progress = i
+            if g.match(s, i, delim):
+                if (escapes % 2) == 0 and level == 0 and not in_alt_delim:
+                    return i + len(delim)
+                i += len(delim)
+                continue
+            if g.match(s, i, alt_delim):
+                in_alt_delim = not in_alt_delim
+                i += 1
+                continue
+            ch = s[i]
+            i += 1
+            if ch == '#' and (escapes % 2) == 0 and not in_alt_delim:
+                break  # Don't scan comments.
+            if ch == escape:
+                escapes += 1
+            elif ch == '{':
+                level += 1
+            elif ch == '}':
+                level -= 1
+            else:
+                escapes = 0
+            assert progress < i, (i, s)
+
+        # Continue scanning.
+        self.f_string_nesting_level = level
+        return len(s) + 1
+    #@+node:ekr.20231209082830.1: *5* jedit.restart_fstring
+    def restart_fstring(self, s: str, delim: str) -> int:
+        """Remain in this state until 'delim' is seen."""
+        i = 0
+        j = self.match_fstring_helper(s, i, delim)
+        j2 = len(s) + 1 if j == -1 else j
+        self.colorRangeWithTag(s, i, j2, tag='literal1')
+        self.trace_match(delim, s, i, j2)
+
+        # Restart of necessary.
+        if j > len(s):
+
+            def fstring_restarter(s: str) -> int:
+                """Freeze the binding of delim."""
+                return self.restart_fstring(s, delim)
+
+            self.setRestart(fstring_restarter)
+
+        else:
+            self.clearState()
+        return j  # Return the new i, *not* the length of the match.
     #@+node:ekr.20110605121601.18614: *4* jedit.match_keywords
     # This is a time-critical method.
 
@@ -1999,20 +2113,24 @@ class JEditColorizer(BaseColorizer):
         # This match was causing most of the syntax-color problems.
         return 0  # 2009/6/23
     #@+node:ekr.20110605121601.18619: *4* jedit.match_regexp_helper
-    def match_regexp_helper(self, s: str, i: int, pattern: str) -> int:
+    def match_regexp_helper(self, s: str, i: int, pattern: Any) -> int:
         """
         Return the length of the matching text if
         seq (a regular expression) matches the present position.
         """
-        try:
-            flags = re.MULTILINE
-            if self.ignore_case:
-                flags |= re.IGNORECASE
-            re_obj = re.compile(pattern, flags)
-        except Exception:
-            # Do not call g.es here!
-            g.trace(f"Invalid regular expression: {pattern}")
-            return 0
+        # Leo 6.7.6: Allow compiled regexes.
+        if isinstance(pattern, str):
+            try:
+                flags = re.MULTILINE
+                if self.ignore_case:
+                    flags |= re.IGNORECASE
+                re_obj = re.compile(pattern, flags)
+            except Exception:
+                # Do not call g.es here!
+                g.trace(f"Invalid regular expression: {pattern}")
+                return 0
+        else:
+            re_obj = pattern
         # Match succeeds or fails more quickly than search.
         self.match_obj = mo = re_obj.match(s, i)  # re_obj.search(s,i)
         if mo is None:
@@ -2122,7 +2240,7 @@ class JEditColorizer(BaseColorizer):
         # Prepend "dots" to the kind, as a flag to setTag.
         dots = j > len(
             s) and begin in "'\"" and end in "'\"" and kind.startswith('literal')
-        dots = dots and self.language not in ('lisp', 'elisp', 'rust')
+        dots = dots and self.language not in ('lisp', 'elisp', 'rust', 'scheme')
         if dots:
             kind = 'dots' + kind
         # A match
@@ -2277,7 +2395,7 @@ class JEditColorizer(BaseColorizer):
         s: str,
         i: int,
         kind: str = '',
-        begin: str = '',
+        begin: Union[re.Pattern, str] = '',
         end: str = '',
         at_line_start: bool = False,
         at_whitespace_end: bool = False,
@@ -2289,8 +2407,13 @@ class JEditColorizer(BaseColorizer):
         no_word_break: bool = False,
     ) -> int:
         """
-        Succeed if s[i:] starts with 'begin' (a regular expression) and
-        contains a following 'end'.
+        Succeed if s[i:] matches 'begin' a regex string or compiled regex.
+
+        Callers should use regex features to limit the search.
+
+        New in Leo 6.7.6:
+        - The 'begin' arg may be compiled pattern (re.Pattern).
+        - The 'end' arg is optional.
         """
         if at_line_start and i != 0 and s[i - 1] != '\n':
             return 0
@@ -2299,7 +2422,8 @@ class JEditColorizer(BaseColorizer):
         if at_word_start and i > 0 and s[i - 1] in self.word_chars:
             return 0  # 7/5/2008
         if (
-            at_word_start
+            isinstance(begin, str)
+            and at_word_start
             and i + len(begin) + 1 < len(s)
             and s[i + len(begin)] in self.word_chars
         ):
@@ -2307,10 +2431,11 @@ class JEditColorizer(BaseColorizer):
         n = self.match_regexp_helper(s, i, begin)
         # We may have to allow $n here, in which case we must use a regex object?
         if n > 0:
-            j = i + n
-            j2 = s.find(end, j)
-            if j2 == -1:
-                return 0
+            j = j2 = i + n
+            if end:  # Leo 6.7.6.
+                j2 = s.find(end, j)
+                if j2 == -1:
+                    return 0
             if self.escape and not no_escape:
                 # Only an odd number of escapes is a 'real' escape.
                 escapes = 0
@@ -2349,8 +2474,7 @@ class JEditColorizer(BaseColorizer):
         2. Exactly one character, of any kind.
         """
         assert s[i] == '\\'
-        m = self.ascii_letters.match(s, i + 1)
-        if m:
+        if m := self.ascii_letters.match(s, i + 1):
             n = len(m.group(0))
             j = i + n + 1
         else:
@@ -2363,8 +2487,7 @@ class JEditColorizer(BaseColorizer):
     #@+node:ekr.20170205074106.1: *4* jedit.match_wiki_pattern
     def match_wiki_pattern(self, s: str, i: int, pattern: Any) -> int:
         """Show or hide a regex pattern managed by the wikiview plugin."""
-        m = pattern.match(s, i)
-        if m:
+        if m := pattern.match(s, i):
             n = len(m.group(0))
             self.colorRangeWithTag(s, i, i + n, 'url')
             return n
@@ -3033,8 +3156,9 @@ class PygmentsColorizer(BaseColorizer):
         try:
             return PatchedLexer()
         except Exception:
-            g.trace(f"can not patch {language!r}")
-            g.es_exception()
+            if 0:  # #3456: Suppress this error.
+                g.trace(f"can not patch {language!r}")
+                g.es_exception()
             return lexer
     #@+node:ekr.20190322133358.1: *4* pyg_c.section_ref_callback
     def section_ref_callback(self, lexer: Any, match: Any) -> Generator:
@@ -3268,8 +3392,7 @@ if pygments:
             return
         while 1:
             for rexmatch, action, new_state in statetokens:
-                m = rexmatch(text, pos)
-                if m:
+                if m := rexmatch(text, pos):
                     if action is not None:
                         # pylint: disable=unidiomatic-typecheck
                         # EKR: Why not use isinstance?

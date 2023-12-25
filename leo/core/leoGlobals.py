@@ -63,7 +63,11 @@ if TYPE_CHECKING:  # pragma: no cover
 in_bridge = False  # True: leoApp object loads a null Gui.
 in_vs_code = False  # #2098.
 minimum_python_version = '3.9'
-isPython3 = sys.version_info >= (3, 0, 0)  # Not used in Leo's core.
+minimum_python_version_tuple = (3, 9, 0)
+v1, v2, v3, junk2, junk3 = sys.version_info
+python_version_tuple = (v1, v2, v3)
+isPython3 = python_version_tuple >= (3, 0, 0)
+isValidPython = python_version_tuple >= minimum_python_version_tuple
 isMac = sys.platform.startswith('darwin')
 isWindows = sys.platform.startswith('win')
 #@+<< define g.globalDirectiveList >>
@@ -1498,8 +1502,7 @@ class OptionsUtils:
         option_pattern = re.compile(r'\s*(-\w)?,?\s*(--[\w-]+=?)')
         valid = ['-?']
         for line in g.splitLines(self.usage):
-            m = option_pattern.match(line)
-            if m:
+            if m := option_pattern.match(line):
                 if m.group(1):
                     valid.append(m.group(1))
                 if m.group(2):
@@ -1516,8 +1519,7 @@ class OptionsUtils:
         prefix = regex.split('=')[0]
         for arg in sys.argv:
             if arg.split('=')[0] == prefix:
-                m = re.match(regex, arg)
-                if m:
+                if m := re.match(regex, arg):
                     return m
                 self.option_error(arg, 'Missing or erroneous value')
         return None
@@ -1864,16 +1866,10 @@ def startTracer(limit: int = 0, trace: bool = False, verbose: bool = False) -> C
 #@@nobeautify
 
 tracing_tags: dict[int, str] = {}  # Keys are id's, values are tags.
-tracing_vars: dict[int, list] = {}  # Keys are id's, values are names of ivars.
-# Keys are signatures: '%s.%s:%s' % (tag, attr, callers). Values not important.
-tracing_signatures: dict[str, Any] = {}
-
 class NullObject:
     """An object that does nothing, and does it very well."""
     def __init__(self, ivars: list[str]=None, *args: Any, **kwargs: Any) -> None:
-        if isinstance(ivars, str):
-            ivars = [ivars]
-        tracing_vars [id(self)] = ivars or []
+        pass
     def __call__(self, *args: Any, **keys: Any) -> "NullObject":
         return self
     def __repr__(self) -> str:
@@ -1884,12 +1880,9 @@ class NullObject:
     def __delattr__(self, attr: str) -> None:
         return None
     def __getattr__(self, attr: str) -> Any:
-        if attr in tracing_vars.get(id(self), []):
-            return getattr(self, attr, None)
         return self # Required.
     def __setattr__(self, attr: str, val: Any) -> None:
-        if attr in tracing_vars.get(id(self), []):
-            object.__setattr__(self, attr, val)
+        return None
     # Container methods..
     def __bool__(self) -> bool:
         return False
@@ -1910,38 +1903,27 @@ class NullObject:
 
 class TracingNullObject:
     """Tracing NullObject."""
-    def __init__(self, tag: str, ivars: list[Any]=None, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, tag: str, ivars: list[str]=None, *args: Any, **kwargs: Any) -> None:
         tracing_tags [id(self)] = tag
-        if isinstance(ivars, str):
-            ivars = [ivars]
-        tracing_vars [id(self)] = ivars or []
     def __call__(self, *args: Any, **kwargs: Any) -> "TracingNullObject":
         return self
     def __repr__(self) -> str:
         return f'TracingNullObject: {tracing_tags.get(id(self), "<NO TAG>")}'
     def __str__(self) -> str:
         return f'TracingNullObject: {tracing_tags.get(id(self), "<NO TAG>")}'
-    #
+
     # Attribute access...
     def __delattr__(self, attr: str) -> None:
         return None
     def __getattr__(self, attr: str) -> "TracingNullObject":
-        null_object_print_attr(id(self), attr)
-        if attr in tracing_vars.get(id(self), []):
-            return getattr(self, attr, None)
+        g.null_object_print(id(self), f"attr: {attr}")
         return self # Required.
     def __setattr__(self, attr: str, val: Any) -> None:
-        g.null_object_print(id(self), '__setattr__', attr, val)
-        if attr in tracing_vars.get(id(self), []):
-            object.__setattr__(self, attr, val)
-    #
+        g.null_object_print(id(self), f"__setattr__: {attr} {val!r}")
+
     # All other methods...
     def __bool__(self) -> bool:
-        if 0: # To do: print only once.
-            suppress = ('getShortcut','on_idle', 'setItemText')
-            callers = g.callers(2)
-            if not callers.endswith(suppress):
-                g.null_object_print(id(self), '__bool__')
+        g.null_object_print(id(self), '__bool__')
         return False
     def __contains__(self, item: Any) -> bool:
         g.null_object_print(id(self), '__contains__')
@@ -1961,75 +1943,17 @@ class TracingNullObject:
     def __setitem__(self, key: str, val: Any) -> None:
         g.null_object_print(id(self), '__setitem__')
         # pylint doesn't like trailing return None.
-#@+node:ekr.20190330062625.1: *4* g.null_object_print_attr
-def null_object_print_attr(id_: int, attr: str) -> None:
-    suppress = True
-    suppress_callers: list[str] = []
-    suppress_attrs: list[str] = []
-    if suppress:
-        #@+<< define suppression lists >>
-        #@+node:ekr.20190330072026.1: *5* << define suppression lists >>
-        suppress_callers = [
-            'drawNode', 'drawTopTree', 'drawTree',
-            'contractItem', 'getCurrentItem',
-            'declutter_node',
-            'finishCreate',
-            'initAfterLoad',
-            'show_tips',
-            'writeWaitingLog',
-            # 'set_focus', 'show_tips',
-        ]
-        suppress_attrs = [
-            # Leo...
-            'c.frame.body.wrapper',
-            'c.frame.getIconBar.add',
-            'c.frame.log.createTab',
-            'c.frame.log.enable',
-            'c.frame.log.finishCreate',
-            'c.frame.menu.createMenuBar',
-            'c.frame.menu.finishCreate',
-            # 'c.frame.menu.getMenu',
-            'currentItem',
-            'dw.leo_master.windowTitle',
-            # Pyzo...
-            'pyzo.keyMapper.connect',
-            'pyzo.keyMapper.keyMappingChanged',
-            'pyzo.keyMapper.setShortcut',
-        ]
-        #@-<< define suppression lists >>
-    tag = tracing_tags.get(id_, "<NO TAG>")
-    callers = g.callers(3).split(',')
-    callers = ','.join(callers[:-1])
-    in_callers = any(z in callers for z in suppress_callers)
-    s = f"{tag}.{attr}"
-    if suppress:
-        # Filter traces.
-        if not in_callers and s not in suppress_attrs:
-            g.pr(f"{s:40} {callers}")
-    else:
-        # Print each signature once.  No need to filter!
-        signature = f"{tag}.{attr}:{callers}"
-        if signature not in tracing_signatures:
-            tracing_signatures[signature] = True
-            g.pr(f"{s:40} {callers}")
 #@+node:ekr.20190330072832.1: *4* g.null_object_print
 def null_object_print(id_: int, kind: Any, *args: Any) -> None:
     tag = tracing_tags.get(id_, "<NO TAG>")
     callers = g.callers(3).split(',')
-    callers = ','.join(callers[:-1])
+    callers_s = ','.join(callers[:-1])
     s = f"{kind}.{tag}"
-    signature = f"{s}:{callers}"
-    if 1:
-        # Always print:
-        if args:
-            args_s = ', '.join([repr(z) for z in args])
-            g.pr(f"{s:40} {callers}\n\t\t\targs: {args_s}")
-        else:
-            g.pr(f"{s:40} {callers}")
-    elif signature not in tracing_signatures:
-        # Print each signature once.
-        tracing_signatures[signature] = True
-        g.pr(f"{s:40} {callers}")
+    if args:
+        args_s = ', '.join([repr(z) for z in args])
+        g.pr(f"{s:40} {callers_s}\n\t\t\targs: {args_s}")
+    else:
+        g.pr(f"{s:40} {callers_s}")
 #@+node:ville.20090827174345.9963: *3* class g.UiTypeException & g.assertui
 class UiTypeException(Exception):
     pass
@@ -2107,7 +2031,7 @@ def _assert(condition: Any, show_callers: bool = True) -> bool:
     if show_callers:
         g.es_print(g.callers())
     return False
-#@+node:ekr.20051023083258: *4* g.callers, caller,  _callerName, callers_list
+#@+node:ekr.20051023083258: *4* g.callers, caller, my_name, etc.
 #@+node:ekr.20230128025911.1: *5* g.callers
 def callers(n: int = 4) -> str:
     """
@@ -2144,8 +2068,9 @@ def callers_list(n: int = 4) -> list[str]:
     return list(reversed(result))
 #@+node:ekr.20031218072017.3107: *5* g._callerName
 def _callerName(n: int) -> str:
+    """Return the name of the caller n levels back in the call stack."""
     try:
-        # get the function name from the call stack.
+        # Get the function name from the call stack.
         f1 = sys._getframe(n)  # The stack frame, n levels up.
         code1 = f1.f_code  # The code object
         locals_ = f1.f_locals  # The local namespace.
@@ -2167,6 +2092,10 @@ def _callerName(n: int) -> str:
 def caller(i: int = 1) -> str:
     """Return the caller name i levels up the stack."""
     return g.callers(i + 1).split(',')[0]
+#@+node:ekr.20230929150105.1: *5* g.my_name
+def my_name(i: int = 1) -> str:
+    """Return the name of the function or method calling this function"""
+    return g.callers(-1).split(',')[0]
 #@+node:ekr.20031218072017.3109: *4* g.dump
 def dump(s: str) -> str:
     out = ""
@@ -2367,7 +2296,7 @@ def sleep(n: float) -> None:
     from time import sleep  # type:ignore
     sleep(n)  # type:ignore
 #@+node:ekr.20171023140544.1: *4* g.printObj & aliases
-def printObj(obj: Any, tag: str = None, indent: int = 0) -> None:
+def printObj(obj: Any, *, tag: str = None, indent: int = 0) -> None:
     """Pretty print any Python object using g.pr."""
     g.pr(objToString(obj, indent=indent, tag=tag))
 
@@ -2636,6 +2565,8 @@ def findReference(name: str, root: Position) -> Optional[Position]:
             return p.copy()
     return None
 #@+node:ekr.20090214075058.9: *3* g.get_directives_dict (must be fast)
+at_path_warnings_dict: dict[str, bool] = {}
+
 def get_directives_dict(p: Position) -> dict[str, str]:
     """
     Scan p for Leo directives found in globalDirectiveList.
@@ -2645,7 +2576,7 @@ def get_directives_dict(p: Position) -> dict[str, str]:
     """
     d = {}
     # The headline has higher precedence because it is more visible.
-    for s in (p.h, p.b):
+    for kind, s in (('head', p.h), ('body', p.b)):
         anIter = g.directives_pat.finditer(s)
         for m in anIter:
             word = m.group(1).strip()
@@ -2655,6 +2586,14 @@ def get_directives_dict(p: Position) -> dict[str, str]:
             j = i + len(word)
             if j < len(s) and s[j] not in ' \t\n':
                 # Not a valid directive: just ignore it.
+                continue
+            # Warning if @path is in the body of an @file node.
+            if word == 'path' and kind == 'body' and p.isAtFileNode():
+                if p.h not in at_path_warnings_dict:
+                    if not at_path_warnings_dict:
+                        print('\n@path is not allowed in the body text of @file nodes\n')
+                    at_path_warnings_dict[p.h] = True
+                    print(f"Ignoring @path in {p.h}")
                 continue
             k = g.skip_line(s, j)
             val = s[j:k].strip()
@@ -2795,8 +2734,7 @@ def inAtNosearch(p: Position) -> bool:
 #@+node:ekr.20131230090121.16528: *3* g.isDirective
 def isDirective(s: str) -> bool:
     """Return True if s starts with a directive."""
-    m = g_is_directive_pattern.match(s)
-    if m:
+    if m := g_is_directive_pattern.match(s):
         s2 = s[m.end(1) :]
         if s2 and s2[0] in ".(":
             return False
@@ -2866,7 +2804,7 @@ def scanAtPagewidthDirectives(aList: list, issue_error_flag: bool = False) -> Op
             if issue_error_flag and not g.unitTesting:
                 g.error("ignoring @pagewidth", s)
     return None
-#@+node:ekr.20101022172109.6108: *3* g.scanAtPathDirectives
+#@+node:ekr.20101022172109.6108: *3* g.scanAtPathDirectives & scanAllAtPathDirectives
 def scanAtPathDirectives(c: Cmdr, aList: list) -> str:
     path = c.scanAtPathDirectives(aList)
     return path
@@ -3064,6 +3002,9 @@ update_directives_pat()
 #@+node:ekr.20031218072017.3116: ** g.Files & Directories
 #@+node:ekr.20080606074139.2: *3* g.chdir
 def chdir(path: str) -> None:
+    """Change current directory to the directory corresponding to path."""
+    if g.unitTesting:
+        return  # Don't change the global environment in unit tests!
     if not g.os_path_isdir(path):
         path = g.os_path_dirname(path)
     if g.os_path_isdir(path) and g.os_path_exists(path):
@@ -3088,23 +3029,6 @@ def computeMachineName() -> str:
 
 def computeStandardDirectories() -> str:
     return g.app.loadManager.computeStandardDirectories()
-#@+node:ekr.20031218072017.3103: *3* g.computeWindowTitle
-def computeWindowTitle(fileName: str) -> str:
-
-    branch, commit = g.gitInfoForFile(fileName)  # #1616
-    if not fileName:
-        return branch + ": untitled" if branch else 'untitled'
-    path, fn = g.os_path_split(fileName)
-    if path:
-        title = fn + " in " + path
-    else:
-        title = fn
-    # Yet another fix for bug 1194209: regularize slashes.
-    if os.sep in '/\\':
-        title = title.replace('/', os.sep).replace('\\', os.sep)
-    if branch:
-        title = branch + ": " + title
-    return title
 #@+node:ekr.20031218072017.3117: *3* g.create_temp_file
 def create_temp_file(textMode: bool = False) -> tuple[Any, str]:
     """
@@ -3125,14 +3049,12 @@ def create_temp_file(textMode: bool = False) -> tuple[Any, str]:
     return theFile, theFileName
 #@+node:ekr.20210307060731.1: *3* g.createHiddenCommander
 def createHiddenCommander(fn: str) -> Cmdr:
-    """Read the file into a hidden commander (Similar to g.openWithFileName)."""
-    from leo.core.leoCommands import Commands
-    c = Commands(fn, gui=g.app.nullGui)
-    theFile = g.app.loadManager.openAnyLeoFile(fn)
-    if theFile:
-        c.fileCommands.openLeoFile(theFile, fn, readAtFileNodesFlag=True, silent=True)
-        return c
+    """Read the given outline into a hidden commander."""
+    lm = g.app.loadManager
+    if lm.isLeoFile(fn):
+        return g.openWithFileName(fn, gui=g.app.nullGui)
     return None
+
 #@+node:vitalije.20170714085545.1: *3* g.defaultLeoFileExtension
 def defaultLeoFileExtension(c: Cmdr = None) -> str:
     conf = c.config if c else g.app.config
@@ -3149,15 +3071,16 @@ def ensure_extension(name: str, ext: str) -> str:
         return name
     return name + ext
 #@+node:ekr.20150403150655.1: *3* g.fullPath (deprecated)
-def fullPath(c: Cmdr, p: Position, simulate: bool = False) -> str:
+def fullPath(c: Cmdr, p: Position) -> str:
     """
-    Return the full path (including fileName) in effect at p.
-
-    Create neither the path nor the fileName.
-
-    This function is deprecated. Use c.fullPath(p) instead.
+    Return the full path in effect at p.
+    
+    If p is an @<file> node, return the path, including the filename.
+    Otherwise the return the path to the enclosing directory.
+    
+    Neither the path nor the fileName will be created if it does not exist.
     """
-    return c.fullPath(p, simulate)
+    return c.fullPath(p)
 #@+node:ekr.20190327192721.1: *3* g.get_files_in_directory
 def get_files_in_directory(directory: str, kinds: list = None, recursive: bool = True) -> list[str]:
     """
@@ -3304,11 +3227,11 @@ def makePathRelativeTo(fullPath: str, basePath: str) -> str:
 #@+node:ekr.20090520055433.5945: *3* g.openWithFileName
 def openWithFileName(fileName: str, old_c: Cmdr = None, gui: LeoGui = None) -> Cmdr:
     """
-    Create a Leo Frame for the indicated fileName if the file exists.
+    Load any kind of file in the appropriate way:
 
-    Return the commander of the newly-opened outline.
+    Return the commander of the newly-opened file, which may be old_c or another commander.
     """
-    return g.app.loadManager.loadLocalFile(fileName, gui, old_c)
+    return g.app.loadManager.openWithFileName(fileName, gui, old_c)
 #@+node:ekr.20150306035851.7: *3* g.readFileIntoEncodedString
 def readFileIntoEncodedString(fn: str, silent: bool = False) -> bytes:
     """Return the raw contents of the file whose full path is fn."""
@@ -3963,8 +3886,7 @@ def is_special(s: str, directive: str) -> tuple[bool, int]:
     lws = directive in ("@others", "@all")
     pattern_s = r'^\s*(%s\b)' if lws else r'^(%s\b)'
     pattern = re.compile(pattern_s % directive, re.MULTILINE)
-    m = re.search(pattern, s)
-    if m:
+    if m := re.search(pattern, s):
         return True, m.start(1)
     return False, -1
 #@+node:ekr.20031218072017.3177: *4* g.is_c_id
@@ -3980,9 +3902,13 @@ def is_ws(ch: str) -> bool:
 def is_ws_or_nl(s: str, i: int) -> bool:
     return g.is_nl(s, i) or (i < len(s) and g.is_ws(s[i]))
 #@+node:ekr.20031218072017.3181: *4* g.match
-# Warning: this code makes no assumptions about what follows pattern.
-
 def match(s: str, i: int, pattern: str) -> bool:
+    """
+    Return True if the given pattern matches at s[i].
+
+    Warning: this method makes no assumptions about what precedes or
+    follows the pattern.
+    """
     return bool(s and pattern and s.find(pattern, i, i + len(pattern)) == i)
 #@+node:ekr.20031218072017.3182: *4* g.match_c_word
 def match_c_word(s: str, i: int, name: str) -> bool:
@@ -3996,36 +3922,32 @@ def match_c_word(s: str, i: int, name: str) -> bool:
 def match_ignoring_case(s1: str, s2: str) -> bool:
     return bool(s1 and s2 and s1.lower() == s2.lower())
 #@+node:ekr.20031218072017.3184: *4* g.match_word & g.match_words
-def match_word(s: str, i: int, pattern: str) -> bool:
-    """Return True if s[i] starts a word."""
-    # Using a regex is surprisingly tricky.
+def match_words(s: str, i: int, patterns: Sequence[str], *, ignore_case: bool = False) -> bool:
+    """Return true if any of the given patterns match at s[i]"""
+    return any(g.match_word(s, i, pattern, ignore_case=ignore_case) for pattern in patterns)
 
-    # Check the pattern and set j.
-    if pattern is None:
-        return False
-    j = len(pattern)
-    if j == 0:
+def match_word(s: str, i: int, pattern: str, *, ignore_case: bool = False) -> bool:
+    """Return True if s[i] starts the word given by pattern."""
+    if not pattern:
         return False
 
-    # Check the start of the word.
-    # Special cases: \b or \t or \n delimit words!
-    if i > 2 and s[i - 2] == '\\' and s[i - 1] in 'bnt':
-        return True
-    if i > 0 and g.isWordChar(s[i - 1]):
-        return False
+    # 1. Compute the required boundaries.
+    bound1 = g.isWordChar1(pattern[0])
+    bound2 = g.isWordChar(pattern[-1])
 
-    # Check that the pattern matches.
-    if s.find(pattern, i, i + j) != i:
-        return False
-    if i + j >= len(s):
-        return True
+    # 2. Add regex escapes.
+    pattern = re.escape(pattern)
 
-    # Check the end of the word.
-    ch = s[i + j]
-    return not g.isWordChar(ch)
+    # 3. Add the boundaries.
+    if bound1:
+        pattern = '\\b' + pattern
+    if bound2:
+        pattern = pattern + '\\b'
 
-def match_words(s: str, i: int, patterns: Sequence[str]) -> bool:
-    return any(g.match_word(s, i, pattern) for pattern in patterns)
+    # Compile the pattern so we can specify the starting position.
+    pat = re.compile(pattern, flags=re.I if ignore_case else 0)
+    return bool(pat.match(s, i))
+
 #@+node:ekr.20031218072017.3185: *4* g.skip_blank_lines
 # This routine differs from skip_ws_and_nl in that
 # it does not advance over whitespace at the start
@@ -4298,7 +4220,10 @@ class GitIssueController:
         page, total = 1, 0
         while True:
             url = page_url % (state, page)
-            r = requests.get(url, timeout=2.0)
+            headers = {}
+            if 'GITHUB_TOKEN' in os.environ:
+                headers['Authorization'] = 'Bearer ' + os.environ['GITHUB_TOKEN']
+            r = requests.get(url, timeout=2.0, headers=headers)
             try:
                 done, n = self.get_one_page(label, page, r, root)
                 # Do not remove this trace. It's reassuring.
@@ -4336,7 +4261,10 @@ class GitIssueController:
         page_url = self.base_url + '?labels=%s&state=%s&page=%s'
         while True:
             url = page_url % (label, state, page)
-            r = requests.get(url, timeout=2.0)
+            headers = {}
+            if 'GITHUB_TOKEN' in os.environ:
+                headers['Authorization'] = 'Bearer ' + os.environ['GITHUB_TOKEN']
+            r = requests.get(url, timeout=2.0, headers=headers)
             try:
                 done, n = self.get_one_page(label, page, r, root)
                 # Do not remove this trace. It's reassuring.
@@ -5446,7 +5374,7 @@ def es_error(*args: Any, **keys: Any) -> None:
 
 def es_print_error(*args: Any, **keys: Any) -> None:
     color = keys.get('color')
-    if color is None and g.app.config:
+    if color is None and g.app and g.app.config:
         keys['color'] = g.app.config.getColor("log-error-color") or 'red'
     g.es_print(*args, **keys)
 #@+node:ekr.20031218072017.3111: *3* g.es_event_exception
@@ -5773,7 +5701,7 @@ def actualColor(color: str) -> str:
         return color2 or 'black'
     color2 = c.config.getColor(f"log_{color}_color")
     return color2 or color
-#@+node:ekr.20060921100435: *3* g.CheckVersion & helpers
+#@+node:ekr.20060921100435: *3* g.CheckVersion & helpers (deprecated)
 # Simplified version by EKR: stringCompare not used.
 
 def CheckVersion(
@@ -5784,7 +5712,10 @@ def CheckVersion(
     delimiter: str = '.',
     trace: bool = False,
 ) -> bool:
-    # CheckVersion is called early in the startup process.
+    """
+    Return True if the indicated relationship holds.
+    Deprecated: not used in Leo's core.
+    """
     vals1 = [g.CheckVersionToInt(s) for s in s1.split(delimiter)]
     n1 = len(vals1)
     vals2 = [g.CheckVersionToInt(s) for s in s2.split(delimiter)]
@@ -5826,6 +5757,8 @@ def CheckVersionToInt(s: str) -> int:
 def cls(event: Event = None) -> None:
     """Clear the screen."""
     if sys.platform.lower().startswith('win'):
+        # Leo 6.7.5: Two calls seem to be required!
+        os.system('cls')
         os.system('cls')
 #@+node:ekr.20131114124839.16665: *3* g.createScratchCommander
 def createScratchCommander(fileName: str = None) -> None:
@@ -6562,11 +6495,6 @@ def composeScript(
     useSentinels: bool = True,
 ) -> str:
     """Compose a script from p.b."""
-    # This causes too many special cases.
-        # if not g.unitTesting and forceEncoding:
-            # aList = g.get_directives_dict_list(p)
-            # encoding = scanAtEncodingDirectives(aList) or 'utf-8'
-            # s = g.insertCodingLine(encoding,s)
     if not s.strip():
         return ''
     at = c.atFileCommands
@@ -6611,8 +6539,7 @@ def extractExecutableString(c: Cmdr, p: Position, s: str) -> str:
     # Scan the lines, extracting only the valid lines.
     extracting, result = False, []
     for line in g.splitLines(s):
-        m = re.match(pattern, line)
-        if m:
+        if m := re.match(pattern, line):
             extracting = m.group(1) == language
         elif extracting:
             result.append(line)
@@ -6654,23 +6581,6 @@ def handleScriptException(
     except Exception:
         g.es_print('Unexpected exception in g.handleScriptException')
         g.es_exception()
-#@+node:ekr.20140209065845.16767: *3* g.insertCodingLine
-def insertCodingLine(encoding: str, script: str) -> str:
-    """
-    Insert a coding line at the start of script s if no such line exists.
-    The coding line must start with @first because it will be passed to
-    at.stringToString.
-    """
-    if script:
-        tag = '@first # -*- coding:'
-        lines = g.splitLines(script)
-        for s in lines:
-            if s.startswith(tag):
-                break
-        else:
-            lines.insert(0, f"{tag} {encoding} -*-\n")
-            script = ''.join(lines)
-    return script
 #@+node:ekr.20230803155851.1: ** g.Sentinels
 #@+node:ekr.20230803160315.1: *3* g.is_invisible_sentinel
 def is_invisible_sentinel(delims: tuple[str, str, str], contents: list[str], i: int) -> bool:
@@ -6732,7 +6642,8 @@ def is_sentinel(line: str, delims: tuple[str, str, str]) -> bool:
             i = line.find(sentinel2)
             j = line.find(delim3)
             return 0 == i < j
-    g.error(f"is_sentinel: can not happen. delims: {repr(delims)}")
+    # #3458: This case *can* happen when the user changes an @language directive.
+    #        Don't bother trying to recover.
     return False
 #@+node:ekr.20070524083513: ** g.Unit Tests
 #@+node:ekr.20210901071523.1: *3* g.run_coverage_tests
@@ -6840,9 +6751,9 @@ def computeFileUrl(fn: str, c: Cmdr = None, p: Position = None) -> str:
         else:
             path = url
         # Handle ancestor @path directives.
-        if c and c.openDirectory:
+        if c and c.fileName():
             base = c.getNodePath(p)
-            path = g.finalize_join(c.openDirectory, base, path)
+            path = g.finalize_join(g.os_path_dirname(c.fileName()), base, path)
         else:
             path = g.finalize(path)
         url = f"{tag}{path}"
@@ -6903,8 +6814,7 @@ def findGnx(gnx: str, c: Cmdr) -> Optional[Position]:
     """
     # Get the actual gnx and line number.
     n: int = 0  # The line number.
-    m = find_gnx_pat.match(gnx)
-    if m:
+    if m := find_gnx_pat.match(gnx):
         # Get the actual gnx and line number.
         gnx = m.group(1)
         try:
@@ -7000,8 +6910,7 @@ def findUnl(unlList1: list[str], c: Cmdr) -> Optional[Position]:
                 assert p == p1, (p, p1)
                 n = 0  # The default line number.
                 # Parse the last target.
-                m = new_pat.match(unlList[-1])
-                if m:
+                if m := new_pat.match(unlList[-1]):
                     line = m.group(3)
                     try:
                         n = int(line)
@@ -7416,8 +7325,7 @@ def parsePathData(c: Cmdr) -> dict[str, str]:
     lines = c.config.getData('unl-path-prefixes')
     d: dict[str, str] = {}
     for line in lines:
-        m = path_data_pattern.match(line)
-        if m:
+        if m := path_data_pattern.match(line):
             key, path = m.group(1), m.group(2)
             if key in d:
                 g.trace(f"Ignoring duplicate key: {line!r}")  # pragma: no cover

@@ -99,14 +99,14 @@ class TestGlobals(LeoUnitTest):
 
         'unl:gnx://#ekr.20180311131424.1',
 
-        # test.leo:Error mssages (copy to log)
+        # test.leo:Error messages (copy to log)
         'unl:gnx://#ekr.20230622112649.1',
 
         # test.leo:Recent
         'unl:gnx://test.leo#ekr.20180311131424.1',
         'unl:gnx://#ekr.20180311131424.1',
 
-        # test.leo: Error mssages (copy to log)
+        # test.leo: Error messages (copy to log)
         'unl:gnx://test.leo#ekr.20230622112649.1',
         'unl:gnx://#ekr.20230622112649.1',
 
@@ -205,7 +205,6 @@ class TestGlobals(LeoUnitTest):
     #@+node:ekr.20230330042647.1: *4* TestGlobals._make_tree
     def _make_tree(self, c, root_h=None):
         """Make a test tree for c."""
-        ### c = self.c
         root = c.rootPosition()
         root.h = root_h or 'Root'
         root.b = "def root():\n    pass\n"
@@ -442,9 +441,20 @@ class TestGlobals(LeoUnitTest):
         child = c.rootPosition().insertAfter()
         child.h = '@path abc'
         grand = child.insertAsLastChild()
-        grand.h = 'xyz'
-        path = g.fullPath(c, grand, simulate=True)
+        grand.h = '@file xyz'
+        path = g.fullPath(c, grand)
         end = g.os_path_normpath('abc/xyz')
+        assert path.endswith(end), repr(path)
+
+        # Test 2: Create a commander for an outline outside of g.app.loadDir and its parents.
+        from leo.core.leoCommands import Commands
+        c = Commands(fileName='~/LeoPyRef.leo', gui=g.app.gui)
+        child = c.rootPosition().insertAfter()
+        child.h = '@path abc2'
+        grand = child.insertAsLastChild()
+        grand.h = '@file xyz2'
+        path = g.fullPath(c, grand)
+        end = g.os_path_normpath('abc2/xyz2')
         assert path.endswith(end), repr(path)
     #@+node:ekr.20210905203541.16: *4* TestGlobals.test_g_get_directives_dict
     def test_g_get_directives_dict(self):
@@ -561,11 +571,25 @@ class TestGlobals(LeoUnitTest):
             (False, 0, 'a', 'a_'),
             (True, 2, 'a', 'b a c'),
             (False, 0, 'a', 'b a c'),
+            # Tests of #3588.
+            (True, 4, '.lws', 'self.lws = 0'),
+            (True, 4, '.lws', 'self.lws=0'),
+            (False, 4, '.lws', 'self.lws2a=0'),
+            (False, 4, '.lws', 'self.lws0=0'),
+            (True, 2, '.lws', '  .lws  #comment'),
+            (False, 2, '.lws', '  .lws2  #comment'),
+            (True, 0, '###', '### comment'),
+            (True, 0, '###', '###comment'),
+            (True, 2, '###', '  ###comment'),
+            (True, 2, '###', '  ###.'),
+            (True, 1, '###', 'a###.'),
         )
-        for data in table:
-            expected, i, word, line = data
-            got = g.match_word(line + '\n', i, word)
-            self.assertEqual(expected, got)
+        for ignore_case in (True, False):
+            for expected, i, word, line in table:
+                if ignore_case:
+                    line = line.upper()
+                got = g.match_word(line + '\n', i, word, ignore_case=ignore_case)
+                assert expected == got, (word, line[i:])
     #@+node:ekr.20230131234527.1: *4* TestGlobals.test_g_objToString
     def test_g_objToString(self):
 

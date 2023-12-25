@@ -19,6 +19,42 @@ if TYPE_CHECKING:  # pragma: no cover
 #@-<< commanderFileCommands imports & annotations >>
 
 #@+others
+#@+node:ekr.20231008163009.1: **  top-level helper functions
+#@+node:ekr.20231008163338.1: *3* function: do_error_dialogs
+def do_error_dialogs(c: Cmdr) -> None:
+    """
+    Raise error dialogs.
+
+    A helper function for c.save, c.saveAs, and c.saveTo.
+    """
+    c.syntaxErrorDialog()
+    c.raise_error_dialogs(kind='write')
+#@+node:ekr.20231008163048.1: *3* function: set_name_and_title
+def set_name_and_title(c: Cmdr, fileName: str) -> str:
+    """
+    Compute the finalized name for c.mFileName. Set related ivars.
+
+    A helper function for c.save, c.saveAs, and c.saveTo.
+
+    Return the finalized name.
+    """
+
+    # Finalize fileName.
+    if fileName.endswith(('.leo', '.db', '.leojs')):
+        c.mFileName = fileName
+    else:
+        c.mFileName = g.ensure_extension(fileName, g.defaultLeoFileExtension(c))
+
+    # Set various ivars.
+    title = c.computeWindowTitle()
+    c.frame.title = title
+    c.frame.setTitle(title)
+    try:
+        # Does not exist during unit testing. May not exist in all guis.
+        c.frame.top.leo_master.setTabName(c, c.mFileName)
+    except AttributeError:
+        pass
+    return c.mFileName
 #@+node:ekr.20170221033738.1: ** c_file.reloadSettings
 @g.commander_command('reload-settings')
 def reloadSettings(self: Self, event: Event = None) -> None:
@@ -70,7 +106,6 @@ def restartLeo(self: Self, event: Event = None) -> None:
         # This is similar to g.app.closeLeoWindow.
         g.doHook("close-frame", c=c)
         # Save the window state
-        g.app.commander_cacher.commit()  # store cache, but don't close it.
         # This may remove frame from the window list.
         if frame in g.app.windowList:
             g.app.destroyWindow(frame)
@@ -94,6 +129,7 @@ def close(self: Self, event: Event = None, new_c: Cmdr = None) -> None:
     """Close the Leo window, prompting to save it if it has been changed."""
     g.app.closeLeoWindow(self.frame, new_c=new_c)
 #@+node:ekr.20110530124245.18245: *3* c_file.importAnyFile & helper
+@g.commander_command('import-any-file')
 @g.commander_command('import-file')
 def importAnyFile(self: Self, event: Event = None) -> None:
     """Import one or more files."""
@@ -203,42 +239,51 @@ def new(self: Self, event: Event = None, gui: LeoGui = None) -> Cmdr:
     from leo.core import leoApp
     lm = g.app.loadManager
     old_c = self
+
     # Clean out the update queue so it won't interfere with the new window.
     self.outerUpdate()
+
     # Suppress redraws until later.
     g.app.disable_redraw = True
-    # Send all log messages to the new frame.
     g.app.setLog(None)
     g.app.lockLog()
-    # Retain all previous settings. Very important for theme code.
+
     t2 = time.process_time()
+    g.app.numberOfUntitledWindows += 1
+
+    # Retain all previous settings. Very important for theme code.
+    previousSettings = leoApp.PreviousSettings(
+        settingsDict=lm.globalSettingsDict,
+        shortcutsDict=lm.globalBindingsDict,
+    )
     c = g.app.newCommander(
         fileName=None,
         gui=gui,
-        previousSettings=leoApp.PreviousSettings(
-            settingsDict=lm.globalSettingsDict,
-            shortcutsDict=lm.globalBindingsDict,
-        ))
+        previousSettings=previousSettings,
+    )
+
     t3 = time.process_time()
     frame = c.frame
-    g.app.unlockLog()
     if not old_c:
         frame.setInitialWindowGeometry()
+
     # #1643: This doesn't work.
         # g.app.restoreWindowState(c)
+
     frame.deiconify()
     frame.lift()
+
     # Resize the _new_ frame.
     frame.resizePanesToRatio(frame.ratio, frame.secondary_ratio)
     c.frame.createFirstTreeNode()
-    lm.createMenu(c)
+
+    # Finish.
     lm.finishOpen(c)
-    g.app.writeWaitingLog(c)
+
     g.doHook("new", old_c=old_c, c=c, new_c=c)
-    c.setLog()
     c.clearChanged()  # Fix #387: Clear all dirty bits.
-    g.app.disable_redraw = False
     c.redraw()
+
     t4 = time.process_time()
     if 'speed' in g.app.debug:
         g.trace()
@@ -249,53 +294,24 @@ def new(self: Self, event: Event = None, gui: LeoGui = None) -> Cmdr:
             f"total: {t4-t1:5.2f}"
         )
     return c  # For unit tests and scripts.
-#@+node:ekr.20031218072017.2821: *3* c_file.open_outline & helper
+#@+node:ekr.20031218072017.2821: *3* c_file.open_outline
+@g.commander_command('open-file')
 @g.commander_command('open-outline')
 def open_outline(self: Self, event: Event = None) -> None:
     """Open a Leo window containing the contents of a .leo file."""
     c = self
-    #@+others  # Defines open_completer function.
-    #@+node:ekr.20190518121302.1: *4* function: open_completer
-    def open_completer(c: Cmdr, fileName: str) -> None:
-
-        c.bringToFront()
-        c.init_error_dialogs()
-        if fileName:
-            if g.app.loadManager.isLeoFile(fileName):
-                c2 = g.openWithFileName(fileName, old_c=c)
-                if c2:
-                    c = c2  # #2906: Switch c here!
-                    c.init_error_dialogs()
-                    # Fix #579: Key bindings don't take for commands defined in plugins.
-                    c.k.makeAllBindings()
-                    g.chdir(fileName)
-                    g.setGlobalOpenDir(fileName)
-                    c.initialFocusHelper()
-            elif c.looksLikeDerivedFile(fileName):
-                # Create an @file node for files containing Leo sentinels.
-                c.importCommands.importDerivedFiles(parent=c.p, paths=[fileName], command='Open')
-            else:
-                # otherwise, create an @edit node.
-                c.createNodeFromExternalFile(fileName)
-        c.raise_error_dialogs(kind='write')
-        g.app.runAlreadyOpenDialog(c)
-    #@-others
     table = [
         ("Leo files", "*.leo *.leojs *.db"),
         ("Python files", "*.py"),
         ("All files", "*"),
     ]
-    fileName = ''.join(c.k.givenArgs)
-    if fileName:
-        open_completer(c, fileName)
-        return
-    # Equivalent to legacy code.
     fileName = g.app.gui.runOpenFileDialog(c,
         defaultextension=g.defaultLeoFileExtension(c),
         filetypes=table,
         title="Open",
     )
-    open_completer(c, fileName)
+    if fileName:
+        g.openWithFileName(fileName, old_c=c)
 #@+node:ekr.20140717074441.17772: *3* c_file.refreshFromDisk
 @g.commander_command('refresh-from-disk')
 def refreshFromDisk(self: Self, event: Event = None) -> None:
@@ -356,67 +372,50 @@ def save(self: Self, event: Event = None, fileName: str = None) -> None:
     kwarg: a file name, for use by scripts using Leo's bridge.
     """
     c = self
-    p = c.p
-    # Do this now: w may go away.
-    w = g.app.gui.get_focus(c)
-    inBody = g.app.gui.widget_name(w).startswith('body')
-    if inBody:
-        p.saveCursorAndScroll()
+
     if g.app.disableSave:
         g.es("save commands disabled", color="purple")
         return
-    c.init_error_dialogs()
-    # 2013/09/28: use the fileName keyword argument if given.
-    # This supports the leoBridge.
-    # Make sure we never pass None to the ctor.
-    if fileName:
-        c.frame.title = g.computeWindowTitle(fileName)
-        c.mFileName = fileName
-    if not c.mFileName:
-        c.frame.title = ""
-        c.mFileName = ""
-    if c.mFileName:
-        # Calls c.clearChanged() if no error.
-        g.app.syntax_error_files = []
-        c.fileCommands.save(c.mFileName)
-        c.syntaxErrorDialog()
-    else:
+
+    def do_save(c: Cmdr, fileName: str) -> None:
+        """Common save code."""
+        c.fileCommands.save(fileName)
+        g.app.recentFilesManager.updateRecentFiles(fileName)
+        g.chdir(fileName)
+
+    try:
+        c.init_error_dialogs()
+
+        # Don't prompt if the file name is known.
+        given_file_name = fileName or c.mFileName
+        if given_file_name:
+            final_file_name = set_name_and_title(c, given_file_name)
+            do_save(c, final_file_name)
+            return
+
+        # The file still has no name.
+
         root = c.rootPosition()
         if not root.next() and root.isAtEditNode():
-            # There is only a single @edit node in the outline.
-            # A hack to allow "quick edit" of non-Leo files.
-            # See https://bugs.launchpad.net/leo-editor/+bug/381527
-            fileName = None
             # Write the @edit node if needed.
             if root.isDirty():
                 c.atFileCommands.writeOneAtEditNode(root)
             c.clearChanged()  # Clears all dirty bits.
-        else:
-            fileName = ''.join(c.k.givenArgs)
-            if not fileName:
-                fileName = g.app.gui.runSaveFileDialog(c,
-                    title="Save",
-                    filetypes=[("Leo files", "*.leo *.leojs *.db"),],
-                    defaultextension=g.defaultLeoFileExtension(c))
-        c.bringToFront()
-        if fileName:
-            # Don't change mFileName until the dialog has succeeded.
-            c.mFileName = g.ensure_extension(fileName, g.defaultLeoFileExtension(c))
-            c.frame.title = c.computeWindowTitle(c.mFileName)
-            c.frame.setTitle(c.computeWindowTitle(c.mFileName))
-            c.openDirectory = c.frame.openDirectory = g.os_path_dirname(c.mFileName)
-            if hasattr(c.frame, 'top'):
-                c.frame.top.leo_master.setTabName(c, c.mFileName)
-            c.fileCommands.save(c.mFileName)
-            g.app.recentFilesManager.updateRecentFiles(c.mFileName)
-            g.chdir(c.mFileName)
-    c.raise_error_dialogs(kind='write')
-    # *Safely* restore focus, without using the old w directly.
-    if inBody:
-        c.bodyWantsFocus()
-        p.restoreCursorAndScroll()
-    else:
-        c.treeWantsFocus()
+            do_error_dialogs(c)
+            return
+
+        # Prompt for fileName.
+        new_file_name = g.app.gui.runSaveFileDialog(c,
+            title="Save",
+            filetypes=[("Leo files", "*.leo *.leojs *.db"),],
+            defaultextension=g.defaultLeoFileExtension(c))
+
+        if new_file_name:
+            final_file_name = set_name_and_title(c, new_file_name)
+            do_save(c, final_file_name)
+
+    finally:
+        do_error_dialogs(c)
 #@+node:ekr.20110228162720.13980: *3* c_file.saveAll
 @g.commander_command('save-all')
 def saveAll(self: Self, event: Event = None) -> None:
@@ -442,58 +441,44 @@ def saveAs(self: Self, event: Event = None, fileName: str = None) -> None:
     kwarg: a file name, for use by file-save-as-zipped,
     file-save-as-unzipped and scripts using Leo's bridge.
     """
-    c, p = self, self.p
-    # Do this now: w may go away.
-    w = g.app.gui.get_focus(c)
-    inBody = g.app.gui.widget_name(w).startswith('body')
-    if inBody:
-        p.saveCursorAndScroll()
+    c = self
+
     if g.app.disableSave:
         g.es("save commands disabled", color="purple")
         return
-    c.init_error_dialogs()
-    # 2013/09/28: add fileName keyword arg for leoBridge scripts.
-    if fileName:
-        c.frame.title = g.computeWindowTitle(fileName)
-        c.mFileName = fileName
-    # Make sure we never pass None to the ctor.
-    if not c.mFileName:
-        c.frame.title = ""
-    if not fileName:
-        fileName = ''.join(c.k.givenArgs)
-    if not fileName:
-        fileName = g.app.gui.runSaveFileDialog(c,
+
+    def do_save_as(c: Cmdr, fileName: str) -> str:
+        """Common save-as code."""
+        # 1. Forget the previous file.
+        if c.mFileName:
+            g.app.forgetOpenFile(c.mFileName)
+        # 2. Finalize fileName and set related ivars.
+        new_file_name = set_name_and_title(c, fileName)
+        # 3. Do the save and related tasks.
+        c.fileCommands.saveAs(new_file_name)
+        g.app.recentFilesManager.updateRecentFiles(new_file_name)
+        g.chdir(new_file_name)
+        return new_file_name
+
+    try:
+        c.init_error_dialogs()
+
+        # Handle the kwarg first.
+        if fileName:
+            do_save_as(c, fileName)
+            return
+
+        # Prompt for fileName.
+        new_file_name = g.app.gui.runSaveFileDialog(c,
             title="Save As",
             filetypes=[("Leo files", "*.leo *.leojs *.db"),],
             defaultextension=g.defaultLeoFileExtension(c))
-    c.bringToFront()
-    if fileName:
-        # #998090: save file as doesn't remove entry from open file list.
-        g.trace(fileName)
-        if c.mFileName:
-            g.app.forgetOpenFile(c.mFileName)
-        # Don't change mFileName until the dialog has succeeded.
-        if fileName.endswith(('.leo', '.db', '.leojs')):
-            c.mFileName = fileName
-        else:
-            c.mFileName = g.ensure_extension(fileName, g.defaultLeoFileExtension(c))
-        # Part of the fix for https://bugs.launchpad.net/leo-editor/+bug/1194209
-        c.frame.title = title = c.computeWindowTitle(c.mFileName)
-        c.frame.setTitle(title)
-        c.openDirectory = c.frame.openDirectory = g.os_path_dirname(c.mFileName)
-        # Calls c.clearChanged() if no error.
-        if hasattr(c.frame, 'top'):
-            c.frame.top.leo_master.setTabName(c, c.mFileName)
-        c.fileCommands.saveAs(c.mFileName)
-        g.app.recentFilesManager.updateRecentFiles(c.mFileName)
-        g.chdir(c.mFileName)
-    c.raise_error_dialogs(kind='write')
-    # *Safely* restore focus, without using the old w directly.
-    if inBody:
-        c.bodyWantsFocus()
-        p.restoreCursorAndScroll()
-    else:
-        c.treeWantsFocus()
+
+        if new_file_name:
+            do_save_as(c, new_file_name)
+
+    finally:
+        do_error_dialogs(c)
 #@+node:ekr.20031218072017.2836: *3* c_file.saveTo
 @g.commander_command('save-to')
 @g.commander_command('file-save-to')
@@ -505,38 +490,37 @@ def saveTo(self: Self, event: Event = None, fileName: str = None, silent: bool =
 
     kwarg: a file name, for use by scripts using Leo's bridge.
     """
-    c, p = self, self.p
-    # Do this now: w may go away.
-    w = g.app.gui.get_focus(c)
-    inBody = g.app.gui.widget_name(w).startswith('body')
-    if inBody:
-        p.saveCursorAndScroll()
+    c = self
+
     if g.app.disableSave:
         g.es("save commands disabled", color="purple")
         return
-    c.init_error_dialogs()
-    # Add fileName keyword arg for leoBridge scripts.
-    if not fileName:
-        # set local fileName, _not_ c.mFileName
-        fileName = ''.join(c.k.givenArgs)
-    if not fileName:
-        fileName = g.app.gui.runSaveFileDialog(c,
+
+    def do_save_to(c: Cmdr, fileName: str) -> None:
+        """Common save-to code."""
+        # *Never* change c.mFileName or c.frame.title.
+        c.fileCommands.saveTo(fileName, silent=silent)
+        g.app.recentFilesManager.updateRecentFiles(fileName)
+        # *Never* call g.chdir!
+
+    try:
+        c.init_error_dialogs()
+
+        # Handle the kwarg first.
+        if fileName:
+            do_save_to(c, fileName)
+            return
+
+        new_file_name = g.app.gui.runSaveFileDialog(c,
             title="Save To",
             filetypes=[("Leo files", "*.leo *.leojs *.db"),],
             defaultextension=g.defaultLeoFileExtension(c))
-    c.bringToFront()
-    if fileName:
-        c.fileCommands.saveTo(fileName, silent=silent)
-        g.app.recentFilesManager.updateRecentFiles(fileName)
-        g.chdir(fileName)
-    c.raise_error_dialogs(kind='write')
-    # *Safely* restore focus, without using the old w directly.
-    if inBody:
-        c.bodyWantsFocus()
-        p.restoreCursorAndScroll()
-    else:
-        c.treeWantsFocus()
-    c.outerUpdate()
+
+        if new_file_name:
+            do_save_to(c, new_file_name)
+
+    finally:
+        do_error_dialogs(c)
 #@+node:ekr.20031218072017.2837: *3* c_file.revert
 @g.commander_command('revert')
 def revert(self: Self, event: Event = None) -> None:
@@ -549,7 +533,7 @@ def revert(self: Self, event: Event = None) -> None:
         g.es('Can not revert unnamed file.')
         return
     if not g.os_path_exists(fn):
-        g.es(f"Can not revert unsaved file: {fn}")
+        g.es(f"Can not revert non-existent file: {fn}")
         return
     reply = g.app.gui.runAskYesNoDialog(
         c, 'Revert', f"Revert to previous version of {fn}?")
@@ -948,16 +932,6 @@ def editRecentFiles(self: Self, event: Event = None) -> None:
     """Opens recent files list in a new node for editing."""
     c = self
     g.app.recentFilesManager.editRecentFiles(c)
-#@+node:ekr.20031218072017.2081: *3* c_file.openRecentFile
-@g.commander_command('open-recent-file')
-def openRecentFile(self: Self, event: Event = None, fn: str = None) -> None:
-    c = self
-    if g.doHook("recentfiles1", c=c, p=c.p, v=c.p, fileName=fn):
-        return
-    c2 = g.openWithFileName(fn, old_c=c)
-    if c2:
-        g.app.makeAllBindings()
-        g.doHook("recentfiles2", c=c2, p=c2.p, v=c2.p, fileName=fn)
 #@+node:tbrown.20080509212202.8: *3* c_file.sortRecentFiles
 @g.commander_command('sort-recent-files')
 def sortRecentFiles(self: Self, event: Event = None) -> None:

@@ -36,12 +36,12 @@ class AtFile:
 
     # directives...
     noDirective     =  1  # not an at-directive.
-    allDirective    =  2  # at-all (4.2)
+    allDirective    =  2  # @all (4.2)
     docDirective    =  3  # @doc.
-    atDirective     =  4  # @<space> or @<newline>
+    atDirective     =  4  # @<space or newline>
     codeDirective   =  5  # @code
-    cDirective      =  6  # @c<space> or @c<newline>
-    othersDirective =  7  # at-others
+    cDirective      =  6  # @c<space or newline>
+    othersDirective =  7  # @others
     miscDirective   =  8  # All other directives
     startVerbatim   =  9  # @verbatim  Not a real directive. Used to issue warnings.
     #@-<< define class constants >>
@@ -167,7 +167,7 @@ class AtFile:
             # Encoding directive overrides everything else.
             encoding = g.getPythonEncodingFromString(root.b)
             if encoding:
-                at.encoding = encoding
+                at.encoding = encoding  # pragma: no cover (python 2)
         #
         # Clean root.v.
         if not at.errors and at.root:
@@ -316,6 +316,7 @@ class AtFile:
         contents = fromString or file_s
         FastAtRead(c, gnx2vnode).read_into_root(contents, fileName, root)
         root.clearDirty()
+        g.doHook('after-reading-external-file', c=c, p=root)
         return True
     #@+node:ekr.20071105164407: *6* at.deleteUnvisitedNodes
     def deleteUnvisitedNodes(self, root: Position) -> None:  # pragma: no cover
@@ -469,6 +470,7 @@ class AtFile:
             p.clearDirty()
         else:
             g.doHook('after-auto', c=c, p=p)
+            g.doHook('after-reading-external-file', c=c, p=p)
         return p  # For #451: return p.
     #@+node:ekr.20090225080846.3: *5* at.readOneAtEditNode
     def readOneAtEditNode(self, p: Position) -> None:  # pragma: no cover
@@ -501,6 +503,7 @@ class AtFile:
                 head = '@nocolor\n'
         p.b = head + g.toUnicode(s, encoding=encoding, reportErrors=True)
         g.doHook('after-edit', p=p)
+        g.doHook('after-reading-external-file', c=c, p=p)
     #@+node:ekr.20190201104956.1: *5* at.readOneAtAsisNode
     def readOneAtAsisNode(self, p: Position) -> None:  # pragma: no cover
         """Read one @asis node. Used only by refresh-from-disk"""
@@ -521,6 +524,7 @@ class AtFile:
         p.b = g.toUnicode(s, encoding=encoding, reportErrors=True)
         if not c.isChanged() and p.b != old_body:
             c.setChanged()
+        g.doHook('after-reading-external-file', c=c, p=p)
     #@+node:ekr.20150204165040.5: *5* at.readOneAtCleanNode & helpers
     def readOneAtCleanNode(self, root: Position) -> bool:  # pragma: no cover
         """Update the @clean/@nosent node at root."""
@@ -553,6 +557,7 @@ class AtFile:
         gnx2vnode = at.fileCommands.gnxDict
         contents = ''.join(new_private_lines)
         FastAtRead(c, gnx2vnode).read_into_root(contents, fileName, root)
+        g.doHook('after-reading-external-file', c=c, p=root)
         return True  # Errors not detected.
     #@+node:ekr.20150204165040.7: *6* at.dump_lines
     def dump(self, lines: list[str], tag: Any) -> None:  # pragma: no cover
@@ -610,6 +615,7 @@ class AtFile:
             if ok:
                 # Create the private file automatically.
                 at.writeOneAtShadowNode(p)
+                g.doHook('after-reading-external-file', c=c, p=p)
     #@+node:ekr.20080712080505.1: *6* at.importAtShadowNode
     def importAtShadowNode(self, p: Position) -> bool:  # pragma: no cover
         c, ic = self.c, self.c.importCommands
@@ -756,7 +762,8 @@ class AtFile:
             with open(fileName, 'rb') as f:
                 s = f.read()
         except IOError:  # pragma: no cover
-            at.error(f"can not open {fileName}")
+            if not g.unitTesting:
+                at.error(f"can not open {fileName}")
         except Exception:  # pragma: no cover
             at.error(f"Exception reading {fileName}")
             g.es_exception()
@@ -1183,6 +1190,13 @@ class AtFile:
             if not fileName or not at.precheck(fileName, root):
                 at.addToOrphanList(root)
                 return
+
+            try:
+                g.doHook('before-writing-external-file', c=c, p=root)
+            except Exception:
+                # The hook must print an error message.
+                return
+
             at.outputList = []
             for p in root.self_and_subtree(copy=False):
                 at.writeAsisNode(p)
@@ -1287,6 +1301,13 @@ class AtFile:
             if not fileName or not at.precheck(fileName, root):
                 at.addToOrphanList(root)
                 return False
+
+            try:
+                g.doHook('before-writing-external-file', c=c, p=p)
+            except Exception:
+                # The hook must print an error message.
+                return False
+
             if c.persistenceController:
                 c.persistenceController.update_before_write_foreign_file(root)
             contents = at.writeAtAutoContents(fileName, root)
@@ -1357,6 +1378,13 @@ class AtFile:
             at.sentinels = False
             if not fileName or not at.precheck(fileName, root):
                 return
+
+            try:
+                g.doHook('before-writing-external-file', c=c, p=root)
+            except Exception:
+                # The hook must print an error message.
+                return
+
             at.outputList = []
             at.putFile(root, sentinels=False)
             at.warnAboutOrphandAndIgnoredNodes()
@@ -1388,6 +1416,13 @@ class AtFile:
             if not fileName or not at.precheck(fileName, root):
                 at.addToOrphanList(root)
                 return False
+
+            try:
+                g.doHook('before-writing-external-file', c=c, p=root)
+            except Exception:
+                # The hook must print an error message.
+                return False
+
             contents = ''.join([s for s in g.splitLines(p.b)
                 if at.directiveKind4(s, 0) == at.noDirective])
             at.replaceFile(contents, at.encoding, fileName, root)
@@ -1408,6 +1443,13 @@ class AtFile:
                 # Raise dialog warning of data loss.
                 at.addToOrphanList(root)
                 return
+
+            try:
+                g.doHook('before-writing-external-file', c=c, p=root)
+            except Exception:
+                # The hook must print an error message.
+                return
+
             at.outputList = []
             at.putFile(root, sentinels=True)
             at.warnAboutOrphandAndIgnoredNodes()
@@ -1432,6 +1474,9 @@ class AtFile:
             at.sentinels = False
             if not fileName or not at.precheck(fileName, root):
                 return
+
+            g.doHook('before-writing-external-file', c=c, p=root)
+
             at.outputList = []
             at.putFile(root, sentinels=False)
             at.warnAboutOrphandAndIgnoredNodes()
@@ -1473,7 +1518,13 @@ class AtFile:
                 return False
             if not testing and not at.precheck(full_path, root):
                 return False
-            #
+
+            try:
+                g.doHook('before-writing-external-file', c=c, p=p)
+            except Exception:
+                # The hook must print an error message.
+                return False
+
             # Bug fix: Leo 4.5.1:
             # use x.markerFromFileName to force the delim to match
             # what is used in x.propagate_changes.
@@ -1676,6 +1727,13 @@ class AtFile:
             has_at_others = False
             in_code = True
 
+            def __repr__(self) -> str:  # pragma: no cover (testing)
+                return (
+                    f"code? {int(self.in_code)} "
+                    # f"comment? {int(self.at_comment_seen)} "
+                    # f"delims? {int(self.at_delims_seen)} "
+                    # f"@others? {int(self.has_at_others)} "
+                )
 
         i = 0
         status = Status()
@@ -1893,12 +1951,10 @@ class AtFile:
         line = s[i:j]
 
         def put_verbatim_sentinel() -> None:
-            """
-            Put an @verbatim sentinel. *Always* use black-compatible indentation.
-            """
+            """Put an @verbatim sentinel."""
             if at.root.isAtCleanNode():
                 # #2996. Adding an @verbatim sentinel interferes with the @clean algorithm.
-                return
+                return  # # pragma: no cover (defensive)
             ws = s[i:k]
             self.putIndent(len(ws))
             self.putSentinel("@verbatim")
@@ -1977,6 +2033,7 @@ class AtFile:
             # A blank line.
             at.putBlankDocLine()
             return
+
         # Write the line as it is.
         at.putIndent(at.indent)
         if not at.endSentinelComment:
@@ -2097,8 +2154,8 @@ class AtFile:
         if at.sentinels or g.app.force_at_auto_sentinels:
             at.putIndent(at.indent)
             at.os(at.startSentinelComment)
-            # #2194. #2983: Put Black sentinels if --black-sentinels is in effect.
-            if g.app.write_black_sentinels:
+            # Blacken python sentinels if --black-sentinels is in effect.
+            if g.app.write_black_sentinels and self.language == 'python':
                 at.os(' ')
             # Apply the cweb hack to s:
             #   If the opening comment delim ends in '@',
@@ -2271,8 +2328,7 @@ class AtFile:
         # Use regex to properly distinguish between Leo directives
         # and python decorators.
         s2 = s[i:]
-        m = self.at_directive_kind_pattern.match(s2)
-        if m:
+        if m := self.at_directive_kind_pattern.match(s2):
             word = m.group(1)
             if word not in g.globalDirectiveList:
                 return at.noDirective
@@ -2633,8 +2689,7 @@ class AtFile:
         # Scan root.b.
         lines = []
         for s in g.splitLines(root.b):
-            m = g.g_section_delims_pat.match(s)
-            if m:
+            if m := g.g_section_delims_pat.match(s):
                 lines.append(s)
                 at.section_delim1 = m.group(1)
                 at.section_delim2 = m.group(2)
@@ -2842,6 +2897,21 @@ class AtFile:
         aSet = d.get(fn, set())
         aSet.add(p.h)
         d[fn] = aSet
+    #@+node:ekr.20231207062321.1: *4* at.repr_kind
+    def repr_kind(self, kind: int) -> str:  # pragma: no cover (testing)
+        """Return the string representation of AtFile class constants."""
+        d: dict[int, str] = {
+            1: 'plain',
+            2: '@all',
+            3: '@doc',
+            4: '@ ',
+            5: '@code',
+            6: '@c',
+            7: '@others',
+            8: '@<misc>',
+            9: '@verbatim',
+        }
+        return d.get(kind) or f"<unknown AtFile class constant> {kind!r}"
     #@+node:ekr.20080923070954.4: *4* at.scanAllDirectives
     def scanAllDirectives(self, p: Position) -> dict[str, Any]:
         """
@@ -2915,50 +2985,33 @@ class AtFile:
 
         See #50: https://github.com/leo-editor/leo-editor/issues/50
         """
-        trace = 'save' in g.app.debug
-        sfn = g.shortFileName(fn)
-        c = self.c
         efc = g.app.externalFilesController
         if p.isAtNoSentFileNode():
-            # #1450.
-            # No danger of overwriting a file.
-            # It was never read.
+            # No danger of overwriting a file: It was never read.
             return False
+
         if not g.os_path_exists(fn):
             # No danger of overwriting fn.
-            if trace:
-                g.trace('Return False: does not exist:', sfn)
             return False
-        # #1347: Prompt if the external file is newer.
-        if efc:
-            # Like c.checkFileTimeStamp.
-            if c.sqlite_connection and c.mFileName == fn:
-                # sqlite database file is never actually overwritten by Leo,
-                # so do *not* check its timestamp.
-                pass
-            elif efc.has_changed(fn):
-                if trace:
-                    g.trace('Return True: changed:', sfn)
-                return True
+
+        # Prompt if the external file is newer.
+        if efc and efc.has_changed(fn):
+            return True
+
         if hasattr(p.v, 'at_read'):
             # Fix bug #50: body text lost switching @file to @auto-rst
             d = p.v.at_read
             for k in d:
-                # Fix bug # #1469: make sure k still exists.
+                # Make sure k still exists.
                 if (
                     os.path.exists(k) and os.path.samefile(k, fn)
                     and p.h in d.get(k, set())
                 ):
                     d[fn] = d[k]
-                    if trace:
-                        g.trace('Return False: in p.v.at_read:', sfn)
                     return False
             aSet = d.get(fn, set())
-            if trace:
-                g.trace(f"Return {p.h} not in aSet(): {sfn}")
             return p.h not in aSet
-        if trace:
-            g.trace('Return True: never read:', sfn)
+
         return True  # The file was never read.
     #@+node:ekr.20041005105605.20: *4* at.warnOnReadOnlyFile
     def warnOnReadOnlyFile(self, fn: str) -> None:
@@ -3005,19 +3058,23 @@ class FastAtRead:
 
     def get_patterns(self, comment_delims: Any) -> None:
         """Create regex patterns for the given comment delims."""
+        
         # This must be a function, because of @comments & @delims.
         comment_delim_start, comment_delim_end = comment_delims
+            
+        # Make no assumption about comment delims.
         delim1 = re.escape(comment_delim_start)
         delim2 = re.escape(comment_delim_end or '')
         ref = g.angleBrackets(r'(.*)')
-        table = (
-            # Note: Do *not* alter these regexes to handle black-compatible sentinels!
-            #       delim1 *already* contains the trailing blank!
 
+        # The @+leo sentinel MUST determine the format of *all* sentinel comments.
+        # The patterns below MUST NOT accept a space after {delim1} !!!
+        # Doing so will break Leo!
+        table = (
             # These patterns must be mutually exclusive.
             ('after',       fr'^\s*{delim1}@afterref{delim2}$'),             # @afterref
             ('all',         fr'^(\s*){delim1}@(\+|-)all\b(.*){delim2}$'),    # @all
-            ('code',        fr'^\s*{delim1}@@c(ode)?{delim2}$'),             # @c and @code
+            ('code',        fr'^\s*{delim1}@@c(ode)?\b(.*){delim2}$'),       # @c and @code
             ('comment',     fr'^\s*{delim1}@@comment(.*){delim2}'),          # @comment
             ('delims',      fr'^\s*{delim1}@delims(.*){delim2}'),            # @delims
             ('doc',         fr'^\s*{delim1}@\+(at|doc)?(\s.*?)?{delim2}\n'), # @doc or @
@@ -3032,11 +3089,15 @@ class FastAtRead:
             # @section-delims
             ('section_delims', fr'^\s*{delim1}@@section-delims[ \t]+([^ \w\n\t]+)[ \t]+([^ \w\n\t]+)[ \t]*{delim2}$'),
         )
+
         # Set the ivars.
+        self.pattern_ivars: list[str] = []  # For debugging only.
         for (name, pattern) in table:
             ivar = f"{name}_pat"
+            self.pattern_ivars.append(ivar)
             assert hasattr(self, ivar), ivar
             setattr(self, ivar, re.compile(pattern))
+            
     #@+node:ekr.20180602103135.2: *3* fast_at.scan_header
     header_pattern = re.compile(
         r'''
@@ -3052,15 +3113,13 @@ class FastAtRead:
         """
         Scan for the header line, which follows any @first lines.
         Return (delims, first_lines, i+1) or None
-
-        Important: delims[0] will end with a blank when reading a file with blackened sentinels!
-                   This fact eliminates all special cases in scan_lines!
+        
+        *Note*: delims[0] will end with a blank when reading a file with blackened sentinels!
         """
         first_lines: list[str] = []
         i = 0  # To keep some versions of pylint happy.
         for i, line in enumerate(lines):
-            m = self.header_pattern.match(line)
-            if m:
+            if m := self.header_pattern.match(line):
                 delims = m.group(1), m.group(8) or ''
                 return delims, first_lines, i + 1
             first_lines.append(line)
@@ -3085,39 +3144,54 @@ class FastAtRead:
         level_stack: list[tuple[VNode, VNode]] = []
         n_last_lines = 0  # The number of @@last directives seen.
         root_gnx_adjusted = False  # True: suppress final checks.
+
         # #1065 so reads will not create spurious child nodes.
         root_seen = False  # False: The next +@node sentinel denotes the root, regardless of gnx.
         section_delim1 = '<<'
         section_delim2 = '>>'
         section_reference_seen = False
         sentinel = comment_delim1 + '@'
-        # The stack is updated when at+others, at+<section>, or at+all is seen.
+
+        # at+others, at+<section>, and at+all update the stack.
         stack: list[tuple[str, int, str]] = []  # Entries are (gnx, indent, body)
         verbatim_line = comment_delim1 + '@verbatim' + comment_delim2
         verbatim = False  # True: the next line must be added without change.
-        #
+
         # Init the parent vnode.
-        #
         root_gnx = gnx = self.root.gnx
         context = self.c
         parent_v = self.root.v
         root_v = parent_v  # Does not change.
         level_stack.append((root_v, None))
-        #
+
         # Init the gnx dict last.
-        #
         gnx2vnode = self.gnx2vnode  # Keys are gnx's, values are vnodes.
         gnx2body = {}  # Keys are gnxs, values are list of body lines.
         gnx2vnode[gnx] = parent_v  # Add gnx to the keys
+
         # Add gnx to the keys.
         # Body is the list of lines presently being accumulated.
         gnx2body[gnx] = body = first_lines
-        #
+
         # Set the patterns
         self.get_patterns(comment_delims)
         #@-<< init scan_lines >>
         i = 0  # To keep pylint happy.
         for i, line in enumerate(lines[start:]):
+            #@+<< trace patterns >>
+            #@+node:ekr.20231205061620.1: *4* << trace patterns >>
+            # Keep this excellent trace, but comment it out for production code.
+            # if g.unitTesting:
+                # for ivar in self.pattern_ivars:
+                    # pattern = getattr(self, ivar)
+                    # assert isinstance(pattern, re.Pattern)
+                    # m = pattern.match(line)
+                    # if m:
+                        # print(f"{i:2} {ivar:15} {line!r}")
+                        # break
+                # else:
+                    # print(f"{i:2} {' ':15} {line!r}")
+            #@-<< trace patterns >>
             # Strip the line only once.
             strip_line = line.strip()
             if afterref:
@@ -3137,13 +3211,13 @@ class FastAtRead:
 
                 # 2022/12/02: Bug fix: adjust indentation.
                 if indent and line[:indent].isspace() and len(line) > indent:
-                    line = line[indent:]
+                    line = line[indent:]  # pragma: no cover (defensive?)
 
                 body.append(line)
                 verbatim = False
                 #@-<< handle verbatim line >>
                 continue
-            if strip_line == verbatim_line:  # <delim>@verbatim
+            if strip_line == verbatim_line:
                 verbatim = True
                 continue
             #@+<< finalize line >>
@@ -3155,14 +3229,14 @@ class FastAtRead:
             if indent and line[:indent].isspace() and len(line) > indent:
                 line = line[indent:]
             #@-<< finalize line >>
-            if not in_doc and not strip_line.startswith(sentinel):  # Faster than a regex!
+            # Faster than a regex!
+            if not in_doc and not strip_line.startswith(sentinel):
                 body.append(line)
                 continue
             # These three sections might clear in_doc.
             #@+<< handle @others >>
             #@+node:ekr.20180602103135.14: *4* << handle @others >>
-            m = self.others_pat.match(line)
-            if m:
+            if m := self.others_pat.match(line):
                 in_doc = False
                 if m.group(2) == '+':  # opening sentinel
                     body.append(f"{m.group(1)}@others{m.group(3) or ''}\n")
@@ -3181,8 +3255,7 @@ class FastAtRead:
             #@+node:ekr.20180602103135.18: *4* << handle section refs >>
             # Note: scan_header sets *comment* delims, not *section* delims.
             # This section coordinates with the section that handles @section-delims.
-            m = self.ref_pat.match(line)
-            if m:
+            if m := self.ref_pat.match(line):
                 in_doc = False
                 if m.group(2) == '+':
                     # Any later @section-delims directive is a serious error.
@@ -3199,8 +3272,7 @@ class FastAtRead:
             #@-<< handle section refs >>
             #@+<< handle node_start >>
             #@+node:ekr.20180602103135.19: *4* << handle node_start >>
-            m = self.node_start_pat.match(line)
-            if m:
+            if m := self.node_start_pat.match(line):
                 in_doc = False
                 gnx, head = m.group(2), m.group(5)
                 # m.group(3) is the level number, m.group(4) is the number of stars.
@@ -3276,13 +3348,15 @@ class FastAtRead:
                 #
                 # #1496: Retire the @doc convention.
                 #        An empty line is no longer a sentinel.
+
+                assert in_doc, repr(line)
+
                 if comment_delim2 and line in doc_skip:
-                    # doc_skip is (comment_delim1 + '\n', delim_end + '\n')
+                    # skip start/end comment delim!
                     continue
                 #
                 # Check for @c or @code.
-                m = self.code_pat.match(line)
-                if m:
+                if m := self.code_pat.match(line):
                     in_doc = False
                     body.append('@code\n' if m.group(1) else '@c\n')
                     continue
@@ -3290,8 +3364,9 @@ class FastAtRead:
             else:
                 #@+<< handle @ or @doc >>
                 #@+node:ekr.20211031033754.1: *4* << handle @ or @doc >>
-                m = self.doc_pat.match(line)
-                if m:
+                assert not in_doc, repr(line)
+
+                if m := self.doc_pat.match(line):
                     #@verbatim
                     # @+at or @+doc?
                     doc = '@doc' if m.group(1) == 'doc' else '@'
@@ -3311,8 +3386,7 @@ class FastAtRead:
             # Order doesn't matter.
             #@+<< handle @all >>
             #@+node:ekr.20180602103135.13: *4* << handle @all >>
-            m = self.all_pat.match(line)
-            if m:
+            if m := self.all_pat.match(line):
                 #@verbatim
                 # @all tells Leo's *write* code not to check for undefined sections.
                 # Here, in the read code, we merely need to add it to the body.
@@ -3328,15 +3402,13 @@ class FastAtRead:
             #@-<< handle @all >>
             #@+<< handle afterref >>
             #@+node:ekr.20180603063102.1: *4* << handle afterref >>
-            m = self.after_pat.match(line)
-            if m:
+            if m := self.after_pat.match(line):
                 afterref = True
                 continue
             #@-<< handle afterref >>
             #@+<< handle @first and @last >>
             #@+node:ekr.20180606053919.1: *4* << handle @first and @last >>
-            m = self.first_pat.match(line)
-            if m:
+            if m := self.first_pat.match(line):
                 # pylint: disable=no-else-continue
                 if 0 <= first_i < len(first_lines):
                     body.append('@first ' + first_lines[first_i])
@@ -3348,8 +3420,7 @@ class FastAtRead:
                     g.printObj(first_lines, tag='first_lines')
                     g.printObj(lines[start : i + 2], tag='lines[start:i+2]')
                     continue
-            m = self.last_pat.match(line)
-            if m:
+            if m := self.last_pat.match(line):
                 # Just increment the count of the expected last lines.
                 # We'll fill in the @last line directives after we see the @-leo directive.
                 n_last_lines += 1
@@ -3358,19 +3429,20 @@ class FastAtRead:
             #@+<< handle @comment >>
             #@+node:ekr.20180621050901.1: *4* << handle @comment >>
             # https://leo-editor.github.io/leo-editor/directives.html#part-4-dangerous-directives
-            m = self.comment_pat.match(line)
-            if m:
+            if m := self.comment_pat.match(line):
                 # <1, 2 or 3 comment delims>
                 delims = m.group(1).strip()
+
                 # Whatever happens, retain the @delims line.
                 body.append(f"@comment {delims}\n")
                 delim1, delim2, delim3 = g.set_delims_from_string(delims)
+
                 # delim1 is always the single-line delimiter.
                 if delim1:
                     comment_delim1, comment_delim2 = delim1, ''
                 else:
-                    comment_delim1, comment_delim2 = delim2, delim3
-                #
+                    comment_delim1, comment_delim2 = delim2, delim3  # pragma: no cover (unimportant)
+
                 # Within these delimiters:
                 # - double underscores represent a newline.
                 # - underscores represent a significant space,
@@ -3380,7 +3452,7 @@ class FastAtRead:
                 doc_skip = (comment_delim1 + '\n', comment_delim2 + '\n')
                 is_cweb = comment_delim1 == '@q@' and comment_delim2 == '@>'
                 sentinel = comment_delim1 + '@'
-                #
+
                 # Recalculate the patterns.
                 comment_delims = comment_delim1, comment_delim2
                 self.get_patterns(comment_delims)
@@ -3388,8 +3460,7 @@ class FastAtRead:
             #@-<< handle @comment >>
             #@+<< handle @delims >>
             #@+node:ekr.20180608104836.1: *4* << handle @delims >>
-            m = self.delims_pat.match(line)
-            if m:
+            if m := self.delims_pat.match(line):
                 # Get 1 or 2 comment delims
                 # Whatever happens, retain the original @delims line.
                 delims = m.group(1).strip()
@@ -3403,17 +3474,18 @@ class FastAtRead:
                     continue
                 comment_delim1 = m2.group(1)
                 comment_delim2 = m2.group(2) or ''
-                #
+
                 # Within these delimiters:
                 # - double underscores represent a newline.
                 # - underscores represent a significant space,
                 comment_delim1 = comment_delim1.replace('__', '\n').replace('_', ' ')
                 comment_delim2 = comment_delim2.replace('__', '\n').replace('_', ' ')
+
                 # Recalculate all delim-related values
                 doc_skip = (comment_delim1 + '\n', comment_delim2 + '\n')
                 is_cweb = comment_delim1 == '@q@' and comment_delim2 == '@>'
                 sentinel = comment_delim1 + '@'
-                #
+
                 # Recalculate the patterns
                 comment_delims = comment_delim1, comment_delim2
                 self.get_patterns(comment_delims)
@@ -3421,8 +3493,7 @@ class FastAtRead:
             #@-<< handle @delims >>
             #@+<< handle @section-delims >>
             #@+node:ekr.20211030033211.1: *4* << handle @section-delims >>
-            m = self.section_delims_pat.match(line)
-            if m:
+            if m := self.section_delims_pat.match(line):
                 if section_reference_seen:  # pragma: no cover
                     # This is a serious error.
                     # This kind of error should have been caught by Leo's atFile write logic.
@@ -3450,13 +3521,19 @@ class FastAtRead:
             if in_doc:
                 #@+<< handle remaining @doc lines >>
                 #@+node:ekr.20180606054325.1: *4* << handle remaining @doc lines >>
+                assert in_doc, repr(line)
+
                 if comment_delim2:
-                    # doc lines are unchanged.
+                    # Inner doc lines have no comment delims.
                     body.append(line)
                     continue
 
+                # Legacy:
                 #    with --black-sentinels: comment_delim1 ends with a blank.
                 # without --black-sentinels: comment_delim1 does *not* end with a blank.
+
+                # Leo 6.7.6:
+                #   comment_delim never ends with a blank.
 
                 tail = line.lstrip()[len(comment_delim1.rstrip()) + 1 :]
                 if tail.strip():
