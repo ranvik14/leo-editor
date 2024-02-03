@@ -910,8 +910,8 @@ class GitDiffController:
             range1 = nodes[1][0][2]
             contents0 = contents_list[i]
             contents1 = contents_list[i + 1]
-            body0 = contents0[range0[0]:range0[1]]
-            body1 = contents1[range1[0]:range1[1]]
+            body0 = contents0[range0[0] : range0[1]]
+            body1 = contents1[range1[0] : range1[1]]
             skip_flag = body0 == body1
         else:
             skip_flag = False
@@ -927,14 +927,14 @@ class GitDiffController:
             gnx0 = nodes0[0][1]
             range0 = nodes0[0][2]
             contents0 = contents_list[i]
-            body0 = contents0[range0[0]:range0[1]]
+            body0 = contents0[range0[0] : range0[1]]
         else:
             gnx0 = range0 = contents0 = body0 = None
         if nodes1:
             gnx1 = nodes1[0][1]
             range1 = nodes1[0][2]
             contents1 = contents_list[i + 1]
-            body1 = contents1[range1[0]:range1[1]]
+            body1 = contents1[range1[0] : range1[1]]
         else:
             gnx1 = range1 = contents1 = body1 = None
         return g.Bunch(
@@ -1307,12 +1307,14 @@ class GitDiffController:
             return g.toUnicode(''.join(lines)).replace('\r', '')
 
         # Read the file.
+        if not os.path.exists(path):
+            # This is not an error. The user has inserted or deleted the file.
+            return ''
         try:
             with open(path, 'rb') as f:
                 b = f.read()
             return g.toUnicode(b).replace('\r', '')
         except Exception:
-            g.es_print('Can not read', path)
             g.es_exception()
             return ''
     #@+node:ekr.20170806094320.9: *4* gdc.get_files

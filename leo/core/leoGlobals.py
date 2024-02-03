@@ -2248,7 +2248,14 @@ def pdb(message: str = '') -> None:
     # pylint: disable=forgotten-debug-statement
     breakpoint()  # New in Python 3.7.
 #@+node:ekr.20050819064157: *4* g.objToString & aliases
-def objToString(obj: Any, *, indent: int = 0, tag: str = None, width: int = 120) -> str:
+def objToString(
+    obj: Any,
+    *,
+    indent: int = 0,
+    tag: str = None,
+    width: int = 120,
+    offset: int = 0,  # Offset into array-like objects.
+) -> str:
     """Pretty print any Python object to a string."""
     if isinstance(obj, dict):
         if obj:
@@ -2266,7 +2273,7 @@ def objToString(obj: Any, *, indent: int = 0, tag: str = None, width: int = 120)
             # Return the enumerated lines of the list.
             result_list = ['[\n' if isinstance(obj, list) else '(\n']
             for i, z in enumerate(obj):
-                result_list.append(f"  {i:4}: {z!r}\n")
+                result_list.append(f"  {i+offset:4}: {z!r}\n")
             result_list.append(']\n' if isinstance(obj, list) else ')\n')
             result = ''.join(result_list)
         else:
@@ -2281,7 +2288,7 @@ def objToString(obj: Any, *, indent: int = 0, tag: str = None, width: int = 120)
     else:
         # Return the enumerated lines of the string.
         lines = ''.join([
-            f"  {i:4}: {z!r}\n" for i, z in enumerate(g.splitLines(obj))
+            f"  {i+offset:4}: {z!r}\n" for i, z in enumerate(g.splitLines(obj))
         ])
         result = f"[\n{lines}]\n"
     return f"{tag.strip()}: {result}" if tag and tag.strip() else result
@@ -2296,9 +2303,9 @@ def sleep(n: float) -> None:
     from time import sleep  # type:ignore
     sleep(n)  # type:ignore
 #@+node:ekr.20171023140544.1: *4* g.printObj & aliases
-def printObj(obj: Any, *, tag: str = None, indent: int = 0) -> None:
+def printObj(obj: Any, *, tag: str = None, indent: int = 0, offset: int = 0) -> None:
     """Pretty print any Python object using g.pr."""
-    g.pr(objToString(obj, indent=indent, tag=tag))
+    g.pr(objToString(obj, indent=indent, tag=tag, offset=offset))
 
 printDict = printObj
 printList = printObj
@@ -3074,10 +3081,10 @@ def ensure_extension(name: str, ext: str) -> str:
 def fullPath(c: Cmdr, p: Position) -> str:
     """
     Return the full path in effect at p.
-    
+
     If p is an @<file> node, return the path, including the filename.
     Otherwise the return the path to the enclosing directory.
-    
+
     Neither the path nor the fileName will be created if it does not exist.
     """
     return c.fullPath(p)
@@ -4907,13 +4914,13 @@ def getPythonEncodingFromString(s: str) -> str:
         lines = g.splitLines(s)
         line1 = lines[0].strip()
         if line1.startswith(tag) and line1.endswith(tag2):
-            e = line1[n1 : -n2].strip()
+            e = line1[n1:-n2].strip()
             if e and g.isValidEncoding(e):
                 encoding = e
         elif g.match_word(line1, 0, '@first'):  # 2011/10/21.
             line1 = line1[len('@first') :].strip()
             if line1.startswith(tag) and line1.endswith(tag2):
-                e = line1[n1 : -n2].strip()
+                e = line1[n1:-n2].strip()
                 if e and g.isValidEncoding(e):
                     encoding = e
     return encoding
@@ -6715,7 +6722,7 @@ def run_unit_tests(tests: str = None, verbose: bool = False) -> None:
 #
 # 3. Leo's headline-based UNLs, as shown in the status pane:
 #
-#    Headline-based UNLs consist of `unl://` + `//{outline}#{headline_list}`
+#    Headline-based UNLs consist of `unl://` + `{outline}#{headline_list}`
 #    where headline_list is list of headlines separated by `-->`.
 #
 #    This link works: `unl://#Code-->About this file`.
@@ -6777,30 +6784,67 @@ def findAnyUnl(unl_s: str, c: Cmdr) -> Optional[Position]:
     The UNL may be either a legacy (path-based) or new (gnx-based) unl.
     """
     unl = unl_s
+
     if unl.startswith('unl:gnx:'):
-        # Resolve a gnx-based unl.
+        # Init the gnx-based search.
         unl = unl[8:]
         file_part = g.getUNLFilePart(unl)
-        c2 = g.openUNLFile(c, file_part)
-        if not c2:
-            return None
         tail = unl[3 + len(file_part) :]  # 3: Skip the '//' and '#'
-        return g.findGnx(tail, c2)
+
+        # If there is a file part, search *only* the given commander!
+        if file_part:
+            c2 = g.openUNLFile(c, file_part)
+            if not c2:
+                return None
+            p = g.findGnx(tail, c2)
+            return p  # May be None.
+
+        # New in Leo 6.7.7:
+        # There is no file part, so search all open commanders, starting with c.
+        p = g.findGnx(tail, c)
+        if p:
+            return p
+        for c2 in g.app.commanders():
+            if c2 != c:
+                p = g.findGnx(tail, c2)
+                if p:
+                    return p
+        return None
+
     # Resolve a file-based unl.
     for prefix in ('unl:', 'file:'):
         if unl.startswith(prefix):
             unl = unl[len(prefix) :]
             break
     else:
+        # Unit tests suppress this output.
         print(f"Bad unl: {unl_s}")
         return None
+
+    # Init the headline-based search.
     file_part = g.getUNLFilePart(unl)
-    c2 = g.openUNLFile(c, file_part)
-    if not c2:
-        return None
     tail = unl[3 + len(file_part) :]  # 3: Skip the '//' and '#'
     unlList = tail.split('-->')
-    return g.findUnl(unlList, c2)
+
+    # If there is a file part, search *only* the given commander!
+    if file_part:
+        c2 = g.openUNLFile(c, file_part)
+        if not c2:
+            return None
+        p = g.findUnl(unlList, c2)
+        return p  # May be None
+
+    # New in Leo 6.7.7:
+    # There is no file part, so search all open commanders, starting with c.
+    p = g.findUnl(unlList, c)
+    if p:
+        return p
+    for c2 in g.app.commanders():
+        if c2 != c:
+            p = g.findUnl(unlList, c2)
+            if p:
+                return p
+    return None
 #@+node:ekr.20230624015529.1: *3* g.findGnx (new unls)
 find_gnx_pat = re.compile(r'^(.*)::([-\d]+)?$')
 
@@ -7178,17 +7222,14 @@ def openUrlHelper(event: Any, url: str = None) -> Optional[str]:
                         break
 
                 if target:
-                    found_gnx = False
                     if c.p.gnx == target:
                         return target
                     for p in c.all_unique_positions():
                         if p.v.gnx == target:
-                            found_gnx = True
-                            break
-                    if found_gnx:
-                        c.selectPosition(p)
-                        c.redraw()
-                    return target
+                            c.selectPosition(p)
+                            c.redraw()
+                            return target
+                    return None
                 #@-<< look for gnx >>
     elif not isinstance(url, str):
         url = url.toString()
@@ -7270,6 +7311,8 @@ def openUNLFile(c: Cmdr, s: str) -> Cmdr:
     """
     Open the commander for filename s, the file part of an unl.
 
+    Use `@data unl-path-prefixes` to convert to relative to absolute paths.
+
     Return None if the file can not be found.
     """
     base = os.path.basename
@@ -7294,7 +7337,8 @@ def openUNLFile(c: Cmdr, s: str) -> Cmdr:
     if os.path.isabs(s):
         path = standard(s)
     else:
-        # Values of d should be directories.
+        # Use `@data unl-path-prefixes` to convert to relative to absolute paths.
+        # Keys are file names; values are directives.
         d = g.parsePathData(c)
         base_s = base(s)
         directory = d.get(base_s)

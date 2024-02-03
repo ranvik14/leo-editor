@@ -13,8 +13,11 @@ import token as token_module
 from typing import Any
 import unittest
 import warnings
+
 warnings.simplefilter("ignore")
+
 # pylint: disable=import-error
+
 # Third-party.
 try:
     import asttokens
@@ -33,7 +36,6 @@ from leo.core import leoGlobals as g
 from leo.core.leoAst import AstNotEqual
 from leo.core.leoAst import Fstringify, Orange
 from leo.core.leoAst import Token, TokenOrderGenerator
-from leo.core.leoAst import get_encoding_directive, read_file, strip_BOM
 from leo.core.leoAst import make_tokens, parse_ast, tokens_to_string
 from leo.core.leoAst import dump_ast, dump_contents, dump_tokens, dump_tree, _op_names
 #@-<< test_leoAst imports >>
@@ -185,7 +187,7 @@ class BaseTest(unittest.TestCase):
         tree = self.make_tree(contents)
         if not tree:
             self.fail('make_tree failed')
-            
+
         # Check the debug_list.
         valid = ('ast', 'contents', 'debug', 'sync', 'tokens', 'tree', 'post-tokens', 'post-tree')
         for z in self.debug_list:
@@ -210,7 +212,7 @@ class BaseTest(unittest.TestCase):
 
         # Pass 1: create the links.
         self.create_links(tokens, tree)
-        
+
         # Late dumps.
         if 'post-tree' in self.debug_list:
             dump_tree(tokens, tree)
@@ -219,7 +221,7 @@ class BaseTest(unittest.TestCase):
 
         t2 = get_time()
         self.update_times('90: TOTAL', t2 - t1)
-        
+
         # Fail if create_links set link_error.
         def enabled(aList: list) -> bool:
             return any(z in self.debug_list for z in aList)
@@ -240,7 +242,7 @@ class BaseTest(unittest.TestCase):
         directory = os.path.dirname(__file__)
         filename = g.finalize_join(directory, '..', '..', 'core', filename)
         assert os.path.exists(filename), repr(filename)
-        contents = read_file(filename)
+        contents = g.readFileIntoUnicodeString(filename)
         contents, tokens, tree = self.make_data(contents, description=filename)
         return contents, tokens, tree
     #@+node:ekr.20191228101601.1: *4* BaseTest: passes...
@@ -415,7 +417,7 @@ class TestTOG(BaseTest):
         if py_version < (3, 9):
             self.skipTest('Requires Python 3.9 or above')  # pragma: no cover
         # Verify that leoAst can parse the file.
-        contents = read_file(path)
+        contents = g.readFileIntoUnicodeString(path)
         self.make_data(contents)
     #@+node:ekr.20210318214057.1: *5* test_line_315
     def test_line_315(self):
@@ -776,7 +778,7 @@ class TestTOG(BaseTest):
         self.make_data(contents)
     #@+node:ekr.20231215210904.1: *5* test_fstring_with_nested_quotes
     def test_fstring_with_nested_quotes(self):
-        
+
         if g.python_version_tuple < (3, 12, 0):
             self.skipTest('Requires Python 3.12+')
 
@@ -1344,7 +1346,7 @@ class Optional_TestFiles(BaseTest):
         filename = os.path.join(directory, filename)
         # A fair comparison omits the read time.
         t0 = get_time()
-        contents = read_file(filename)
+        contents = g.readFileIntoUnicodeString(filename)
         t1 = get_time()
         # Part 1: TOG.
         tog = TokenOrderGenerator()
@@ -1388,17 +1390,17 @@ class TestFstringify(BaseTest):
     #@+node:ekr.20210318054321.1: *5* TestFstringify.test_bug_1851
     def test_bug_1851(self):
         # leoCheck.py.
-        contents = """\
-    from dataclasses import dataclass
+        contents = """
+            from dataclasses import dataclass
 
-    @dataclass(frozen=True)
-    class TestClass:
-        value: str
-        start: int
-        end: int
+            @dataclass(frozen=True)
+            class TestClass:
+                value: str
+                start: int
+                end: int
 
-    f = TestClass('abc', 0, 10)
-    """
+            f = TestClass('abc', 0, 10)
+        """
         contents, tokens, tree = self.make_data(contents)
         expected = textwrap.dedent(contents).rstrip() + '\n'
         results = self.fstringify(contents, tokens, tree)
@@ -1514,15 +1516,16 @@ class TestFstringify(BaseTest):
     #@+node:ekr.20200122035055.1: *4* TestFstringify.test_call_with_comments
     def test_call_with_comments(self):
 
-        contents = """\
-    print('%s in %5.2f sec' % (
-        "done", # message
-        2.9, # time
-    )) # trailing comment"""
+        contents = """
+            print('%s in %5.2f sec' % (
+                "done", # message
+                2.9, # time
+            )) # trailing comment
+        """
 
         expected = """\
-    print(f'{"done"} in {2.9:5.2f} sec') # trailing comment
-    """
+            print(f'{"done"} in {2.9:5.2f} sec') # trailing comment
+        """
         contents, tokens, tree = self.make_data(contents)
         expected = textwrap.dedent(expected).rstrip() + '\n'
         results = self.fstringify(contents, tokens, tree)
@@ -2012,17 +2015,17 @@ class TestOrange(BaseTest):
     #@+node:ekr.20200116104031.1: *4* TestOrange.test_join_and_strip_condition
     def test_join_and_strip_condition(self):
 
-        contents = """\
-    if (
-        a == b or
-        c == d
-    ):
-        pass
-    """
-        expected = """\
-    if (a == b or c == d):
-        pass
-    """
+        contents = """
+            if (
+                a == b or
+                c == d
+            ):
+                pass
+        """.strip() + '\n'
+        expected = """
+            if (a == b or c == d):
+                pass
+        """.strip() + '\n'
         contents, tokens, tree = self.make_data(contents)
         expected = textwrap.dedent(expected)
         # Black also removes parens, which is beyond our scope at present.
@@ -2100,18 +2103,18 @@ class TestOrange(BaseTest):
     #@+node:ekr.20200210051900.1: *4* TestOrange.test_join_suppression
     def test_join_suppression(self):
 
-        contents = """\
-    class T:
-        a = 1
-        print(
-           a
-        )
-    """
-        expected = """\
-    class T:
-        a = 1
-        print(a)
-    """
+        contents = """
+            class T:
+                a = 1
+                print(
+                   a
+                )
+        """.strip() + '\n'
+        expected = """
+            class T:
+                a = 1
+                print(a)
+        """.strip() + '\n'
         contents, tokens, tree = self.make_data(contents)
         expected = textwrap.dedent(expected)
         results = self.beautify(contents, tokens, tree)
@@ -2152,18 +2155,19 @@ class TestOrange(BaseTest):
     def test_leading_stars(self):
 
         # #2533.
-        contents = """\
+        contents = """
             def f(
                 arg1,
                 *args,
                 **kwargs
             ):
                 pass
-    """
-        expected = textwrap.dedent("""\
+        """.strip() + '\n'
+
+        expected = """
             def f(arg1, *args, **kwargs):
                 pass
-    """)
+        """.strip() + '\n'
         contents, tokens, tree = self.make_data(contents)
         results = self.beautify(contents, tokens, tree)
         self.assertEqual(expected, results)
@@ -2336,13 +2340,14 @@ class TestOrange(BaseTest):
                     f"TestOrange.test_one_line_pet_peeves: FAIL {fails}\n"
                     f"  contents: {contents.rstrip()}\n"
                     f"     black: {expected.rstrip()}\n"
-                    f"    orange: {results.rstrip()}")
+                    f"    orange: {results.rstrip() if results else 'None'}")
         self.assertEqual(fails, 0)
     #@+node:ekr.20220327135448.1: *4* TestOrange.test_relative_imports
     def test_relative_imports(self):
 
         # #2533.
-        contents = """\
+        contents = textwrap.dedent(
+        """
             from .module1 import w
             from . module2 import x
             from ..module1 import y
@@ -2351,8 +2356,10 @@ class TestOrange(BaseTest):
             from.import b
             from leo.core import leoExternalFiles
             import leo.core.leoGlobals as g
-    """
-        expected = textwrap.dedent("""\
+        """).strip() + '\n'
+
+        expected = textwrap.dedent(
+        """
             from .module1 import w
             from .module2 import x
             from ..module1 import y
@@ -2361,7 +2368,8 @@ class TestOrange(BaseTest):
             from . import b
             from leo.core import leoExternalFiles
             import leo.core.leoGlobals as g
-    """)
+        """).strip() + '\n'
+
         contents, tokens, tree = self.make_data(contents)
         results = self.beautify(contents, tokens, tree)
         self.assertEqual(expected, results)
@@ -2510,7 +2518,8 @@ class TestOrange(BaseTest):
     def test_verbatim(self):
 
         line_length = 40  # For testing.
-        contents = textwrap.dedent("""\
+
+        contents = textwrap.dedent("""
     #@@nobeautify
 
     def addOptionsToParser(self, parser, trace_m):
@@ -2534,7 +2543,7 @@ class TestOrange(BaseTest):
     docDirective    =  3 # @doc.
 
     #@@beautify
-    """)
+    """).lstrip()
         contents, tokens, tree = self.make_data(contents)
         expected = contents
         results = self.beautify(contents, tokens, tree,
@@ -2816,30 +2825,6 @@ class TestTokens(BaseTest):
                         f"{traverser.__class__.__name__}.{z}")
         msg = f"{nodes} node types, {ops} op types, {errors} errors"
         assert not errors, msg
-    #@-others
-#@+node:ekr.20200107144010.1: *3* class TestTopLevelFunctions (BaseTest)
-class TestTopLevelFunctions(BaseTest):
-    """Tests for the top-level functions in leoAst.py."""
-    #@+others
-    #@+node:ekr.20200107144227.1: *4* test_get_encoding_directive
-    def test_get_encoding_directive(self):
-
-        filename = __file__
-        assert os.path.exists(filename), repr(filename)
-        with open(filename, 'rb') as f:
-            bb = f.read()
-        e = get_encoding_directive(bb)
-        self.assertEqual(e.lower(), 'utf-8')
-    #@+node:ekr.20200107150857.1: *4* test_strip_BOM
-    def test_strip_BOM(self):
-
-        filename = __file__
-        assert os.path.exists(filename), repr(filename)
-        with open(filename, 'rb') as f:
-            bb = f.read()
-        assert bb, filename
-        e, s = strip_BOM(bb)
-        assert e is None or e.lower() == 'utf-8', repr(e)
     #@-others
 #@-others
 #@-leo

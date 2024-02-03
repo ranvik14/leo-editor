@@ -117,6 +117,7 @@ class Undoer:
         self.newRecentFiles = None
         self.newSel = None
         self.newTree = None
+        self.newUA = None
         self.newYScroll = None
         self.oldBack = None
         self.oldBody = None
@@ -132,6 +133,7 @@ class Undoer:
         self.oldSel = None
         self.oldSiblings = None
         self.oldTree = None
+        self.oldUA = None
         self.oldYScroll = None
         self.pasteAsClone = None
         self.prevSel = None
@@ -168,7 +170,7 @@ class Undoer:
                 i -= 1
             # This work regardless of how many items appear after bead n.
                 # g.trace('Cutting undo stack to %d entries' % (n))
-            u.beads = u.beads[-n :]
+            u.beads = u.beads[-n:]
             u.bead = n - 1
         if 'undo' in g.app.debug and 'verbose' in g.app.debug:  # pragma: no cover
             print(f"u.cutStack: {len(u.beads):3}")
@@ -506,6 +508,16 @@ class Undoer:
         u.beads[u.bead:] = [bunch]
         # Recalculate the menu labels.
         u.setUndoTypes()
+    #@+node:ekr.20231225132413.1: *5* u.afterChangeUA
+    def afterChangeUA(self, p: Position, command: str, bunch: g.Bunch) -> None:
+        u = self
+        if u.redoing or u.undoing:
+            return  # pragma: no cover
+        bunch.undoType = command
+        bunch.newUA = p.v.u
+        bunch.undoHelper = u.undoChangeUA
+        bunch.redoHelper = u.redoChangeUA
+        u.pushBead(bunch)
     #@+node:ekr.20050424161505: *5* u.afterClearRecentFiles
     def afterClearRecentFiles(self, bunch: g.Bunch) -> None:
         u = self
@@ -798,6 +810,12 @@ class Undoer:
         bunch.oldIns = w.getInsertPoint()
         bunch.oldYScroll = w.getYScrollPosition()
         return bunch
+    #@+node:ekr.20231225131907.1: *5* u.beforeChangeUA
+    def beforeChangeUA(self, p: Position) -> None:
+        u = self
+        bunch = u.createCommonBunch(p)
+        bunch.oldUA = p.v.u
+        return bunch
     #@+node:ekr.20050424161505.1: *5* u.beforeClearRecentFiles
     def beforeClearRecentFiles(self) -> g.Bunch:
         u = self
@@ -1005,8 +1023,8 @@ class Undoer:
             old_middle_lines = old_lines[leading:]
             new_middle_lines = new_lines[leading:]
         else:
-            old_middle_lines = old_lines[leading : -trailing]
-            new_middle_lines = new_lines[leading : -trailing]
+            old_middle_lines = old_lines[leading:-trailing]
+            new_middle_lines = new_lines[leading:-trailing]
         # Remember how many trailing newlines in the old and new text.
         i = len(oldText) - 1
         old_newlines = 0
@@ -1450,6 +1468,12 @@ class Undoer:
             c.frame.body.recolor(u.p)
         u.updateMarks('new')
         u.p.setDirty()
+    #@+node:ekr.20231225134021.1: *4* u.redoChangeUA
+    def redoChangeUA(self) -> None:
+        u = self
+        v = u.p.v
+        v.setDirty()
+        v.u = u.newUA
     #@+node:ekr.20050424170219: *4* u.redoClearRecentFiles
     def redoClearRecentFiles(self) -> None:
         c, u = self.c, self
@@ -1798,6 +1822,12 @@ class Undoer:
         #
         if c.p != u.p:
             c.selectPosition(u.p)
+    #@+node:ekr.20231225133712.1: *4* u.undoChangeUA
+    def undoChangeUA(self) -> None:
+        u = self
+        v = u.p.v
+        v.setDirty()
+        v.u = u.oldUA
     #@+node:ekr.20050424170219.1: *4* u.undoClearRecentFiles
     def undoClearRecentFiles(self) -> None:
         c, u = self.c, self
@@ -1862,7 +1892,7 @@ class Undoer:
         parent_v = u.p._parentVnode()
         n = len(u.followingSibs)
         # Remove the demoted nodes from p's children.
-        u.p.v.children = u.p.v.children[: -n]
+        u.p.v.children = u.p.v.children[:-n]
         # Add the demoted nodes to the parent's children.
         parent_v.children.extend(u.followingSibs)
         # Adjust the parent links.
@@ -2095,7 +2125,7 @@ class Undoer:
         if oldMidLines:
             s.extend(oldMidLines)
         if trailing > 0:
-            s.extend(body_lines[-trailing :])
+            s.extend(body_lines[-trailing:])
         s = '\n'.join(s)
         # Remove trailing newlines in s.
         while s and s[-1] == '\n':
