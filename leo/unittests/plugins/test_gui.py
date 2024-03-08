@@ -1,5 +1,5 @@
 #@+leo-ver=5-thin
-#@+node:ekr.20210910084607.1: * @file ../unittests/test_gui.py
+#@+node:ekr.20210910084607.1: * @file ../unittests/plugins/test_gui.py
 """Tests of gui base classes"""
 #@+<< test_gui imports >>
 #@+node:ekr.20220911102700.1: ** << test_gui imports >>
@@ -32,7 +32,6 @@ class TestNullGui(LeoUnitTest):
         # Make sure the ctors don't crash.
         gui = g.app.gui
         gui.runAboutLeoDialog(c, 'version', 'copyright', 'url', 'email')
-        gui.runAskLeoIDDialog()
         gui.runAskOkDialog(c, 'title', 'message')
         gui.runAskOkCancelNumberDialog(c, 'title', 'message')
         gui.runAskOkCancelStringDialog(c, 'title', 'message')
@@ -57,7 +56,7 @@ class TestQtGui(LeoUnitTest):
             from leo.core.leoQt import Qt
             assert Qt
         except Exception:
-            self.skipTest('Qt not installed')
+            self.skipTest('Requires Qt')
     #@+node:ekr.20210913120449.1: *3* TestQtGui.test_bug_2164
     def test_bug_2164(self):
         # show-invisibles crashes with PyQt6.
@@ -94,7 +93,6 @@ class TestQtGui(LeoUnitTest):
         gui = g.app.gui
         self.assertEqual(gui.__class__.__name__, 'LeoQtGui')
         gui.runAboutLeoDialog(c, 'version', 'copyright', 'url', 'email')
-        gui.runAskLeoIDDialog()
         gui.runAskOkDialog(c, 'title', 'message')
         gui.runAskOkCancelNumberDialog(c, 'title', 'message')
         gui.runAskOkCancelStringDialog(c, 'title', 'message')
@@ -106,7 +104,7 @@ class TestQtGui(LeoUnitTest):
         # https://github.com/leo-editor/leo-editor/issues/1973 list of enums
 
         if not QtCore and QtCore.Qt:
-            self.skipTest('no qt')  # pragma: no cover
+            self.skipTest('Requires Qt')  # pragma: no cover
         table = (
             'DropAction', 'ItemFlag', 'KeyboardModifier',
             'MouseButton', 'Orientation',

@@ -15,6 +15,9 @@
 <v t="ekr.20240110034554.3"><vh>@data:@auto-md importers.md </vh>
 <v t="ekr.20240110034554.4"><vh>@gnxs</vh></v>
 </v>
+<v t="ekr.20240303071512.1"><vh>@data:@auto-rst treecaching.txt</vh>
+<v t="ekr.20240303071512.2"><vh>@gnxs</vh></v>
+</v>
 </v>
 <v t="ekr.20050407144417"><vh>@settings</vh>
 <v t="ekr.20150318043636.16"><vh>@bool check_outline_after_read = True</vh></v>
@@ -458,16 +461,40 @@
 </v>
 <v t="ekr.20101115152915.4937"><vh>Backup of wikipedia entry</vh></v>
 <v t="ekr.20100122073254.11655"><vh>Writing new importers</vh></v>
+<v t="ekr.20240303055534.1"><vh>Obsolete installation, FAQ &amp; HowTo entries</vh>
+<v t="ekr.20090212054250.5"><vh>FAQ: Getting Leo</vh>
+<v t="ekr.20090212054250.6"><vh>Where can I get official releases of Leo?</vh></v>
+<v t="ekr.20170206073747.10"><vh>Installing Leo with git</vh></v>
+<v t="ekr.20090212054250.7"><vh>How can I get recent snapshots of Leo?</vh></v>
 </v>
+<v t="ekr.20070623145346"><vh>FAQ: Installing Leo</vh>
+<v t="matt.20180826201749.1"><vh>How to  Pip install from GitHub?</vh></v>
+<v t="ekr.20090202191501.7"><vh>Leo's installer failed, what do I do?</vh></v>
+<v t="ekr.20150313053238.40"><vh>Common problems</vh></v>
+<v t="ekr.20190731085740.1"><vh>Tip: use shallow git clones to speed pip install</vh></v>
+</v>
+<v t="ekr.20120229094652.15137"><vh>FAQ: What's the recommended way to upgrade Leo?</vh></v>
+<v t="ekr.20131017094004.16739"><vh>How to...</vh>
+<v t="ekr.20090401113141.1"><vh>How to generate odt/rtf/pdf files</vh>
+<v t="ekr.20090620131445.5595"><vh>Post from ville</vh></v>
+<v t="ekr.20090401113141.2"><vh>@@rst test.html</vh>
+<v t="ekr.20090401113141.4"><vh>section 1</vh></v>
+</v>
+</v>
+<v t="ekr.20101104024804.4898"><vh>How to generate these docs</vh></v>
+</v>
+<v t="ekr.20141105052052.4"><vh>Dependencies</vh></v>
+<v t="ville.20090609182215.5676"><vh>@auto-rst treecaching.txt</vh></v>
+</v>
+</v>
+<v t="matt.20200331213038.1"><vh>PyPi install caveat</vh></v>
 <v t="ekr.20230121110345.1"><vh>Script files</vh>
 <v t="ekr.20230121110340.1"><vh>@clean ../scripts/make-clean.cmd</vh></v>
 <v t="ekr.20230121110533.1"><vh>@clean ../scripts/make-html.cmd</vh></v>
 </v>
 <v t="ekr.20100805171546.4412"><vh>Web pages</vh>
-<v t="ville.20090609182215.5676"><vh>@auto-rst treecaching.txt</vh></v>
 <v t="ekr.20090428133936.2"><vh>@file html/conf.py</vh></v>
 <v t="ekr.20101112045055.5064"><vh>@file plugin_catalog.py</vh></v>
-<v t="ekr.20101112045055.5065"><vh>@url docs generated from plugin_catalog.py</vh></v>
 <v t="ekr.20131005214621.16088"><vh>Home pages</vh>
 <v t="ekr.20230110155708.1"><vh>@file ../../docs/redirect_index.html</vh></v>
 <v t="ekr.20100808060203.4273"><vh>@file ../../docs/index.html</vh></v>
@@ -589,15 +616,6 @@
 <v t="ekr.20230122101508.3"><vh>@rst html/slides/minibuffer/slide-011.html</vh></v>
 </v>
 </v>
-<v t="ekr.20131017094004.16739"><vh>How to...</vh>
-<v t="ekr.20090401113141.1"><vh>How to generate odt/rtf/pdf files</vh>
-<v t="ekr.20090620131445.5595"><vh>Post from ville</vh></v>
-<v t="ekr.20090401113141.2"><vh>@@rst test.html</vh>
-<v t="ekr.20090401113141.4"><vh>section 1</vh></v>
-</v>
-</v>
-<v t="ekr.20101104024804.4898"><vh>How to generate these docs</vh></v>
-</v>
 <v t="ekr.20131023151757.17122"><vh>Preliminaries</vh>
 <v t="ekr.20131008041326.16079"><vh>@rst html/preliminaries.html</vh></v>
 <v t="ekr.20131017174814.17479"><vh>@rst html/preface.html</vh></v>
@@ -654,26 +672,11 @@
 </v>
 <v t="ekr.20131008041326.16092"><vh>Installing &amp; running Leo</vh>
 <v t="ekr.20131015104133.16766"><vh>@rst html/getting-started.html</vh></v>
-<v t="ekr.20111127144911.5544"><vh>@rst html/download.html</vh>
-<v t="tbrown.20140412113009.50227"><vh>Snapshots</vh></v>
-<v t="maphew.20200616225715.1"><vh>@ignore Standalone Leo.exe</vh></v>
-</v>
 <v t="ekr.20131008041326.16094"><vh>@rst html/installing.html</vh>
-<v t="ekr.20141105052052.4"><vh>Dependencies</vh></v>
-<v t="ekr.20180130033527.1"><vh>Installing Leo with pip</vh>
-<v t="matt.20200331213038.1"><vh>PyPi install caveat</vh></v>
-</v>
-<v t="ekr.20101125062332.5090"><vh>Installing packages</vh></v>
-<v t="ekr.20170206073848.1"><vh>Installing Leo itself</vh>
-<v t="ekr.20170206073747.2"><vh>Installing Leo on Windows</vh>
-<v t="ekr.20170206073747.4"><vh>Installing from sources (Windows)</vh></v>
-<v t="ekr.20170206073747.5"><vh>Creating Windows file associations</vh></v>
-</v>
-<v t="mhw.20191010004650.1"><vh>Installing Leo from sources (all platforms)</vh></v>
-<v t="ekr.20170206073747.10"><vh>Installing Leo with git</vh></v>
-<v t="ekr.20170206073747.9"><vh>Installing Leo on MacOs 10.7 (Lion) and later</vh></v>
-</v>
+<v t="ekr.20180130033527.1"><vh>Installing Leo from PyPi</vh></v>
+<v t="ekr.20240302082146.1"><vh>Installing Leo from GitHub</vh></v>
 <v t="ekr.20180126191031.1"><vh>Installing everything with Anaconda or Miniconda</vh></v>
+<v t="ekr.20170206073747.9"><vh>Installing Leo on MacOs 10.7 (Lion) and later</vh></v>
 </v>
 <v t="ekr.20131008041326.16140"><vh>@rst html/running.html</vh>
 <v t="ekr.20131008041326.16151"><vh>Running Leo</vh>
@@ -691,17 +694,6 @@
 <v t="ekr.20050831195331.1"><vh>FAQ</vh>
 <v t="ekr.20050830115714"><vh>@rst html\FAQ.html</vh>
 <v t="ekr.20050830120007"><vh>@rst-no-head Links (FAQ)</vh></v>
-<v t="ekr.20090212054250.5"><vh>Getting Leo</vh>
-<v t="ekr.20090212054250.6"><vh>Where can I get official releases of Leo?</vh></v>
-<v t="ekr.20170206073747.10"></v>
-<v t="ekr.20090212054250.7"><vh>How can I get recent snapshots of Leo?</vh></v>
-</v>
-<v t="ekr.20070623145346"><vh>Installing Leo</vh>
-<v t="matt.20180826201749.1"><vh>How to  Pip install from GitHub?</vh></v>
-<v t="ekr.20090202191501.7"><vh>Leo's installer failed, what do I do?</vh></v>
-<v t="ekr.20150313053238.40"><vh>Common problems</vh></v>
-<v t="ekr.20190731085740.1"><vh>Tip: use shallow git clones to speed pip install</vh></v>
-</v>
 <v t="ekr.20050830115714.1"><vh>Learning to use Leo</vh>
 <v t="ekr.20161207052511.1"><vh>How can I learn Leo, or python, or anything</vh></v>
 <v t="ekr.20050830115714.2"><vh>What's the best way to learn to use Leo?</vh></v>
@@ -794,7 +786,6 @@
 <v t="ekr.20210607135729.1"><vh>How can I run scripts in languages other than python?</vh></v>
 <v t="ekr.20160428105918.1"><vh>How can I run pylint outside of Leo?</vh></v>
 <v t="ekr.20131115075142.16636"><vh>How can I test settings easily?</vh></v>
-<v t="ekr.20160304081437.4"><vh>How can I use Leo in virtualenv?</vh></v>
 <v t="ekr.20141108064630.12"><vh>How can I use setuptools instead of .bat files?</vh></v>
 <v t="ekr.20141108064630.13"><vh>How can scripts call functions from Leo's core?</vh></v>
 <v t="ekr.20170612093902.1"><vh>How do I choose between @others and section references?</vh></v>
@@ -837,7 +828,6 @@
 <v t="ekr.20050830115714.119"><vh>How can I see two nodes at once?</vh></v>
 <v t="ekr.20090706042206.14718"><vh>How can I use Leo cooperatively without sentinels?</vh></v>
 <v t="ekr.20141109053526.8"><vh>How can I use the GTD workflow in Leo?</vh></v>
-<v t="ekr.20120229094652.15137"><vh>What's the recommended way to upgrade Leo?</vh></v>
 </v>
 </v>
 </v>
@@ -1646,6 +1636,7 @@
 <v t="ekr.20060620094033"><vh>What's New...</vh>
 <v t="ekr.20101025080245.5791"><vh>@rst html/what-is-new.html</vh>
 <v t="ekr.20071116062917.2"><vh>@rst-no-head links</vh></v>
+<v t="ekr.20240222121346.1"><vh>What's new in Leo 6.7.8</vh></v>
 <v t="ekr.20240118094134.1"><vh>What's new in Leo 6.7.7</vh></v>
 <v t="ekr.20231126120048.1"><vh>What's new in Leo 6.7.6</vh></v>
 <v t="ekr.20230901233844.1"><vh>What's new in Leo 6.7.5</vh></v>
@@ -1824,6 +1815,7 @@
 </v>
 </v>
 <v t="ekr.20180125034510.1"><vh>Release Notes</vh>
+<v t="ekr.20240222121215.1"><vh>Leo 6.7.8 release notes</vh></v>
 <v t="ekr.20240118094108.1"><vh>Leo 6.7.7 release notes</vh></v>
 <v t="ekr.20231126121710.1"><vh>Leo 6.7.6 release notes </vh></v>
 <v t="ekr.20230901233131.1"><vh>Leo 6.7.5 release notes</vh></v>
@@ -2518,10 +2510,9 @@
 </v>
 </v>
 </v>
-<v t="ekr.20101025080245.5791"></v>
-<v t="ekr.20180125034510.1"></v>
-<v t="ekr.20240118094134.1"></v>
-<v t="ekr.20240118094108.1"></v>
+<v t="ekr.20240222121346.1"></v>
+<v t="ekr.20240222121215.1"></v>
+<v t="ekr.20131008041326.16092"></v>
 </vnodes>
 <tnodes>
 <t tx="EKR.20040524104904.140">Leo stores options in **@settings trees**, outlines whose headline is ``@settings``. When opening a .leo file, Leo looks for ``@settings`` trees not only in the outline being opened but also in various ``leoSettings.leo`` files. This scheme allows for the following kinds of settings:
@@ -3714,32 +3705,10 @@ They contain restructured text markup for the sphinx tool. See::
 
 To generate these docs:
 
-1. Select this node, then run the rst3 command.
-
-   This command will generate about 50 .html.txt files in leo/doc/html folder.
-
-2. From a console::
-
-    cd leo/doc/html
-    make html
-
-    This creates html files in the leo/doc/html/_build/html directory.
-
-    The make file requires sphinx to be installed,
-    but sphinx does not have to be installed to use the resulting html files.
-
-3. Copy the entire leo/doc/html/_build/html directory to the server, but
-
-   **do not copy _build/html/searchindex.js**
-
-   I don't remember why searchindex.js is toxic, but it is.
-
-Important files:
-
-- doc\html\conf.py contains settings, including the name of the master toctree
-  document, leo_toc.html.txt.
-
-- leo_toc.html.txt contains a list of all file to be included.
+    `git checkout gh-pages`
+    Click the `make-sphinx` button
+    `git commit -m "log message"`
+    `git push`
 </t>
 <t tx="ekr.20040414172218.4">
 ################
@@ -4000,7 +3969,7 @@ Enough of this commentary, I just looked at the clock. Best wishes to anyone wil
 #1 Reason would probably be clone nodes. One node can point to another. Another way of putting this is is that a leaf can be on more than one tree. For example, suppose you have a list of recipes. You simultaneously put a single recipe under multiple categories or even multiple hierarchies. You could put "3 bean enchilada" simultaneously under Recipes-Mexican and Food-Gas. Another example would be, if you are a biologist trying to decide under which genus to put a new species, you could put the species under two simultaneously. In effect, you can build a 3-D tree.
 
 
-#2 Reason would probably be that Leo outlines can be embedded in external text files. So, a Leo outline is more than an outline, it is a meta-structure that can be added to another text without changing that text, but rather providing an external road map to the text. Microsoft Word has a text (xml) version with a commenting convention, so Leo can even be used to add outlines into Word docs, although it isn't set up to do that now. For example, see http://www.3dtree.com/ev/e/sbooks/leo/sbframetoc_ie.htm In this case, the upper window of Leo is the meta-structure, and the bottom window is the file to which the meta-structure is being applied, viewed one node at a time.
+#2 Reason would probably be that Leo outlines can be embedded in external text files. So, a Leo outline is more than an outline, it is a meta-structure that can be added to another text without changing that text, but rather providing an external road map to the text. Microsoft Word has a text (xml) version with a commenting convention, so Leo can even be used to add outlines into Word docs, although it isn't set up to do that now.
 
 I may not have made #2 very clear, but it is actually a very useful feature. It takes some getting used to before one sees all of the possibilities tho. One way to think of it is that Leo allows you to throw external documents into your outline, and yet the external document remains independent and can still be edited separately.
 
@@ -4600,9 +4569,7 @@ This chapter lists almost all of Leo's commands. It starts with a discussion of 
     :local:
 
 </t>
-<t tx="ekr.20050901101608.4">&lt;customizing.html#specifying-settings&gt;`_
-
-################
+<t tx="ekr.20050901101608.4">################
 Customizing Leo
 ################
 
@@ -7108,9 +7075,9 @@ To load Leo's source, load leoPyRef.leo::
     python launchLeo.py --gui=qt leo\\core\\leoPyRef.leo
 </t>
 <t tx="ekr.20090212054250.5"></t>
-<t tx="ekr.20090212054250.6">See `Leo's download page &lt;download.html&gt;`_.
+<t tx="ekr.20090212054250.6">See Leo's download page &lt;download.html&gt;
 </t>
-<t tx="ekr.20090212054250.7">Daily snapshots are available `here &lt;download.html&gt;`_.
+<t tx="ekr.20090212054250.7">Daily snapshots are available at download.html
 </t>
 <t tx="ekr.20090221070927.1">#################
 Leo's MIT license
@@ -8985,7 +8952,6 @@ controller(c).run()
             break
     return ''.join(result)
 </t>
-<t tx="ekr.20101112045055.5065" str_atime="1376412774.0">http://www.greygreen.org/tmp/plugins.html</t>
 <t tx="ekr.20101112222250.5322">def allowFile (self,p):
 
     '''Return True if we should allow scan of a file at p.'''
@@ -11119,17 +11085,6 @@ Leo's outline or hierarchical structure is distinct from the web of interleaved 
 [[Category:Software that uses Scintilla]]
 [[Category:Software using the MIT license]]
 </t>
-<t tx="ekr.20101125062332.5090">**Python**: Leo will work on any platform that supports Python 3.9 or above.
-To install Python, see http://python.org.
-
-**PyQt**: `PyQt`_ provides Leo's widgets:
-
-* Download PyQt5 from http://www.riverbankcomputing.com/software/pyqt/download5.
-
-**Important**: The PyQt version must match your installed Python version. Remember that Leo requires Python 3.9 or later.
-
-**PyEnchant**: You must install `PyEnchant`_ if you want to use Leo's Spell tab.
-</t>
 <t tx="ekr.20110521135104.18151">Any outline (.leo file) may contain clones that appear in multiple external files defined *within* that outline. There is no problem with such **intra-outline clones**.
 
 In contrast, **cross-outline clones** are clones that appear in more than one outline.  Leo's paste-retaining-clones command makes it possible for two outlines to contain nodes with the same gnx. Conceivably, both outlines could use those clones in the *same* external file!
@@ -11654,24 +11609,6 @@ run-all-unit-tests-externally = Alt-5
 creates a permanent reference to the window so the window won't be garbage collected after the Leo script exits.
 
 </t>
-<t tx="ekr.20111127144911.5544">.. _`Installing Leo with git`:  installing.html#installing-leo-with-git
-.. _`Installing Leo with pip`:  installing.html#installing-leo-with-pip
-.. _`Nightly snapshot`:         download.html#snapshots       
-.. _`Python wheel`:             https://pythonwheels.com/
-.. _`git`:                      https://git-scm.com/
-.. .. _`Standalone leo.exe`:       download.html#standalone
-
-###############
-Downloading Leo
-###############
-
-There are two ways to download Leo:
-
-- ``pip install leo`` will automatically download *and* install Leo, including all Leo's dependencies, less a couple of non-essential things. See `Installing Leo with pip`_.
-
-- Recommended: install Leo using `git`_, see `Installing Leo with git`_. Git gives you the latest, thoroughly tested code with nothing missing.
-
-- If you prefer a new development version and don't want to use git download a `Nightly snapshot`_.</t>
 <t tx="ekr.20120130101219.10182">def computeBindingLetter(self, kind):
     # lm = self
     if not kind:
@@ -14562,21 +14499,30 @@ Installing Leo
 
 .. _`Leo's help forum`: http://groups.google.com/group/leo-editor
 
+
 This chapter tells how to install and run Leo on Windows, Linux and MacOS.
 
-These instructions look complicated because they're long, but really they just boil down to:
+The short summary:
 
-- install python. Python 3.9 or later is required.
-- run `pip install leo` from a python enabled command prompt.
-- run leo from that same python enabled command prompt.
+1. Install Python 3.9 or later, including pip.
 
-**Important**: If you have *any* problems installing Leo, please ask for help on `Leo's help forum`_.
+2. Install Leo (including all of Leo's dependencies) from either from PyPi or GitHub:
+
+   - From PyPi::
+   
+        pip install leo
+
+   - From GitHub::
+
+        git clone https://github.com/leo-editor/leo-editor.git
+        cd leo-editor
+        pip install -r requirements.txt
+
+If you have *any* problems installing Leo, please *ask for help* on `Leo's help forum`_.
 
 .. contents:: Contents
     :depth: 4
     :local:
-
-
 </t>
 <t tx="ekr.20131008041326.16099">###################
 Advanced Topics
@@ -14616,9 +14562,9 @@ Leo and Other Programs
    leoserver
 
 </t>
-<t tx="ekr.20131008041326.16140">##############
+<t tx="ekr.20131008041326.16140">###########
 Running Leo
-##############
+###########
 
 .. index:: Running Leo
 
@@ -14627,7 +14573,6 @@ This chapter tells how to run Leo and discusses Leo's command-line options.
 .. contents:: Contents
     :depth: 3
     :local:
-
 
 </t>
 <t tx="ekr.20131008041326.16151">You can run Leo from a Python interpreter as follows::
@@ -15589,20 +15534,15 @@ You might call this a FAQ for scripts...
     :local:
 </t>
 <t tx="ekr.20131015104133.16763"></t>
-<t tx="ekr.20131015104133.16766">#####################################
-Downloading, Installing &amp; Running Leo
-#####################################
+<t tx="ekr.20131015104133.16766">########################
+Installing &amp; Running Leo
+########################
 
-.. _`Python`:                   https://www.python.org/
-.. _`Leo's dependencies`:       installing.html#dependencies
-.. _`Installing Leo using pip`:    installing.html#installing-leo-with-pip
-
-**Overview**: Leo is a `Python`_ program.  You must install Python itself, `Leo's dependencies`_, and then download and install Leo itself.
+This chapter tells how to install and run Leo.
 
 .. toctree::
    :maxdepth: 4
 
-   download
    installing
    running
 </t>
@@ -17089,24 +17029,20 @@ FYI, this FAQ entry fixes the following bug: https://bugs.launchpad.net/leo-edit
         insert-file-name
         pylint
         style-reload</t>
-<t tx="ekr.20141105052052.4">.. _`Anaconda`:   https://www.anaconda.com/download/
-.. _`Miniconda`:  https://conda.io/miniconda.html
-.. _`Docutils`:   http://docutils.sourceforge.net
-.. _`feedparser`: https://pypi.python.org/pypi/feedparser
-.. _`Markdown`:   http://daringfireball.net/projects/markdown/syntax
+<t tx="ekr.20141105052052.4">.. _`Anaconda`:   https://pypi.org/project/anaconda/
+.. _`Miniconda`:  https://docs.anaconda.com/free/miniconda/index.html
+.. _`Docutils`:   https://pypi.org/project/docutils/
+.. _`feedparser`: https://pypi.org/project/feedparser/
+.. _`Markdown`:   https://pypi.org/project/Markdown/
 .. _`Python`:     https://www.python.org/
-.. _`PyEnchant`:  http://pyenchant.github.io/pyenchant/install.html
-.. _`Missing files when installing Leo from PyPI using "pip install leo"`: https://github.com/leo-editor/leo-editor/issues/603
-.. _`PythonTidy`: https://pypi.python.org/pypi/PythonTidy/
-.. _`PyQt`:       http://www.riverbankcomputing.co.uk/software/pyqt/intro
-.. _`PyQt5`:      http://www.riverbankcomputing.com/software/pyqt/download5
-.. _`Sphinx`:     http://www.sphinx-doc.org/en/stable/
+.. _`PyEnchant`:  https://pypi.org/project/pyenchant/
+.. _`PyQt6`:      https://pypi.org/project/PyQt6/
+.. _`Sphinx`:     https://pypi.org/project/Sphinx/
 
 Leo's minimal dependencies are:
 
 * `Python`_ 3.9 or later.
-* `PyQt5`_.
-* `PyQtWebEngine`
+* `PyQt6`_.
 
 The following packages are optional, but recommended:
 
@@ -19676,47 +19612,6 @@ You can also define a theme directly in myLeoSettings.leo as follows:
 - *Move* the copied tree to the *end* of the @settings tree.
 - *Test* by restarting Leo.
 </t>
-<t tx="ekr.20160304081437.4">https://groups.google.com/d/msg/leo-editor/LePOMe_ckeg/_UasKCKP6NMJ
-
-Some time ago there were a discussion about Leo in virtualenv.
-
-Now I could test it in Python3, PyQt5 on Kubuntu:
-
-Here are the steps (I worked in a folder with write permission '/leo'):
-
-1. Install PyQt5 in the system:
-
-sudo aptitude install python3-pyqt5
-
-2. Create the virtual environment with the '--system-site-packages' switch and without pip (I've found this the only way, which worked):
-
-pyvenv-3.4 --system-site-packages --without-pip py3-pyqt5
-
-3. Install setuptools and pip into the created environment:
-
-wget --no-check-certificate https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O ez_setup.py
-
-py3-pyqt5/bin/python ez_setup.py --insecure
-
-wget --no-check-certificate https://pypi.python.org/packages/source/p/pip/pip-6.2.tar.gz#md5=2332e6f97e75ded3bddde0ced01dbda3
-
-tar xzvf pip-6.2.tar.gz
-
-cd pip-6.2
-
-../py3-pyqt5/bin/python setup.py install
-
-cd ..
-
-Now you can install what you want in the created environment, without affecting the system.
-
-py3-pyqt5/bin/pip install Sphinx
-
-4. From the leo-editor source folder launch Leo with the new interpreter:
-
-In my case:
-
-/leo/py3-pyqt5/bin/python launchLeo.py</t>
 <t tx="ekr.20160304081437.5">Imo, git rivals python as the greatest productivity tool ever devised for programmers.
 
 My workflow on Ubuntu and Windows is essentially identical. Simple aliases (Ubuntu) and .bat files (Windows) support the following console commands::
@@ -20874,7 +20769,6 @@ Simulating Leo's features in Vim, Emacs or Eclipse is possible, just as it is po
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
 - [A web page that displays .leo files](https://leo-editor.github.io/leo-editor/load-leo.html)
@@ -21134,38 +21028,6 @@ Leo.
 
 And that's it! You can run leo with `PYTHONHOME/Scripts/leo` or `python leo-editor/launchLeo.py`. When you want to refresh the code with latest modifications from GitHub, run ``git pull``.
 </t>
-<t tx="ekr.20170206073747.2">Install Python and Qt, as described above (`Installing Packages`_).
-
-Now you have a choice.  You can use Leo's binary (single-click) installer
-or download Leo's sources directly.
-</t>
-<t tx="ekr.20170206073747.4">.. _`Leo's download page`: download.html
-.. _`Running Leo`: running.html
-
-Download Leo’s sources using one of the methods described at `Leo's download page`_.
-
-After download unpack the zip archive where you like and from a python enabled command shell:
-
-	pip install --editable C:\\path\\to\\leo-editor
-
-This will leave Leo where it is and and create launch scripts in
-PYTHONHOME\\Scripts.
-
-Next see `Running Leo`_ and then optionally come back here for `Creating Windows file associations`_.
-</t>
-<t tx="ekr.20170206073747.5">From *Settings* menu select **Open Desktop Integration**.
-The new Leo file that opens will add 4 buttons under the menu bar:
-
-*[Register-leo]* - Creates registry keys for Leo file type and .leo
-file association. Afterwards .leo files will show Leo icon and
-double-clicking them will open in Leo Editor.
-
-*[Unregister-leo]* - Removes the above.
-
-*[add-desktop-links]* - Creates launch shortcuts in desktop and system menu
-
-*[remove-desktop-links]* - Removes the launch shortcuts
-</t>
 <t tx="ekr.20170206073747.9">.. .. http://groups.google.com/group/leo-editor/browse_thread/thread/92ae059cc5213ad3
 
 Many thanks to Ludwig Schwardt for the following installation instructions. Using the HomeBrew installation method is *much* easier than before.
@@ -21229,7 +21091,6 @@ Here is my installation write-up:
 
 It would really be great to get a Leo formula going for Homebrew. As mentioned before, the main question is just where to place all the Leo files in the /usr/local hierarchy.
 </t>
-<t tx="ekr.20170206073848.1"></t>
 <t tx="ekr.20170206095132.1">https://github.com/leo-editor/leo-editor/issues/402
 
 Added g.input_, but this is not a great solution.
@@ -22491,7 +22352,6 @@ Simulating Leo's features in Vim, Emacs or Eclipse is possible, just as it is po
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
 - [A web page that displays .leo files](https://leo-editor.github.io/leo-editor/load-leo.html)
@@ -24015,7 +23875,6 @@ Simulating Leo's features in Vim, Emacs or Eclipse is possible, just as it is po
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -24024,9 +23883,7 @@ Simulating Leo's features in Vim, Emacs or Eclipse is possible, just as it is po
 
 @language md
 </t>
-<t tx="ekr.20180125034510.1">.. Note: Leo versions 5.5 and earlier contained links to SourceForge:
-..       [Download](http://sourceforge.net/projects/leo/files/)
-..       I have retained these links where still valid.</t>
+<t tx="ekr.20180125034510.1"></t>
 <t tx="ekr.20180125034531.1"></t>
 <t tx="ekr.20180125034637.1">Fixed dozens of bugs. See:
 https://github.com/leo-editor/leo-editor/issues?utf8=%E2%9C%93&amp;q=is%3Aissue+milestone%3A5.7+label%3ABug</t>
@@ -24398,7 +24255,10 @@ button using Ctrl-P.
 <t tx="ekr.20180126185857.1"></t>
 <t tx="ekr.20180126190015.1"></t>
 <t tx="ekr.20180126190053.1"></t>
-<t tx="ekr.20180126191031.1">The `Anaconda`_ scientific computing environment includes Python, NumPy, SciPy, PyQt, and over a thousand other tools, packages and libraries. It's a 500+ MB download but you're guaranteed to have everything needed.
+<t tx="ekr.20180126191031.1">.. _`Anaconda`:   https://pypi.org/project/anaconda/
+.. _`Miniconda`:  https://docs.anaconda.com/free/miniconda/index.html
+
+The `Anaconda`_ scientific computing environment includes Python, NumPy, SciPy, PyQt, and over a thousand other tools, packages and libraries. It's a 500+ MB download but you're guaranteed to have everything needed.
 
 The `Miniconda`_ environment includes just Python and the `conda` package management tool. Pick and choose from the full Anaconda ecosystem.
 
@@ -24433,31 +24293,19 @@ keyword, just as before. If no match is found, and exact is False, these
 methods then search again, matching if the given headline is a prefix of
 the headline of any node.
 </t>
-<t tx="ekr.20180130033527.1">.. _`Install pip`:      https://pip.pypa.io/en/stable/installing/               
-.. _`Install Python`:   http://python.org.
+<t tx="ekr.20180130033527.1">.. _`Install pip`:      https://pip.pypa.io/en/stable/installation/               
+.. _`Install Python`:   http://python.org
 .. _`pip`:              https://pypi.org/pypi/pip
-.. _`PyPi`:              https://pypi.org/
+.. _`PyPi`:             https://pypi.org/
 
-Python's `pip`_ tool will download *and* install Leo and all of Leo's dependencies automatically.
+The following will install Leo from `PyPi`_, Python's package repository.
 
-1. `Install Python`_ first, if necessary. Make sure to install Python 3, not Python 2.
-
-2. Check whether pip has been installed using the terminal window command below. If there's an error `Install pip`_::
-
-    pip --version
-
-In some circumstances using pip as a module works better:
-
-    python -m pip --version
-
-3. Download and install Leo and all required packages from `PyPi`_::
-
-    pip install leo
-
-or 
+1. `Install Python`_ 3.9 or above.
+2. `Install pip`_.
+3. Download and install Leo (including all required packages)::
 
     python -m pip install leo
-    </t>
+</t>
 <t tx="ekr.20180130055320.1">https://github.com/leo-editor/leo-editor/issues/562</t>
 <t tx="ekr.20180130092843.1">.. https://groups.google.com/forum/#!topic/leo-editor/yAtfcG6AL70
 
@@ -24853,7 +24701,6 @@ Leo is an IDE, outliner and PIM, as described [here](https://leo-editor.github.i
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -24991,7 +24838,6 @@ Leo is an IDE, outliner and PIM, as described [here](https://leo-editor.github.i
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -25430,7 +25276,6 @@ Leo is an IDE, outliner and PIM, as described [here](https://leo-editor.github.i
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -30873,7 +30718,6 @@ Other changes:
 
 **Links**
 
-- [Download Leo](https://leo-editor.github.io/leo-editor/download.html)
 - [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
 - [6.7.2 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.2+)
 - [6.7.2 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.2)
@@ -30881,7 +30725,6 @@ Other changes:
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -30899,8 +30742,7 @@ Report broken links in all .html files leo-editor/docs.
 Adapted from https://brianli.com/2021/06/how-to-find-broken-links-with-python/
 
 pip install beautifulsoup4
-
-https://www.crummy.com/software/BeautifulSoup/bs4/doc/
+https://www.crummy.com/software/BeautifulSoup/
 """
 @language python
 g.cls()
@@ -30961,8 +30803,6 @@ g.es_print(f"Found {n1} link{g.plural(n1)}, {n2} broken")
     broken_links = []
     suppress = (
         '&lt;|URL|&gt;',
-        # In a how-to item.
-        'https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py',
     )
 
     def validate_url(url):
@@ -32351,7 +32191,6 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 
 **Links**
 
-- [Download Leo](https://leo-editor.github.io/leo-editor/download.html)
 - [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
 - [6.7.3 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.3+)
 - [6.7.3 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.3)
@@ -32359,7 +32198,6 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -32484,7 +32322,6 @@ See the first comment of PR #3424 for full details.
 
 **Links**
 
-- [Download Leo](https://leo-editor.github.io/leo-editor/download.html)
 - [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
 - [6.7.4 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.4+)
 - [6.7.4 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.4)
@@ -32492,7 +32329,6 @@ See the first comment of PR #3424 for full details.
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -32602,7 +32438,6 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 
 **Links**
 
-- [Download Leo](https://leo-editor.github.io/leo-editor/download.html)
 - [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
 - [6.7.5 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.5+)
 - [6.7.5 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.5)
@@ -32610,7 +32445,6 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -32815,7 +32649,6 @@ The usual assortment of minor bug fixes and code-level improvements.
 
 **Links**
 
-- [Download Leo](https://leo-editor.github.io/leo-editor/download.html)
 - [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
 - [6.7.6 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.6+)
 - [6.7.6 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.6)
@@ -32823,7 +32656,6 @@ The usual assortment of minor bug fixes and code-level improvements.
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -32934,7 +32766,6 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 
 **Links**
 
-- [Download Leo](https://leo-editor.github.io/leo-editor/download.html)
 - [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
 - [6.7.7 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.7+)
 - [6.7.7 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.7)
@@ -32942,7 +32773,6 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 - [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
 - [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
 - [Forum](http://groups.google.com/group/leo-editor)
-- [Download](http://sourceforge.net/projects/leo/files/)
 - [Leo on GitHub](https://github.com/leo-editor/leo-editor)
 - [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
 - [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
@@ -32957,6 +32787,94 @@ Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/prefac
 .. _`PR #3761`: https://github.com/leo-editor/leo-editor/pull/3761
 
 - `PR #3761`_: Improve leoserver.py to support LeoInteg.
+</t>
+<t tx="ekr.20240222121215.1">Leo https://leo-editor.github.io/leo-editor/ 6.7.8 is now available on [GitHub](https://github.com/leo-editor/leo-editor/releases) and [pypi](https://pypi.org/project/leo/).
+
+Leo is an [IDE, outliner and PIM](https://leo-editor.github.io/leo-editor/preface.html).
+
+**The highlights of Leo 6.7.8**
+
+- PR #3757: (leoTokens.py) Make Leo's beautifier 3x faster.
+- PR #3771: Revert colorizing of f-strings.
+- PR #3786: Support Nim.
+- PR #3790: Add "get-unl" command to Leo's server.
+- PR #3805: Fix problems with auto-completion and calltips.
+- PR #3806: Fix problems with Leo's `go-back` and `go-forward` commands.
+- PR #3807: Improve Leo's Python importer.
+- PR #3817: Allow relative paths in gnx-based UNLs.
+- The usual minor improvements and bug fixes.
+
+**Links**
+
+- [Install Leo](https://leo-editor.github.io/leo-editor/installing.html)
+- [6.7.8 Issues](https://github.com/leo-editor/leo-editor/issues?q=is%3Aissue+milestone%3A6.7.8+)
+- [6.7.8 Pull Requests](https://github.com/leo-editor/leo-editor/pulls?q=is%3Apr+milestone%3A6.7.8)
+- [Documentation](https://leo-editor.github.io/leo-editor/leo_toc.html)
+- [Tutorials](https://leo-editor.github.io/leo-editor/tutorial.html)
+- [Video tutorials](https://leo-editor.github.io/leo-editor/screencasts.html)
+- [Forum](http://groups.google.com/group/leo-editor)
+- [Leo on GitHub](https://github.com/leo-editor/leo-editor)
+- [LeoVue](https://github.com/kaleguy/leovue#leo-vue)
+- [What people are saying about Leo](https://leo-editor.github.io/leo-editor/testimonials.html)
+- [A web page that displays .leo files](https://leo-editor.github.io/leo-editor/load-leo.html)
+- [More links](https://leo-editor.github.io/leo-editor/leoLinks.html)</t>
+<t tx="ekr.20240222121346.1">.. Use the link-pr abbreviation to create these links.
+
+.. _`PR #3757`: https://github.com/leo-editor/leo-editor/pull/3757
+.. _`PR #3771`: https://github.com/leo-editor/leo-editor/pull/3771
+.. _`PR #3786`: https://github.com/leo-editor/leo-editor/pull/3786
+.. _`PR #3790`: https://github.com/leo-editor/leo-editor/pull/3790
+.. _`PR #3805`: https://github.com/leo-editor/leo-editor/pull/3805
+.. _`PR #3806`: https://github.com/leo-editor/leo-editor/pull/3806
+.. _`PR #3807`: https://github.com/leo-editor/leo-editor/pull/3807
+.. _`PR #3817`: https://github.com/leo-editor/leo-editor/pull/3817
+
+- `PR #3757`_: (leoTokens.py) Make Leo's beautifier 3x faster.
+- `PR #3771`_: Revert colorizing of f-strings.
+- `PR #3786`_: Support Nim.
+- `PR #3790`_: Add "get-unl" command to Leo's server.
+- `PR #3805`_: Fix problems with auto-completion and calltips.
+- `PR #3806`_: Fix problems with Leo's `go-back` and `go-forward` commands.
+- `PR #3807`_: Improve Leo's Python importer.
+- `PR #3817`_: Allow relative paths in gnx-based UNLs.
+</t>
+<t tx="ekr.20240302082146.1">.. _`Leo's GitHub repository`:  https://github.com/leo-editor/leo-editor
+.. _`Install Git`: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
+
+The following will install Leo from `Leo's GitHub repository`_.
+
+1. `Install Python`_ 3.9 or above.
+2. `Install pip`_.
+3. `Install Git`_.
+4. Clone Leo's repository::
+
+    git clone https://github.com/leo-editor/leo-editor.git
+
+5. Install Leo's dependencies from Leo's `requirements.txt` file::
+
+    cd leo-editor
+    python -m pip install -r requirements.txt
+    
+**Note for Ubuntu**
+
+
+After installing on Ubuntu you may get this error messages when attempting to run Leo::
+
+    qt.qpa.plugin: From 6.5.0, xcb-cursor0 or libxcb-cursor0 is needed to load the Qt xcb platform plugin.
+
+To install the missing library run::
+
+    sudo apt install libxcb-cursor0
+</t>
+<t tx="ekr.20240303055534.1"></t>
+<t tx="ekr.20240303071512.1">gnx: ville.20090609182215.5676
+</t>
+<t tx="ekr.20240303071512.2">gnx: ekr.20240303070818.1
+unl: Python list based description of trees ('objtrees')
+gnx: ekr.20240303070818.2
+unl: Using objtrees for caching
+gnx: ekr.20240303070818.3
+unl: The `Leo database` (c.db, g.app.db)
 </t>
 <t tx="felix.20210825213137.1">Since a WebSocket server can receive events from clients, process them to update the
 application state, and synchronize the resulting state across clients, leoserver.py
@@ -33034,33 +32952,6 @@ first draft of the all-important ws_handler function.
 Edward K. Ream made the code more pythonic and provided Leo-specific
 advice.
 </t>
-<t tx="maphew.20200616225715.1">.. This section is no longer valid.
-
-Getting to the archive in order to download is a bit of work as there isn't a stable url.
-
-Getting to the latest leo.exe:
-
- 1. Navigate to **Actions**
- 2. Select `Build standalone leo.exe`_ from workflow list in the left table of contents
- 3. Look for a recent event with a check mark and click on it
- 4. Look for **Artifacts** heading and under it: **leo-windows-exe** in blue.
-
-.. image:: https://user-images.githubusercontent.com/486200/83912441-bb38a600-a722-11ea-9abf-43ce833723c2.png
-
-.. image:: https://user-images.githubusercontent.com/486200/83912469-c390e100-a722-11ea-868a-cf56c379eec0.png
-
-.. _`Build standalone leo.exe`: https://github.com/leo-editor/leo-editor/actions?query=workflow:%22Build+standalone+leo.exe%22
-
-
-##################
-Upgrading in place
-##################
-
- 1. Download source archive from Github repository, `devel branch`_
- 2. Replace contents of ``C:\Apps\leo\leo\*.*`` with contents of ``leo-editor\leo\*.*``. (Note: the nested "leo\leo" folder structure is significant.)
-
-.. _`devel branch`: https://github.com/leo-editor/leo-editor/tree/devel
-</t>
 <t tx="matt.20180826201749.1">**Problem**
 
 When installing Leo from GitHub with
@@ -33136,41 +33027,6 @@ The Leo ``@adoc`` directive and the ``adoc`` command need either **Asciidoc3** o
 
 If you run into difficulties see https://asciidoc3.org/pypi.html#_asciidoc3_pip_install_windows
 </t>
-<t tx="mhw.20191010004650.1">Generic recipe for all platforms. Adjustment for local norms is expected. For example `7z` could be `unzip` or interactive extraction and `wget` could be a browser download. 
-
-Linux: it's generally advised to use pip ``--user`` flag instead of `sudo`.
-
-Assumes **Python 3.9 or later** is installed and in PATH.
-
-Installing from source code into a new environment must be done in discrete steps: **download**, **unpack archive**, and **install as editable** mode.
-
-Example::
-
-    wget https://github.com/leo-editor/leo-editor/archive/devel.zip
-    7z x devel.zip -o C:\apps
-    pip install --editable C:\apps\leo-editor-devel
-
-For easier upgrading substitute ``git clone`` for wget &amp; 7z steps::
-
-    git clone --no-single-branch -b devel --depth=200 https://github.com/leo-editor/leo-editor.git
-    pip install --editable leo-editor
-
-time passes, upgrade desired::
-
-    pushd c:\apps\leo-editor
-    git pull
-    pip uninstall leo
-    pip install --editable .
-
-`b` and `depth` are optional, but will dramatically speed up download time as it only grabs the latest development branch, the tips of other branches, and skips all but the last couple weeks or months of history.
-
-**Note**
-
-Direct ``pip install https://github.com/leo-editor/leo-editor/archive/devel.zip`` does *not* work. For proper operation Leo relies on presence of certain files outside of the standard Python `site-packages` folder structure.
-
-
-See `Running Leo`_ for how to run Leo after installing it.
-</t>
 <t tx="peckj.20130813123907.6841" str_atime="1376414164.0" str_ctime="1376412039.0" str_mtime="1376412039.0">Documenting new plugins is important for users to be able understand and use the features they add. To that effect, there are a few documentation steps that should not be overlooked.
 
 - Document the plugin thoroughly in the plugin's docstring. This allows the documentation to be accessed from the Plugins menu.
@@ -33215,33 +33071,6 @@ os.system('make latex')
 os.chdir('_build/latex')
 os.system('../../fixup.pl &lt; Leodocumentation.tex &gt; LeoDoc.tex')
 os.system('make LeoDoc.pdf')
-</t>
-<t tx="tbrown.20140412113009.50227">.zip snapshots can be downloaded directly from `GitHub &lt;https://github.com/leo-editor&gt;`_. No account is required.  The downloaded file will have a name like::
-
-  leo-editor-50c070b715b9fec50c31be5853055a0ebc72cad5.zip
-
-where the ``50c0...cad5`` part is the ID or fingerprint of the version you've downloaded.  Except "Latest", which is just ``leo-editor-master.zip``.
-
-Here are direct download links for the "devel" branch, which changes frequently and contains all recent bug fixes:
-
-  - `Latest devel &lt;https://github.com/leo-editor/leo-editor/archive/devel.zip&gt;`_
-  - `devel: 1 day ago &lt;https://github.com/leo-editor/leo-editor/archive/devel@{1%20day%20ago}.zip&gt;`_
-  - `devel: 2 days ago &lt;https://github.com/leo-editor/leo-editor/archive/devel@{2%20days%20ago}.zip&gt;`_
-  - `devel: 5 days ago &lt;https://github.com/leo-editor/leo-editor/archive/devel@{5%20days%20ago}.zip&gt;`_
-  - `devel: 10 days ago &lt;https://github.com/leo-editor/leo-editor/archive/devel@{10%20days%20ago}.zip&gt;`_
-  - `devel: 30 days ago &lt;https://github.com/leo-editor/leo-editor/archive/devel@{30%20days%20ago}.zip&gt;`_
-  - `devel: 90 days ago &lt;https://github.com/leo-editor/leo-editor/archive/devel@{90%20days%20ago}.zip&gt;`_
-
-
-Here are direct download links for the "master" branch, which rarely changes and contains the most stable code:
-
-  - `Latest master &lt;https://github.com/leo-editor/leo-editor/archive/master.zip&gt;`_
-  - `master: 1 day ago &lt;https://github.com/leo-editor/leo-editor/archive/master@{1%20day%20ago}.zip&gt;`_
-  - `master: 2 days ago &lt;https://github.com/leo-editor/leo-editor/archive/master@{2%20days%20ago}.zip&gt;`_
-  - `master: 5 days ago &lt;https://github.com/leo-editor/leo-editor/archive/master@{5%20days%20ago}.zip&gt;`_
-  - `master: 10 days ago &lt;https://github.com/leo-editor/leo-editor/archive/master@{10%20days%20ago}.zip&gt;`_
-  - `master: 30 days ago &lt;https://github.com/leo-editor/leo-editor/archive/master@{30%20days%20ago}.zip&gt;`_
-  - `master: 90 days ago &lt;https://github.com/leo-editor/leo-editor/archive/master@{90%20days%20ago}.zip&gt;`_
 </t>
 <t tx="tom.20230107235603.1">Title case means that all words start with capital letters.  The
 following script converts the selected body text to title case.  If

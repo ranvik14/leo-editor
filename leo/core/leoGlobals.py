@@ -2260,10 +2260,10 @@ def objToString(
     if isinstance(obj, dict):
         if obj:
             result_list = ['{\n']
-            pad = max([len(key) for key in obj])
+            pad = max([len(str(key)) for key in obj])
             for key in sorted(obj):
-                pad_s = ' ' * max(0, pad - len(key))
-                result_list.append(f"  {pad_s}{key}: {obj.get(key)}\n")
+                pad_s = ' ' * max(0, pad - len(str(key)))
+                result_list.append(f"  {pad_s}{str(key)}: {obj.get(key)}\n")
             result_list.append('}')
             result = ''.join(result_list)
         else:
@@ -3307,7 +3307,7 @@ def readFileIntoString(
         g.error(f"readFileIntoString: unexpected exception reading {fileName}")
         g.es_exception()
     return None, None
-#@+node:ekr.20160504062833.1: *3* g.readFileToUnicodeString
+#@+node:ekr.20160504062833.1: *3* g.readFileIntoUnicodeString
 def readFileIntoUnicodeString(
     fn: str,
     encoding: Optional[str] = None,
@@ -6544,7 +6544,8 @@ def extractExecutableString(c: Cmdr, p: Position, s: str) -> str:
         return s
     #
     # Scan the lines, extracting only the valid lines.
-    extracting, result = False, []
+    extracting = False
+    result: list[str] = []
     for line in g.splitLines(s):
         if m := re.match(pattern, line):
             extracting = m.group(1) == language
@@ -6708,17 +6709,30 @@ def run_unit_tests(tests: str = None, verbose: bool = False) -> None:
 #    provided the outline contains an `@<file>` node for file mentioned in
 #    the error message.
 #
-# 2. New in Leo 6.7.4: UNLs based on gnx's (global node indices):
+# 2. UNLs based on gnx's (global node indices):
 #
 #    Links of the form `unl:gnx:` + `//{outline}#{gnx}` open the given
-#    outline and select the first outline node with the given gnx. These UNLs
-#    will work as long as the node exists anywhere in the outline.
+#    outline and select the first outline node with the given gnx.
 #
 #    For example, the link: `unl:gnx://#ekr.20031218072017.2406` refers to this
 #    outline's "Code" node. Try it. The link works in this outline.
 #
-#    *Note*: `{outline}` is optional. It can be an absolute path name or a relative
-#    path name resolved using `@data unl-path-prefixes`.
+#    Either `{outline}` or `{gnx}` may be empty, but at least one must exist.
+#
+#    `{outline}` can be:
+#
+#    - An *absolute path* to a .leo file.
+#    - A *relative path*, resolved using the outline's directory.
+#
+#      Leo will select the outline if it is already open.
+#      Otherwise, Leo will open the outline if it exists.
+#
+#    - A *short* name, say x.leo.
+#      Leo searches for x.leo file:
+#      a) among the paths in `@data unl-path-prefixes`,
+#      b) among all open commanders.
+#
+#    - *Empty*. Leo searches for the gnx in all open outlines.
 #
 # 3. Leo's headline-based UNLs, as shown in the status pane:
 #
@@ -6727,8 +6741,11 @@ def run_unit_tests(tests: str = None, verbose: bool = False) -> None:
 #
 #    This link works: `unl://#Code-->About this file`.
 #
-#    *Note*: `{outline}` is optional. It can be an absolute path name or a relative
-#    path name resolved using `@data unl-path-prefixes`.
+#    As in point 2 above, `{outline}` or `{gnx}` may be empty, but at least
+#    one must exist.
+#
+#    `{outline}` may be an absolute path name or a *short* name resolved
+#    using `@data unl-path-prefixes`.
 #
 # 4. Web URLs: file, ftp, gopher, http, https, mailto, news, nntp, prospero, telnet, wais.
 #
@@ -6791,16 +6808,21 @@ def findAnyUnl(unl_s: str, c: Cmdr) -> Optional[Position]:
         file_part = g.getUNLFilePart(unl)
         tail = unl[3 + len(file_part) :]  # 3: Skip the '//' and '#'
 
-        # If there is a file part, search *only* the given commander!
+        # #3816: Just open the file if there is no tail.
+        if not tail:
+            c2 = g.openUNLFile(c, file_part)
+            return c2.p if c2 else None
+
+        # First, search the open commander.
+        # #3811: Do *not* fail if this search fails.
         if file_part:
             c2 = g.openUNLFile(c, file_part)
-            if not c2:
-                return None
-            p = g.findGnx(tail, c2)
-            return p  # May be None.
+            if c2:
+                p = g.findGnx(tail, c2)
+                if p:
+                    return p
 
-        # New in Leo 6.7.7:
-        # There is no file part, so search all open commanders, starting with c.
+        # Search all open commanders, starting with c.
         p = g.findGnx(tail, c)
         if p:
             return p
@@ -7295,7 +7317,7 @@ def unquoteUrl(url: str) -> str:  # pragma: no cover
 #@+node:ekr.20230627143007.1: *3* g: file part utils
 
 #@+node:ekr.20230630132339.1: *4* g.getUNLFilePart
-file_part_pattern = re.compile(r'//(.*?)#.+')
+file_part_pattern = re.compile(r'//(.*?)#.*')
 
 def getUNLFilePart(s: str) -> str:
     """Return the file part of a unl, that is, everything *between* '//' and '#'."""
@@ -7310,18 +7332,24 @@ def getUNLFilePart(s: str) -> str:
 def openUNLFile(c: Cmdr, s: str) -> Cmdr:
     """
     Open the commander for filename s, the file part of an unl.
-
-    Use `@data unl-path-prefixes` to convert to relative to absolute paths.
-
     Return None if the file can not be found.
     """
+    # Aliases.
+    abspath = os.path.abspath
     base = os.path.basename
+    dirname = os.path.dirname
+    exists = os.path.exists
+    isabs = os.path.isabs
+    join = g.os_path_finalize_join  # Not os.path.join
     norm = os.path.normpath
+
+    # c's name and directory.
     c_name = c.fileName()
+    c_dir = dirname(c_name)
 
     def standard(path: str) -> str:
         """Standardize the path for easy comparison."""
-        return norm(path).lower()
+        return norm(path).lower() if g.isWindows else norm(path)
 
     if not s.strip():
         return None
@@ -7329,35 +7357,48 @@ def openUNLFile(c: Cmdr, s: str) -> Cmdr:
         s = s[2:-1]
     if not s.strip():
         return None
+
     # Always match within the present file.
     if os.path.isabs(s) and standard(s) == standard(c_name):
         return c
     if not os.path.isabs(s) and standard(s) == standard(base(c_name)):
         return c
-    if os.path.isabs(s):
-        path = standard(s)
+
+    # #3814: From here on we must test that the given file exists.
+
+    # #3814: There is no choice for absolute files.
+    if isabs(s):
+        return g.openWithFileName(s) if exists(s) else None
+
+    if g.isWindows:
+        s = s.replace('/', '\\')
+    is_relative = os.sep in s
+    if is_relative:
+        # #3816: Resolve relative paths via c's directory.
+        path = standard(abspath(join(c_dir, s)))  # Not base_s.
     else:
-        # Use `@data unl-path-prefixes` to convert to relative to absolute paths.
-        # Keys are file names; values are directives.
-        d = g.parsePathData(c)
+        # #3814: Prefer short paths in `@data unl-path-prefixes` to any defaults.
+        #        Such paths must match exactly.
         base_s = base(s)
+        d = g.parsePathData(c)
         directory = d.get(base_s)
-        if not directory:
-            return None
-        if not os.path.exists(directory):
-            return None
-        path = standard(os.path.join(directory, base_s))
+        if directory:
+            path = standard(join(directory, base_s))
+            if not exists(path):
+                return None
+        else:
+            # Resolve relative file parts using c's directory.
+            path = standard(join(c_dir, base_s))
+
+    # Search all other open commanders, starting with c.
     if path == standard(c_name):
         return c
-    # Search all open commanders.
-    # This is a good shortcut, and it helps unit tests.
     for c2 in g.app.commanders():
         if path == standard(c2.fileName()):
             return c2
-    # Open the file if possible.
-    if not os.path.exists(path):
-        return None
-    return g.openWithFileName(path)
+
+    # #3814: *Open* the file and return the commander.
+    return g.openWithFileName(path) if exists(path) else None
 #@+node:ekr.20230630132341.1: *4* g.parsePathData
 path_data_pattern = re.compile(r'(.+?):\s*(.+)')
 
@@ -7368,7 +7409,7 @@ def parsePathData(c: Cmdr) -> dict[str, str]:
     """
     lines = c.config.getData('unl-path-prefixes')
     d: dict[str, str] = {}
-    for line in lines:
+    for line in lines or []:
         if m := path_data_pattern.match(line):
             key, path = m.group(1), m.group(2)
             if key in d:

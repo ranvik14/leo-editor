@@ -156,7 +156,7 @@ class BaseTest(unittest.TestCase):
         contents, tokens, tree = self.make_data(contents, debug_list=debug_list)
         results = tokens_to_string(tokens)
         self.assertEqual(contents, results)
-    #@+node:ekr.20191227054856.1: *4* BaseTest.make_data
+    #@+node:ekr.20191227054856.1: *4* BaseTest.make_data (test_leoAst.py)
     def make_data(self,
         contents: str,
         *,
@@ -164,9 +164,9 @@ class BaseTest(unittest.TestCase):
         debug_list: str = None,
     ) -> tuple[str, list[Token], ast.AST]:  # pragma: no cover
         """Return (contents, tokens, tree) for the given contents."""
-        contents = contents.lstrip('\\\n')
-        if not contents:
-            return '', None, None
+        assert contents.strip(), g.callers()
+
+        # Set debug flags and counts.
         self.debug_list = debug_list or []
         self.trace_token_method = False
         self.link_error = None
@@ -245,6 +245,14 @@ class BaseTest(unittest.TestCase):
         contents = g.readFileIntoUnicodeString(filename)
         contents, tokens, tree = self.make_data(contents, description=filename)
         return contents, tokens, tree
+    #@+node:ekr.20240205023615.1: *4* BaseTest.prep
+    def prep(self, s: str) -> str:
+        """
+        Return the "prepped" version of s.
+        
+        This should eliminate the need for backslashes in tests.
+        """
+        return textwrap.dedent(s).strip() + '\n'
     #@+node:ekr.20191228101601.1: *4* BaseTest: passes...
     #@+node:ekr.20191228095945.11: *5* 0.1: BaseTest.make_tokens
     def make_tokens(self, contents):
@@ -403,9 +411,6 @@ class TestTOG(BaseTest):
     #@+node:ekr.20210914161519.1: *5* test_bug_2171
     def test_bug_2171(self):
 
-        if py_version < (3, 9):
-            self.skipTest('Requires Python 3.9')  # pragma: no cover
-
         contents = "'HEAD:%s' % g.os_path_join( *(relative_path + [filename]) )"
         contents, tokens, tree = self.make_data(contents)
     #@+node:ekr.20210318213133.1: *5* test_full_grammar
@@ -414,8 +419,7 @@ class TestTOG(BaseTest):
         dir_ = os.path.dirname(__file__)
         path = os.path.abspath(os.path.join(dir_, '..', 'py3_test_grammar.py'))
         assert os.path.exists(path), path
-        if py_version < (3, 9):
-            self.skipTest('Requires Python 3.9 or above')  # pragma: no cover
+
         # Verify that leoAst can parse the file.
         contents = g.readFileIntoUnicodeString(path)
         self.make_data(contents)
@@ -448,9 +452,6 @@ class TestTOG(BaseTest):
     #@+node:ekr.20210320065202.1: *5* test_line_483
     def test_line_483(self):
 
-        if py_version < (3, 8):
-            # Python 3.8: https://bugs.python.org/issue32117
-            self.skipTest(f"Python {v1}.{v2} does not support generalized iterable assignment")  # pragma: no cover
         contents = '''def g3(): return 1, *return_list'''
         contents, tokens, tree = self.make_data(contents)
     #@+node:ekr.20210320065344.1: *5* test_line_494
@@ -463,9 +464,6 @@ class TestTOG(BaseTest):
         requires enclosing parentheses. This brings the yield and return syntax
         into better agreement with normal assignment syntax.
         """
-        if py_version < (3, 8):
-            # Python 3.8: https://bugs.python.org/issue32117
-            self.skipTest(f"Python {v1}.{v2} does not support generalized iterable assignment")  # pragma: no cover
         contents = '''def g2(): yield 1, *yield_list'''
         contents, tokens, tree = self.make_data(contents)
     #@+node:ekr.20210319130349.1: *5* test_line_875
@@ -481,8 +479,6 @@ class TestTOG(BaseTest):
     #@+node:ekr.20210320085705.1: *5* test_walrus_operator
     def test_walrus_operator(self):
 
-        if py_version < (3, 8):
-            self.skipTest(f"Python {v1}.{v2} does not support assignment expressions")  # pragma: no cover
         contents = '''if (n := len(a)) > 10: pass'''
         contents, tokens, tree = self.make_data(contents)
     #@+node:ekr.20191227052446.10: *4* TestTOG.Contexts...
@@ -534,10 +530,7 @@ class TestTOG(BaseTest):
     #@+node:ekr.20210802162650.1: *5* test_FunctionDef_with_posonly_args
     def test_FunctionDef_with_posonly_args(self):
 
-        if py_version < (3, 9):
-            self.skipTest('Requires Python 3.9')  # pragma: no cover
-
-        # From PEP 570
+        # From PEP 570. (Python 3.9+).
         contents = r"""
     def pos_only_arg(arg, /):
         pass
@@ -1113,7 +1106,7 @@ class TestTOG(BaseTest):
     def test_Match(self):
 
         if py_version < (3, 10):  # pragma: no cover
-            self.skipTest('Require python 3.10')
+            self.skipTest('Requires python 3.10+')
         #@+<< test_Match: define contents >>
         #@+node:ekr.20231215010832.1: *6* << test_Match: define contents >>
         contents = """
@@ -1169,7 +1162,7 @@ class TestTOG(BaseTest):
     def test_TryStar(self):
 
         if py_version < (3, 11):
-            self.skipTest('Python 3.11+ only')
+            self.skipTest('Requires Python 3.11+')
 
         contents = r"""
     try:
@@ -1289,7 +1282,7 @@ class Optional_TestFiles(BaseTest):
     def compare_tog_vs_asttokens(self):  # pragma: no cover
         """Compare asttokens token lists with TOG token lists."""
         if not asttokens:
-            self.skipTest('requires asttokens')
+            self.skipTest('Requires asttokens')
         # Define TestToken class and helper functions.
         stack: list[ast.AST] = []
         #@+others
@@ -1402,7 +1395,7 @@ class TestFstringify(BaseTest):
             f = TestClass('abc', 0, 10)
         """
         contents, tokens, tree = self.make_data(contents)
-        expected = textwrap.dedent(contents).rstrip() + '\n'
+        expected = self.prep(contents)
         results = self.fstringify(contents, tokens, tree)
         self.assertEqual(results, expected)
     #@+node:ekr.20200111043311.2: *5* TestFstringify.test_crash_1
@@ -1523,11 +1516,9 @@ class TestFstringify(BaseTest):
             )) # trailing comment
         """
 
-        expected = """\
-            print(f'{"done"} in {2.9:5.2f} sec') # trailing comment
-        """
+        expected = """print(f'{"done"} in {2.9:5.2f} sec') # trailing comment\n"""
         contents, tokens, tree = self.make_data(contents)
-        expected = textwrap.dedent(expected).rstrip() + '\n'
+        expected = self.prep(expected)
         results = self.fstringify(contents, tokens, tree)
         self.assertEqual(results, expected)
     #@+node:ekr.20200206173126.1: *4* TestFstringify.test_change_quotes
@@ -1605,7 +1596,7 @@ class TestFstringify(BaseTest):
     #@+node:ekr.20200104042705.1: *4* TestFstringify.test_newlines
     def test_newlines(self):
 
-        contents = r"""\
+        contents = r"""
     print("hello\n")
     print('world\n')
     print("hello\r\n")
@@ -1699,7 +1690,7 @@ class TestOrange(BaseTest):
     def blacken(self, contents, line_length=None):
         """Return the results of running black on contents"""
         if not black:
-            self.skipTest('Can not import black')  # pragma: no cover
+            self.skipTest('Requires Black')  # pragma: no cover
         # Suppress string normalization!
         try:
             mode = black.FileMode()
@@ -1707,21 +1698,21 @@ class TestOrange(BaseTest):
             if line_length is not None:
                 mode.line_length = line_length
         except TypeError:  # pragma: no cover
-            self.skipTest('old version of black')
+            self.skipTest('Requires later version of Black')
         return black.format_str(contents, mode=mode)
     #@+node:ekr.20230115150916.1: *4* TestOrange.test_annotations
     def test_annotations(self):
 
         table = (
         # Case 0.
-        '''\
+        '''
     def annotated_f(s: str = None, x=None) -> None:
         pass
     ''',
         )
         for i, contents in enumerate(table):
             contents, tokens, tree = self.make_data(contents)
-            expected = self.blacken(contents).rstrip() + '\n'
+            expected = self.blacken(contents).strip() + '\n'
             results = self.beautify(contents, tokens, tree)
             self.assertEqual(results, expected)
 
@@ -1729,7 +1720,7 @@ class TestOrange(BaseTest):
     def test_at_doc_part(self):
 
         line_length = 40  # For testing.
-        contents = """\
+        contents = """
     #@+at Line 1
     # Line 2
     #@@c
@@ -1763,7 +1754,7 @@ class TestOrange(BaseTest):
     #@+node:ekr.20200219145639.1: *4* TestOrange.test_blank_lines_after_function
     def test_blank_lines_after_function(self):
 
-        contents = """\
+        contents = """
     # Comment line 1.
     # Comment line 2.
 
@@ -1782,7 +1773,7 @@ class TestOrange(BaseTest):
     #@+node:ekr.20200220050758.1: *4* TestOrange.test_blank_lines_after_function_2
     def test_blank_lines_after_function_2(self):
 
-        contents = """\
+        contents = """
     # Leading comment line 1.
     # Leading comment lines 2.
 
@@ -1800,7 +1791,7 @@ class TestOrange(BaseTest):
     def test_blank_lines_after_function_3(self):
 
         # From leoAtFile.py.
-        contents = r"""\
+        contents = """
     def writeAsisNode(self, p):
         print('1')
 
@@ -1818,7 +1809,7 @@ class TestOrange(BaseTest):
     #@+node:ekr.20200228074455.1: *4* TestOrange.test_bug_1429
     def test_bug_1429(self):
 
-        contents = r'''\
+        contents = r'''
     def get_semver(tag):
         """bug 1429 docstring"""
         try:
@@ -1835,19 +1826,19 @@ class TestOrange(BaseTest):
         return version
     '''
         contents, tokens, tree = self.make_data(contents)
-        expected = contents.rstrip() + '\n'
+        expected = contents.strip() + '\n'
         results = self.beautify(contents, tokens, tree,
             max_join_line_length=0, max_split_line_length=0)
         self.assertEqual(results, expected)
     #@+node:ekr.20210318055702.1: *4* TestOrange.test_bug_1851
     def test_bug_1851(self):
 
-        contents = r'''\
+        contents = r'''
     def foo(a1):
         pass
     '''
         contents, tokens, tree = self.make_data(contents)
-        expected = contents.rstrip() + '\n'
+        expected = contents.strip() + '\n'
         results = self.beautify(contents, tokens, tree,
             max_join_line_length=0, max_split_line_length=0)
         self.assertEqual(results, expected)
@@ -1856,12 +1847,12 @@ class TestOrange(BaseTest):
 
         line_length = 40  # For testing.
         table = (
-    """\
+    """
     if 1:
         pass
             # An indented comment.
     """,
-    """\
+    """
     table = (
         # Indented comment.
     )
@@ -1935,20 +1926,20 @@ class TestOrange(BaseTest):
 
         table = (
         # Case 0.
-        """\
+        """
     @my_decorator(1)
     def func():
         pass
     """,
         # Case 1.
-        """\
+        """
     if 1:
         @my_decorator
         def func():
             pass
     """,
         # Case 2.
-        '''\
+        '''
     @g.commander_command('promote')
     def promote(self, event=None, undoFlag=True):
         """Make all children of the selected nodes siblings of the selected node."""
@@ -1956,7 +1947,7 @@ class TestOrange(BaseTest):
         )
         for i, contents in enumerate(table):
             contents, tokens, tree = self.make_data(contents)
-            expected = contents
+            expected = self.prep(contents)
             results = self.beautify(contents, tokens, tree)
             if results != expected:
                 g.trace('Fail:', i)  # pragma: no cover
@@ -1965,7 +1956,7 @@ class TestOrange(BaseTest):
     def test_dont_delete_blank_lines(self):
 
         line_length = 40  # For testing.
-        contents = """\
+        contents = """
     class Test:
 
         def test_func():
@@ -1986,22 +1977,22 @@ class TestOrange(BaseTest):
 
         table = (
         # Case 0.
-        """\
+        """
     def f1(a=2 + 5):
         pass
     """,
         # Case 2
-         """\
+         """
     def f1():
         pass
     """,
         # Case 3.
-        """\
+        """
     def f1():
         pass
     """,
         # Case 4.
-        '''\
+        '''
     def should_kill_beautify(p):
         """Return True if p.b contains @killbeautify"""
         return 'killbeautify' in g.get_directives_dict(p)
@@ -2009,25 +2000,27 @@ class TestOrange(BaseTest):
         )
         for i, contents in enumerate(table):
             contents, tokens, tree = self.make_data(contents)
-            expected = self.blacken(contents).rstrip() + '\n'
+            expected = self.blacken(self.prep(contents))
             results = self.beautify(contents, tokens, tree)
             self.assertEqual(results, expected)
     #@+node:ekr.20200116104031.1: *4* TestOrange.test_join_and_strip_condition
     def test_join_and_strip_condition(self):
 
-        contents = """
+        contents = self.prep(
+        """
             if (
                 a == b or
                 c == d
             ):
                 pass
-        """.strip() + '\n'
-        expected = """
+        """)
+        expected = self.prep(
+        """
             if (a == b or c == d):
                 pass
-        """.strip() + '\n'
+        """)
         contents, tokens, tree = self.make_data(contents)
-        expected = textwrap.dedent(expected)
+        expected = self.prep(expected)
         # Black also removes parens, which is beyond our scope at present.
             # expected = self.blacken(contents, line_length=40)
         results = self.beautify(contents, tokens, tree)
@@ -2037,13 +2030,13 @@ class TestOrange(BaseTest):
 
         line_length = 40  # For testing.
         table = (
-                            #1234567890x1234567890x1234567890x1234567890x
-    """\
+                            # 1234567890x1234567890x1234567890x1234567890x
+    """
     if 1:
         print('4444',
             '5555')
     """,
-    """\
+    """
     if 1:
         print('4444', '5555')\n""",
         )
@@ -2075,7 +2068,7 @@ class TestOrange(BaseTest):
         # Except where noted, all entries are expected values....
         line_length = 40  # For testing.
         table = (
-            #1234567890x1234567890x1234567890x1234567890x
+            # 1234567890x1234567890x1234567890x1234567890x
             """print('4444',\n    '5555')""",
             """print('4444', '5555')\n""",
         )
@@ -2103,20 +2096,20 @@ class TestOrange(BaseTest):
     #@+node:ekr.20200210051900.1: *4* TestOrange.test_join_suppression
     def test_join_suppression(self):
 
-        contents = """
+        contents = self.prep("""
             class T:
                 a = 1
                 print(
                    a
                 )
-        """.strip() + '\n'
-        expected = """
+        """)
+        expected = self.prep("""
             class T:
                 a = 1
                 print(a)
-        """.strip() + '\n'
+        """)
         contents, tokens, tree = self.make_data(contents)
-        expected = textwrap.dedent(expected)
+        expected = self.prep(expected)
         results = self.beautify(contents, tokens, tree)
         self.assertEqual(results, expected)
     #@+node:ekr.20200207093606.1: *4* TestOrange.test_join_too_long_lines
@@ -2125,7 +2118,7 @@ class TestOrange(BaseTest):
         # Except where noted, all entries are expected values....
         line_length = 40  # For testing.
         table = (
-                            #1234567890x1234567890x1234567890x1234567890x
+                            # 1234567890x1234567890x1234567890x1234567890x
             (
                 """print('aaaaaaaaaaaa',\n    'bbbbbbbbbbbb', 'cccccccccccccccc')""",
                 """print('aaaaaaaaaaaa',\n    'bbbbbbbbbbbb', 'cccccccccccccccc')\n""",
@@ -2177,7 +2170,7 @@ class TestOrange(BaseTest):
         # Careful: don't put a sentinel into the file directly.
         # That would corrupt leoAst.py.
         sentinel = '#@+node:ekr.20200105143308.54: ** test'
-        contents = f"""\
+        contents = f"""
     {sentinel}
     def spam():
         pass
@@ -2192,7 +2185,7 @@ class TestOrange(BaseTest):
         # Careful: don't put a sentinel into the file directly.
         # That would corrupt leoAst.py.
         sentinel = '#@+node:ekr.20200105143308.54: ** test'
-        contents = f"""\
+        contents = f"""
     {sentinel}
     class TestClass:
         pass
@@ -2204,7 +2197,7 @@ class TestOrange(BaseTest):
     #@+node:ekr.20200108082833.1: *4* TestOrange.test_lines_before_class
     def test_lines_before_class(self):
 
-        contents = """\
+        contents = """
     a = 2
     class aClass:
         pass
@@ -2216,7 +2209,7 @@ class TestOrange(BaseTest):
     #@+node:ekr.20200110014220.86: *4* TestOrange.test_multi_line_pet_peeves
     def test_multi_line_pet_peeves(self):
 
-        contents = """\
+        contents = """
     if x == 4: pass
     if x == 4 : pass
     print (x, y); x, y = y, x
@@ -2229,7 +2222,7 @@ class TestOrange(BaseTest):
         pass
     """
         # At present Orange doesn't split lines...
-        expected = """\
+        expected = """
     if x == 4: pass
     if x == 4: pass
     print(x, y); x, y = y, x
@@ -2346,7 +2339,7 @@ class TestOrange(BaseTest):
     def test_relative_imports(self):
 
         # #2533.
-        contents = textwrap.dedent(
+        contents = self.prep(
         """
             from .module1 import w
             from . module2 import x
@@ -2356,9 +2349,9 @@ class TestOrange(BaseTest):
             from.import b
             from leo.core import leoExternalFiles
             import leo.core.leoGlobals as g
-        """).strip() + '\n'
+        """)
 
-        expected = textwrap.dedent(
+        expected = self.prep(
         """
             from .module1 import w
             from .module2 import x
@@ -2368,7 +2361,7 @@ class TestOrange(BaseTest):
             from . import b
             from leo.core import leoExternalFiles
             import leo.core.leoGlobals as g
-        """).strip() + '\n'
+        """)
 
         contents, tokens, tree = self.make_data(contents)
         results = self.beautify(contents, tokens, tree)
@@ -2395,8 +2388,8 @@ class TestOrange(BaseTest):
 
         line_length = 40  # For testing.
         table = (
-        #1234567890x1234567890x1234567890x1234567890x
-            """\
+        # 1234567890x1234567890x1234567890x1234567890x
+            """
     if 1:
         print('1111111111', '2222222222', '3333333333')
     """,
@@ -2427,20 +2420,22 @@ class TestOrange(BaseTest):
     def test_split_lines_2(self):
 
         line_length = 40  # For testing.
+
         # Different from how black handles things.
-        contents = """\
+        contents = """
     if not any([z.kind == 'lt' for z in line_tokens]):
         return False
     """
-        expected = """\
-    if not any(
-        [z.kind == 'lt' for z in line_tokens]):
-        return False
-    """
+
+        expected = self.prep(
+        """
+            if not any(
+                [z.kind == 'lt' for z in line_tokens]):
+                return False
+        """)
+
         fails = 0
         contents, tokens, tree = self.make_data(contents)
-        # expected = self.blacken(contents, line_length=line_length)
-        expected = textwrap.dedent(expected)
         results = self.beautify(contents, tokens, tree,
             max_join_line_length=line_length,
             max_split_line_length=line_length,
@@ -2460,19 +2455,19 @@ class TestOrange(BaseTest):
         line_length = 40  # For testing.
         # Different from how black handles things.
         contents = """print('eee', ('fffffff, ggggggg', 'hhhhhhhh', 'iiiiiii'), 'jjjjjjj', 'kkkkkk')"""
+
         # This is a bit different from black, but it's good enough for now.
-        expected = """\
-    print(
-        'eee',
-        ('fffffff, ggggggg', 'hhhhhhhh', 'iiiiiii'),
-        'jjjjjjj',
-        'kkkkkk',
-    )
-    """
+        expected = self.prep(
+        """
+            print(
+                'eee',
+                ('fffffff, ggggggg', 'hhhhhhhh', 'iiiiiii'),
+                'jjjjjjj',
+                'kkkkkk',
+            )
+        """)
         fails = 0
         contents, tokens, tree = self.make_data(contents)
-        # expected = self.blacken(contents, line_length=line_length)
-        expected = textwrap.dedent(expected)
         results = self.beautify(contents, tokens, tree,
             max_join_line_length=line_length,
             max_split_line_length=line_length,
@@ -2519,7 +2514,7 @@ class TestOrange(BaseTest):
 
         line_length = 40  # For testing.
 
-        contents = textwrap.dedent("""
+        contents = self.prep("""
     #@@nobeautify
 
     def addOptionsToParser(self, parser, trace_m):
@@ -2543,7 +2538,7 @@ class TestOrange(BaseTest):
     docDirective    =  3 # @doc.
 
     #@@beautify
-    """).lstrip()
+    """)
         contents, tokens, tree = self.make_data(contents)
         expected = contents
         results = self.beautify(contents, tokens, tree,
@@ -2555,7 +2550,7 @@ class TestOrange(BaseTest):
     def test_verbatim_with_pragma(self):
 
         line_length = 40  # For testing.
-        contents = """\
+        contents = """
     # pragma: no beautify
 
     def addOptionsToParser(self, parser, trace_m):
@@ -2586,7 +2581,7 @@ class TestOrange(BaseTest):
     #@+node:ekr.20200729083027.1: *4* TestOrange.verbatim2
     def test_verbatim2(self):
 
-        contents = """\
+        contents = """
     #@@beautify
     #@@nobeautify
     #@+at Starts doc part
@@ -2718,7 +2713,7 @@ class TestTokens(BaseTest):
 
         # Will only be run when enabled explicitly.
 
-        contents = """\
+        contents = """
     print('line 1')
     print('line 2')
     print('line 3')
@@ -2731,7 +2726,7 @@ class TestTokens(BaseTest):
     def test_bs_nl_tokens(self):
         # Test https://bugs.python.org/issue38663.
 
-        contents = """\
+        contents = """
     print \
         ('abc')
     """
@@ -2739,7 +2734,7 @@ class TestTokens(BaseTest):
     #@+node:ekr.20200110015014.8: *4* TT.test_continuation_1
     def test_continuation_1(self):
 
-        contents = """\
+        contents = """
     a = (3,4,
         5,6)
     y = [3, 4,
@@ -2762,7 +2757,7 @@ class TestTokens(BaseTest):
     #@+node:ekr.20200111085211.1: *4* TT.test_continuation_3
     def test_continuation_3(self):
 
-        contents = """\
+        contents = """
     # Comment \\\n
     x = 0
     """

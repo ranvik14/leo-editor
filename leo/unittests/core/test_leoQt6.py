@@ -4,7 +4,7 @@
 #@@first
 """Tests of Qt6 methods and attributes."""
 
-from leo.unittests.test_importers import BaseTestImporter
+from leo.unittests.plugins.test_importers import BaseTestImporter
 from leo.core import leoGlobals as g
 
 #@+others
@@ -18,7 +18,7 @@ class TestQt6(BaseTestImporter):
         try:
             import leo.core.leoQt6 as Qt6
         except Exception:
-            self.skipTest('No Qt6')
+            self.skipTest('Requires Qt6')
 
         attrs = [z for z in dir(Qt6) if not z.startswith('__')]
 

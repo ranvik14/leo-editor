@@ -1,11 +1,10 @@
 #@+leo-ver=5-thin
-#@+node:ekr.20210907081548.1: * @file ../unittests/test_plugins.py
+#@+node:ekr.20210907081548.1: * @file ../unittests/plugins/test_plugins.py
 """General tests of plugins."""
 
 import glob
 import os
 import re
-import textwrap
 from leo.core import leoGlobals as g
 from leo.core.leoTest2 import LeoUnitTest
 from leo.core.leoPlugins import LeoPluginsController
@@ -113,7 +112,7 @@ class TestPlugins(LeoUnitTest):
         try:
             import leo.plugins.cursesGui2 as cursesGui2
         except Exception:
-            self.skipTest('Missing cursesGui2 requirements')
+            self.skipTest('Requires cursesGui2 requirements')
 
         # Instantiating this class caused the crash.
         cursesGui2.LeoTreeData()
@@ -168,7 +167,7 @@ class TestIndentedTypeScript(LeoUnitTest):
 
         # Contains "over-indented" parenthesized lines, a good test for check_indentation.
 
-        contents = textwrap.dedent(  # dedent is required.
+        contents = self.prep(
             """
             import { NodeIndices, VNode, Position } from './leoNodes';
 

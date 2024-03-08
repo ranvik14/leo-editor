@@ -1,5 +1,5 @@
 #@+leo-ver=5-thin
-#@+node:ekr.20210901140718.1: * @file ../unittests/test_syntax.py
+#@+node:ekr.20210901140718.1: * @file ../unittests/misc_tests/test_syntax.py
 """Syntax tests, including a check that Leo will continue to load!"""
 # pylint: disable=no-member
 import glob
@@ -45,14 +45,6 @@ class TestSyntax(LeoUnitTest):
                     fn = g.shortFileName(z)
                     s, e = g.readFileIntoString(z)
                     self.assertTrue(self.check_syntax(fn, s), msg=fn)
-    #@+node:ekr.20210901140645.22: *4* TestSyntax.test_syntax_of_setup_py
-    def test_syntax_of_setup_py(self):
-        fn = g.finalize_join(g.app.loadDir, '..', '..', 'setup.py')
-        # Only run this test if setup.py exists: it may not in the actual distribution.
-        if not g.os_path_exists(fn):
-            self.skipTest('setup.py not found')  # pragma: no cover
-        s, e = g.readFileIntoString(fn)
-        assert self.check_syntax(fn, s)
     #@-others
 #@-others
 #@-leo

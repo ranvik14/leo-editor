@@ -281,6 +281,7 @@ class LeoApp:
             "hbs": "html",
             "handlebars": "html",
             # "rust": "c",
+            "toml": "ini",
             # "vue": "c",
         }
     #@+node:ekr.20120522160137.9911: *5* app.define_extension_dict
@@ -424,6 +425,7 @@ class LeoApp:
             # "tcl":    "tcltk",
             "tex":      "latex",
             # "tex":      "tex",
+            "toml":     "toml",
             "tpl":      "tpl",
             "ts":       "typescript",
             "txt":      "plain",
@@ -640,6 +642,7 @@ class LeoApp:
             "tex"                : "%", # Bug fix: 2008-1-30: Fixed Mark Edginton's bug.
             "text"               : "#", # We must pick something.
             "texinfo"            : "@c",
+            "toml"               : "#",
             "tpl"                : "<!-- -->",
             "tsql"               : "-- /* */",
             "typescript"         : "// /* */", # For typescript import test.
@@ -810,6 +813,7 @@ class LeoApp:
             "tex"           : "tex",
             "texinfo"       : "info",
             "text"          : "txt",
+            "toml"          : "toml",
             "tpl"           : "tpl",
             "tsql"          : "sql", # A guess.
             "typescript"    : "ts",
@@ -2359,7 +2363,7 @@ class LoadManager:
         # Create the outline with workbook's name.
         c.frame.title = title = c.computeWindowTitle()
         c.frame.setTitle(title)
-        if hasattr(c.frame, 'top'):
+        if getattr(c.frame, 'top', None):
             c.frame.top.leo_master.setTabName(c, fn)
         # Finish: Do *not* save the file!
         g.chdir(fn)

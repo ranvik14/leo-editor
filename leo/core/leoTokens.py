@@ -50,38 +50,7 @@ Settings = Optional[dict[str, Any]]
 debug: bool = True
 
 #@+others
-#@+node:ekr.20240105140814.5: ** command: orange_command & helper (leoTokens.py)
-def orange_command(
-    arg_files: list[str],
-    requested_files: list[str],
-    dirty_files: list[str],
-    to_be_checked_files: list[str],
-    settings: Settings = None,
-) -> None:  # pragma: no cover
-    """The outer level of the 'tbo/orange' command."""
-    if not check_g():
-        return
-    t1 = time.process_time()
-    n_tokens = 0
-    n_changed = 0
-    for filename in to_be_checked_files:
-        if os.path.exists(filename):
-            tbo = TokenBasedOrange(settings)
-            changed = tbo.beautify_file(filename)
-            if changed:
-                n_changed += 1
-            n_tokens += len(tbo.tokens)
-        else:
-            print(f"file not found: {filename}")
-    # Report the results.
-    t2 = time.process_time()
-    if n_changed or not TokenBasedOrange(settings).silent:
-        print(
-            f"tbo: {t2-t1:3.1f} sec. "
-            f"dirty: {len(dirty_files):<3} "
-            f"checked: {len(to_be_checked_files):<3} "
-            f"beautified: {n_changed:<3} in {','.join(arg_files)}"
-        )
+#@+node:ekr.20240214065940.1: ** top-level functions (leoTokens.py)
 #@+node:ekr.20240105140814.8: *3* function: check_g
 def check_g() -> bool:  # pragma: no cover
     """print an error message if g is None"""
@@ -89,7 +58,6 @@ def check_g() -> bool:  # pragma: no cover
         print('This statement failed: `from leo.core import leoGlobals as g`')
         print('Please adjust your Python path accordingly')
     return bool(g)
-#@+node:ekr.20240106220602.1: ** LeoTokens: debugging functions
 #@+node:ekr.20240105140814.41: *3* function: dump_contents
 def dump_contents(contents: str, tag: str = 'Contents') -> None:  # pragma: no cover
     print('')
@@ -127,6 +95,29 @@ def dump_tokens(tokens: list[InputToken], tag: str = 'Tokens') -> None:  # pragm
     for z in tokens:
         print(z.dump())
     print('')
+#@+node:ekr.20240105140814.9: *3* function: get_modified_files
+def get_modified_files(repo_path: str) -> list[str]:  # pragma: no cover
+    """Return the modified files in the given repo."""
+    if not repo_path:
+        return []
+    old_cwd = os.getcwd()
+    os.chdir(repo_path)
+    try:
+        # We are not checking the return code here, so:
+        # pylint: disable=subprocess-run-check
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True)
+        if result.returncode != 0:
+            print("Error running git command")
+            return []
+        modified_files = []
+        for line in result.stdout.split('\n'):
+            if line.startswith((' M', 'M ', 'A ', ' A')):
+                modified_files.append(line[3:])
+        return [os.path.abspath(z) for z in modified_files]
+    finally:
+        os.chdir(old_cwd)
 #@+node:ekr.20240105140814.27: *3* function: input_tokens_to_string
 def input_tokens_to_string(tokens: list[InputToken]) -> str:  # pragma: no cover
     """Return the string represented by the list of tokens."""
@@ -137,6 +128,79 @@ def input_tokens_to_string(tokens: list[InputToken]) -> str:  # pragma: no cover
         print('')
         return ''
     return ''.join([z.to_string() for z in tokens])
+#@+node:ekr.20240105140814.121: *3* function: main (leoTokens.py)
+def main() -> None:  # pragma: no cover
+    """Run commands specified by sys.argv."""
+    args, settings_dict, arg_files = scan_args()
+    cwd = os.getcwd()
+
+    # Calculate requested files.
+    requested_files: list[str] = []
+    for path in arg_files:
+        if path.endswith('.py'):
+            requested_files.append(os.path.join(cwd, path))
+        else:
+            root_dir = os.path.join(cwd, path)
+            requested_files.extend(
+                glob.glob(f'{root_dir}**{os.sep}*.py', recursive=True)
+            )
+    if not requested_files:
+        print(f"No files in {arg_files!r}")
+        return
+
+    # Calculate the actual list of files.
+    modified_files = get_modified_files(cwd)
+
+    def is_dirty(path: str) -> bool:
+        return os.path.abspath(path) in modified_files
+
+    # Compute the files to be checked.
+    if args.all:
+        # Handle all requested files.
+        to_be_checked_files = requested_files
+    else:
+        # Handle only modified files.
+        to_be_checked_files = [z for z in requested_files if is_dirty(z)]
+
+    # Compute the dirty files among the to-be-checked files.
+    dirty_files = [z for z in to_be_checked_files if is_dirty(z)]
+
+    # Do the command.
+    if to_be_checked_files:
+        orange_command(arg_files, requested_files, dirty_files, to_be_checked_files, settings_dict)
+#@+node:ekr.20240105140814.5: *3* function: orange_command (leoTokens.py)
+def orange_command(
+    arg_files: list[str],
+    requested_files: list[str],
+    dirty_files: list[str],
+    to_be_checked_files: list[str],
+    settings: Settings = None,
+) -> None:  # pragma: no cover
+    """The outer level of the 'tbo/orange' command."""
+    if not check_g():
+        return
+    t1 = time.process_time()
+    n_tokens = 0
+    n_beautified = 0
+    for filename in to_be_checked_files:
+        if os.path.exists(filename):
+            was_dirty = filename in dirty_files
+            tbo = TokenBasedOrange(settings)
+            beautified = tbo.beautify_file(filename, was_dirty)
+            if beautified:
+                n_beautified += 1
+            n_tokens += len(tbo.tokens)
+        else:
+            print(f"file not found: {filename}")
+    # Report the results.
+    t2 = time.process_time()
+    if n_beautified or settings.get('report'):
+        print(
+            f"tbo: {t2-t1:3.1f} sec. "
+            f"dirty: {len(dirty_files):<3} "
+            f"checked: {len(to_be_checked_files):<3} "
+            f"beautified: {n_beautified:<3} in {','.join(arg_files)}"
+        )
 #@+node:ekr.20240105140814.24: *3* function: output_tokens_to_string
 def output_tokens_to_string(tokens: list[OutputToken]) -> str:
     """Return the string represented by the list of tokens."""
@@ -147,6 +211,46 @@ def output_tokens_to_string(tokens: list[OutputToken]) -> str:
         print('')
         return ''
     return ''.join([z.to_string() for z in tokens])
+#@+node:ekr.20240105140814.10: *3* function: scan_args (leoTokens.py)
+def scan_args() -> tuple[Any, dict[str, Any], list[str]]:  # pragma: no cover
+    description = textwrap.dedent(
+    """Beautify or diff files""")
+    parser = argparse.ArgumentParser(
+        description=description,
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument('PATHS', nargs='*', help='directory or list of files')
+    add2 = parser.add_argument
+
+    # Arguments.
+    add2('-a', '--all', dest='all', action='store_true',
+        help='Beautify all files, even unchanged files')
+    add2('-b', '--beautified', dest='beautified', action='store_true',
+        help='Report beautified files individually, even if not written')
+    add2('-d', '--diff', dest='diff', action='store_true',
+        help='show diffs instead of changing files')
+    add2('-r', '--report', dest='report', action='store_true',
+        help='show summary report')
+    add2('-w', '--write', dest='write', action='store_true',
+        help='write beautifed files (dry-run mode otherwise)')
+
+    # Create the return values, using EKR's prefs as the defaults.
+    parser.set_defaults(
+        all=False, beautified=False, diff=False, report=False, write=False,
+        tab_width=4,
+    )
+    args: Any = parser.parse_args()
+    files = args.PATHS
+
+    # Create the settings dict, ensuring proper values.
+    settings_dict: dict[str, Any] = {
+        'all': bool(args.all),
+        'beautified': bool(args.beautified),
+        'diff': bool(args.diff),
+        'report': bool(args.report),
+        'write': bool(args.write)
+    }
+    return args, settings_dict, files
 #@+node:ekr.20240105140814.52: ** Classes
 #@+node:ekr.20240105140814.51: *3* class InternalBeautifierError(Exception)
 class InternalBeautifierError(Exception):
@@ -529,7 +633,10 @@ class TokenBasedOrange:  # Orange is the new Black.
     #@+node:ekr.20240111035404.1: *4* << TokenBasedOrange: __slots__ >>
     __slots__ = [
         # Command-line arguments.
-        'diff', 'force', 'safe', 'silent', 'tab_width', 'verbose',
+        'all', 'beautified', 'diff', 'report', 'write',
+
+        # Hard-coded ivar.
+        'tab_width',
 
         # Debugging.
         'contents', 'filename',
@@ -585,18 +692,20 @@ class TokenBasedOrange:  # Orange is the new Black.
         # Set default settings.
         if settings is None:
             settings = {}
+        self.all = False
+        self.beautified = False
         self.diff = False
-        self.force = False
-        self.safe = False
-        self.silent = False
-        self.tab_width = 4
-        self.verbose = False
+        self.report = False
+        self.write = False
 
-        # Make sure tokens is defined, even for empty files.
+        # Hard-code 4-space tabs.
+        self.tab_width = 4
+
+        # Define tokens even for empty files.
         self.tokens: list[InputToken] = []
 
         # Override defaults from settings dict.
-        valid_keys = ('diff', 'force', 'orange', 'safe', 'silent', 'tab_width', 'verbose')
+        valid_keys = ('all', 'beautified', 'diff', 'report', 'write')
         for key in settings:  # pragma: no cover
             value = settings.get(key)
             if key in valid_keys and value is not None:
@@ -612,13 +721,9 @@ class TokenBasedOrange:  # Orange is the new Black.
             print(tag)
         for token in self.tokens[i1 : i2 + 1]:
             print(token.dump())
-    #@+node:ekr.20240117053310.1: *5* tbo.oops & helper
-    def oops(self, message: str) -> None:  # pragma: no cover
-        """Raise InternalBeautifierError."""
-        raise InternalBeautifierError(self.error_message(message))
-    #@+node:ekr.20240112082350.1: *6* tbo.error_message
-    def error_message(self, message: str) -> str:  # pragma: no cover
-        """Print a full error message."""
+    #@+node:ekr.20240112082350.1: *5* tbo.internal_error_message
+    def internal_error_message(self, message: str) -> str:  # pragma: no cover
+        """Print a message about an error in the beautifier itself."""
         # Compute lines_s.
         line_number = self.token.line_number
         lines = g.splitLines(self.contents)
@@ -640,6 +745,31 @@ class TokenBasedOrange:  # Orange is the new Black.
             f"{context_s}"
             "Please report this message to Leo's developers"
         )
+    #@+node:ekr.20240226131015.1: *5* tbo.user_error_message
+    def user_error_message(self, message: str) -> str:  # pragma: no cover
+        """Print a message about a user error."""
+        # Compute lines_s.
+        line_number = self.token.line_number
+        lines = g.splitLines(self.contents)
+        n1 = max(0, line_number - 5)
+        n2 = min(line_number + 5, len(lines))
+        prev_lines = ['\n']
+        for i in range(n1, n2):
+            marker_s = '***' if i + 1 == line_number else '   '
+            prev_lines.append(f"Line {i+1:5}:{marker_s}{lines[i]!r}\n")
+        context_s = ''.join(prev_lines) + '\n'
+
+        # Return the full error message.
+        return (
+            f"{message.strip()}\n"
+            '\n'
+            f"At token {self.index}, line: {line_number} file: {self.filename}\n"
+            f"{context_s}"
+        )
+    #@+node:ekr.20240117053310.1: *5* tbo.oops
+    def oops(self, message: str) -> None:  # pragma: no cover
+        """Raise InternalBeautifierError."""
+        raise InternalBeautifierError(self.internal_error_message(message))
     #@+node:ekr.20240105145241.4: *4* tbo: Entries & helpers
     #@+node:ekr.20240105145241.5: *5* tbo.beautify (main token loop)
     def no_visitor(self) -> None:  # pragma: no cover
@@ -688,52 +818,49 @@ class TokenBasedOrange:  # Orange is the new Black.
         try:
             # Pre-scan the token list, setting context.s
             self.pre_scan()
-        except InternalBeautifierError as e:  # pragma: no cover
-            # oops calls self.error_message to creates e.
-            print(e)
-        except AssertionError as e:  # pragma: no cover
-            g.es_exception()
-            print(self.error_message(repr(e)))
 
-        # The main loop:
-        self.gen_token('file-start', '')
-        self.push_state('file-start')
-        prev_line_number: int = None
-        for self.index, self.token in enumerate(tokens):
-            # Set global for visitors.
-            if prev_line_number != self.token.line_number:
-                prev_line_number = self.token.line_number
-            # Call the proper visitor.
-            try:
+            # The main loop:
+            self.gen_token('file-start', '')
+            self.push_state('file-start')
+            prev_line_number: int = None
+            for self.index, self.token in enumerate(tokens):
+                # Set global for visitors.
+                if prev_line_number != self.token.line_number:
+                    prev_line_number = self.token.line_number
+                # Call the proper visitor.
                 if self.verbatim:
                     self.do_verbatim()
                 else:
                     func = getattr(self, f"do_{self.token.kind}", self.no_visitor)
                     func()
-            except InternalBeautifierError as e:  # pragma: no cover
-                # oops calls self.error_message to creates e.
-                print(e)
-            except AssertionError as e:  # pragma: no cover
-                g.es_exception()
-                print(self.error_message(repr(e)))
 
-        # Any post pass would go here.
-        result = output_tokens_to_string(self.code_list)
-        return result
+            # Return the result.
+            result = output_tokens_to_string(self.code_list)
+            return result
+
+        # Make no change if there is any error.
+        except InternalBeautifierError as e:  # pragma: no cover
+            # oops calls self.internal_error_message to creates e.
+            print(e)
+        except AssertionError as e:  # pragma: no cover
+            g.es_exception()
+            print(self.internal_error_message(repr(e)))
+        return contents
+
     #@+node:ekr.20240105145241.6: *5* tbo.beautify_file (entry) (stats & diffs)
-    def beautify_file(self, filename: str) -> bool:  # pragma: no cover
+    def beautify_file(self, filename: str, was_dirty: bool) -> bool:  # pragma: no cover
         """
         TokenBasedOrange: Beautify the the given external file.
 
-        Return True if the file was changed.
+        Return True if the file was beautified.
         """
-        if False:
+        if 0:
             g.trace(
+                f"all: {int(self.all)} "
+                f"beautified: {int(self.beautified)} "
                 f"diff: {int(self.diff)} "
-                f"force: {int(self.force)} "
-                f"safe: {int(self.safe)} "
-                f"silent: {int(self.silent)} "
-                f"verbose: {int(self.verbose)} "
+                f"report: {int(self.report)} "
+                f"write: {int(self.write)} "
                 f"{g.shortFileName(filename)}"
             )
         self.filename = filename
@@ -742,27 +869,24 @@ class TokenBasedOrange:  # Orange is the new Black.
             return False  # Not an error.
         if not isinstance(tokens[0], InputToken):
             self.oops(f"Not an InputToken: {tokens[0]!r}")
+
+        # Beautify the contents, returning the original contents on any error.
         results = self.beautify(contents, filename, tokens)
-        if not results:
+
+        # Ignore changes only to newlines.
+        if self.regularize_newlines(contents) == self.regularize_newlines(results):
             return False
 
-        # Something besides newlines must change.
-        regularized_contents = self.regularize_nls(contents)
-        regularized_results = self.regularize_nls(results)
-        if regularized_contents == regularized_results:
-            return False
-        if not regularized_contents:
-            print(f"tbo: no results {g.shortFileName(filename)}")
-            return False
-
-        # Handle the args.
-        if not self.silent:
-            print(f"tbo: changed {g.shortFileName(filename)}")
+        # print reports reports.
+        if self.beautified:  # --beautified.
+            print(f"tbo: beautified: {g.shortFileName(filename)}")
         if self.diff:  # --diff.
             print(f"Diffs: {filename}")
-            self.show_diffs(regularized_contents, regularized_results)
-        if not self.safe:  # --safe.
-            self.write_file(filename, regularized_results, encoding=encoding)
+            self.show_diffs(contents, results)
+
+        # Write the (changed) file .
+        if self.write:  # --write.
+            self.write_file(filename, results, encoding=encoding)
         return True
     #@+node:ekr.20240105145241.8: *5* tbo.init_tokens_from_file
     def init_tokens_from_file(self, filename: str) -> tuple[
@@ -898,11 +1022,11 @@ class TokenBasedOrange:  # Orange is the new Black.
 
         # Refuse to beautify mal-formed files.
         if '\t' in self.token.value:  # pragma: no cover
-            raise IndentationError(self.error_message(
+            raise IndentationError(self.user_error_message(
                 f"Leading tabs found: {self.consider_message}"))
 
         if (len(self.token.value) % self.tab_width) != 0:  # pragma: no cover
-            raise IndentationError(self.error_message(
+            raise IndentationError(self.user_error_message(
                 f"Indentation error! {self.consider_message}"))
 
         # Handle the token!
@@ -1225,7 +1349,7 @@ class TokenBasedOrange:  # Orange is the new Black.
         The Tokenizer converts all f-string tokens to a single 'string' token.
         """
         # Careful: continued strings may contain '\r'
-        val = self.regularize_nls(self.token.value)
+        val = self.regularize_newlines(self.token.value)
         self.gen_token('string', val)
         self.gen_blank()
     #@+node:ekr.20240105145241.22: *5* tbo.do_verbatim
@@ -1240,7 +1364,7 @@ class TokenBasedOrange:  # Orange is the new Black.
         kind = self.token.kind
         #
         # Careful: tokens may contain '\r'
-        val = self.regularize_nls(self.token.value)
+        val = self.regularize_newlines(self.token.value)
         if kind == 'comment':
             if self.beautify_pat.match(val):
                 self.verbatim = False
@@ -1297,8 +1421,8 @@ class TokenBasedOrange:  # Orange is the new Black.
         tok.index = len(self.code_list)
         self.code_list.append(tok)
         return tok
-    #@+node:ekr.20240105140814.12: *5* tbo.regularize_nls
-    def regularize_nls(self, s: str) -> str:
+    #@+node:ekr.20240105140814.12: *5* tbo.regularize_newlines
+    def regularize_newlines(self, s: str) -> str:
         """Regularize newlines within s."""
         return s.replace('\r\n', '\n').replace('\r', '\n')
     #@+node:ekr.20240110205127.1: *4* tbo: Scanning
@@ -1308,7 +1432,7 @@ class TokenBasedOrange:  # Orange is the new Black.
         """
         Scan the entire file in one iterative pass, adding context to a few
         kinds of tokens as follows:
-        
+
         Token   Possible Contexts (or None)
         =====   ===========================
         ':'     'annotation', 'dict', 'complex-slice', 'simple-slice'
@@ -1497,7 +1621,7 @@ class TokenBasedOrange:  # Orange is the new Black.
     def finish_dict(self, end: int, state: ScanState) -> None:
         """
         Set context for all ':' when scanning from '{' to '}'
-        
+
         Strictly speaking, setting this context is unnecessary because
         tbo.gen_colon generates the same code regardless of this context.
 
@@ -1601,7 +1725,7 @@ class TokenBasedOrange:  # Orange is the new Black.
     def set_context(self, i: int, context: str) -> None:
         """
         Set self.tokens[i].context, but only if it does not already exist!
-        
+
         See the docstring for pre_scan for details.
         """
 
@@ -1624,114 +1748,6 @@ class TokenBasedOrange:  # Orange is the new Black.
         if not token.context:
             token.context = context
     #@-others
-#@+node:ekr.20240105140814.121: ** function: main & helpers (leoTokens.py)
-def main() -> None:  # pragma: no cover
-    """Run commands specified by sys.argv."""
-    args, settings_dict, arg_files = scan_args()
-    cwd = os.getcwd()
-
-    # Calculate requested files.
-    requested_files: list[str] = []
-    for path in arg_files:
-        if path.endswith('.py'):
-            requested_files.append(os.path.join(cwd, path))
-        else:
-            root_dir = os.path.join(cwd, path)
-            requested_files.extend(
-                glob.glob(f'{root_dir}**{os.sep}*.py', recursive=True)
-            )
-    if not requested_files:
-        print(f"No files in {arg_files!r}")
-        return
-
-    # Calculate the actual list of files.
-    modified_files = get_modified_files(cwd)
-
-    def is_dirty(path: str) -> bool:
-        return os.path.abspath(path) in modified_files
-
-    # Compute the files to be checked.
-    if args.force:
-        # Handle all requested files.
-        to_be_checked_files = requested_files
-    else:
-        # Handle only modified files.
-        to_be_checked_files = [z for z in requested_files if is_dirty(z)]
-
-    # Compute the dirty files among the to-be-checked files.
-    dirty_files = [z for z in to_be_checked_files if is_dirty(z)]
-
-    # Do the command.
-    if to_be_checked_files:
-        orange_command(arg_files, requested_files, dirty_files, to_be_checked_files, settings_dict)
-#@+node:ekr.20240105140814.9: *3* function: get_modified_files
-def get_modified_files(repo_path: str) -> list[str]:  # pragma: no cover
-    """Return the modified files in the given repo."""
-    if not repo_path:
-        return []
-    old_cwd = os.getcwd()
-    os.chdir(repo_path)
-    try:
-        # We are not checking the return code here, so:
-        # pylint: disable=subprocess-run-check
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True, text=True)
-        if result.returncode != 0:
-            print("Error running git command")
-            return []
-        modified_files = []
-        for line in result.stdout.split('\n'):
-            if line.startswith((' M', 'M ', 'A ', ' A')):
-                modified_files.append(line[3:])
-        return [os.path.abspath(z) for z in modified_files]
-    finally:
-        os.chdir(old_cwd)
-#@+node:ekr.20240105140814.10: *3* function: scan_args (leoTokens.py)
-def scan_args() -> tuple[Any, dict[str, Any], list[str]]:  # pragma: no cover
-    description = textwrap.dedent(
-    """Beautify or diff files""")
-    parser = argparse.ArgumentParser(
-        description=description,
-        formatter_class=argparse.RawTextHelpFormatter,
-    )
-    parser.add_argument('PATHS', nargs='*', help='directory or list of files')
-    add2 = parser.add_argument
-
-    # Arguments.
-    add2('--diff', dest='diff', action='store_true',
-        help='show diffs instead of changing files')
-    add2('--force', dest='force', action='store_true',
-        help='beautify all files')
-    add2('--safe', dest='safe', action='store_true',
-        help="don't write files")
-    add2('--silent', dest='silent', action='store_true',
-        help="don't list changed files")
-    add2('--verbose', dest='verbose', action='store_true',
-        help='verbose (per-file) output')
-
-    # Create the return values, using EKR's prefs as the defaults.
-    parser.set_defaults(
-        diff=False,
-        force=False,
-        safe=False,
-        silent=False,
-        tab_width=4,
-        verbose=False
-    )
-    args: Any = parser.parse_args()
-    files = args.PATHS
-
-    # Create the settings dict, ensuring proper values.
-    settings_dict: dict[str, Any] = {
-        'diff': bool(args.diff),
-        'force': bool(args.force),
-        'tab_width': abs(args.tab_width),  # Must be positive!
-        'safe': bool(args.safe),
-        'silent': bool(args.silent),
-        'verbose': bool(args.verbose),
-    }
-    return args, settings_dict, files
 #@-others
 
 if __name__ == '__main__':

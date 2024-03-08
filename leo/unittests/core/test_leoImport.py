@@ -4,8 +4,7 @@
 
 import io
 import os
-import textwrap
-from leo.unittests.test_importers import BaseTestImporter
+from leo.unittests.plugins.test_importers import BaseTestImporter
 from leo.core import leoImport
 from leo.core import leoGlobals as g
 StringIO = io.StringIO
@@ -23,12 +22,12 @@ class TestLeoImport(BaseTestImporter):
         target.h = 'target'
         from leo.core.leoImport import MindMapImporter
         x = MindMapImporter(c)
-        s = textwrap.dedent(
+        s = self.prep(
         """
             header1, header2, header3
             a1, b1, c1
             a2, b2, c2
-        """).lstrip()
+        """)
         f = StringIO(s)
         x.scan(f, target)
 
@@ -51,7 +50,7 @@ class TestLeoImport(BaseTestImporter):
         target = c.p.insertAfter()
         target.h = 'target'
 
-        body_1 = textwrap.dedent(
+        body_1 = self.prep(
         """
             import os
 
@@ -59,7 +58,7 @@ class TestLeoImport(BaseTestImporter):
                 def new_func(*args, **kwds):
                     raise RuntimeError('blah blah blah')
             return new_func
-        """).strip() + '\n'
+        """)
         target.b = body_1
         x.parse_body(target)
 
@@ -84,7 +83,7 @@ class TestLeoImport(BaseTestImporter):
         # Test undo
         u.undo()
         self.assertEqual(target.b, body_1, msg='undo test')
-        self.assertFalse(target.hasChildren(),  msg='undo test')
+        self.assertFalse(target.hasChildren(), msg='undo test')
         # Test redo
         u.redo()
         self.check_outline(target, expected_results)
@@ -115,7 +114,7 @@ class TestLeoImport(BaseTestImporter):
                 dir_=dir_,
                 kind=kind,
                 recursive=True,
-                safe_at_file = True,
+                safe_at_file=True,
                 theTypes=['.py'],
                 verbose=False,
             )

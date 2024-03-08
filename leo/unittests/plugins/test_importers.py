@@ -1,5 +1,5 @@
 #@+leo-ver=5-thin
-#@+node:ekr.20210904064440.2: * @file ../unittests/test_importers.py
+#@+node:ekr.20210904064440.2: * @file ../unittests/plugins/test_importers.py
 """Tests of leo/plugins/importers"""
 import glob
 import importlib
@@ -485,7 +485,7 @@ class TestC(BaseTestImporter):
     def test_find_blocks(self):
 
         importer = C_Importer(self.c)
-        lines = g.splitLines(textwrap.dedent(  # dedent is required.
+        lines = g.splitLines(self.prep(
         """
 
             # enable-trace
@@ -2410,7 +2410,7 @@ class TestPascal(BaseTestImporter):
 
         #@+<< define s >>
         #@+node:ekr.20230518071612.1: *4* << define s >>
-        s = textwrap.dedent(  # dedent is required.
+        s = self.prep(
         """
             unit Unit1;
 
@@ -2447,7 +2447,7 @@ class TestPascal(BaseTestImporter):
             end;
 
             end. // interface
-        """).strip() + '\n'
+        """)
         #@-<< define s >>
 
         expected_results = (
@@ -2504,7 +2504,7 @@ class TestPascal(BaseTestImporter):
         # From GSTATOBJ.PAS
         #@+<< define s >>
         #@+node:ekr.20220830112013.1: *4* << define s >>
-        s = textwrap.dedent(  # Dedent is required.
+        s = self.prep(
         """
         unit gstatobj;
 
@@ -2573,7 +2573,7 @@ class TestPascal(BaseTestImporter):
         for i := 1 to max do
             data^[i].y := data^[i].y + pstatObj(source)^.data^[i].y;
         end;
-        """).strip() + '\n'
+        """)
         #@-<< define s >>
         expected_results = (
             (0, '',  # Ignore the first headline.
@@ -2971,6 +2971,55 @@ class TestPython(BaseTestImporter):
     ext = '.py'
 
     #@+others
+    #@+node:ekr.20240219045037.1: *3* TestPython.test_almost_empty_defs
+    def test_almost_empty_defs(self):
+
+        # #3803. Adapated from the TracerCore class coverage/types.py.
+        #        Designed to test find_end_of_block.
+        s = '''
+            class TracerCore:
+                
+                def start(self):
+                    """Start this tracer."""
+                    
+                def stop(self):
+                    """Stop this tracer."""
+
+            # About main
+            def main():
+                pass
+
+            if __name__ == '__main__':
+                main()
+            '''
+
+        expected_results = (
+            (0, '',  # Ignore the first headline.
+                   '@others\n'
+                   "if __name__ == '__main__':\n"
+                    '    main()\n'
+                   '@language python\n'
+                   '@tabwidth -4\n'
+            ),
+            (1, 'class TracerCore',
+                    'class TracerCore:\n'
+                    '    ATothers\n'.replace('AT', '@')
+            ),
+            (2, 'TracerCore.start',
+                    'def start(self):\n'
+                    '    """Start this tracer."""\n'
+            ),
+            (2, 'TracerCore.stop',
+                    'def stop(self):\n'
+                    '    """Stop this tracer."""\n'
+            ),
+            (1, 'function: main',
+                    '# About main\n'
+                    'def main():\n'
+                    '    pass\n'
+            ),
+        )
+        self.new_run_test(s, expected_results)
     #@+node:ekr.20230514195224.1: *3* TestPython.test_delete_comments_and_strings
     def test_delete_comments_and_strings(self):
 
@@ -3014,52 +3063,45 @@ class TestPython(BaseTestImporter):
     #@+node:vitalije.20211206201240.1: *3* TestPython.test_general_test_1
     def test_general_test_1(self):
 
-        s = (
-        """
-            import sys
-            def f1():
-                pass
-
-            class Class1:
-                def method11():
-                    pass
-                def method12():
+        s = """
+                import sys
+                def f1():
                     pass
 
-            #
-            # Define a = 2
-            a = 2
+                class Class1:
+                    def method11():
+                        pass
+                    def method12():
+                        pass
 
-            def f2():
-                pass
+                #
+                # Define a = 2
+                a = 2
 
-            # An outer comment
-            ATmyClassDecorator
-            class Class2:
-                def method21():
-                    print(1)
-                    print(2)
-                    print(3)
-                ATmyDecorator
-                def method22():
-                    pass
-                def method23():
+                def f2():
                     pass
 
-            class Class3:
-            # Outer underindented comment
-                def u1():
-                # Underindented comment in u1.
+                # An outer comment
+                ATmyClassDecorator
+                class Class2:
+                    def method21():
+                        print(1)
+                        print(2)
+                        print(3)
+                    ATmyDecorator
+                    def method22():
+                        pass
+                    def method23():
+                        pass
+
+                # About main.
+
+                def main():
                     pass
 
-            # About main.
-
-            def main():
-                pass
-
-            if __name__ == '__main__':
-                main()
-        """).replace('AT', '@')
+                if __name__ == '__main__':
+                    main()
+            """.replace('AT', '@')
 
         expected_results = (
             (0, '',  # Ignore the first headline.
@@ -3115,21 +3157,11 @@ class TestPython(BaseTestImporter):
                        'def method23():\n'
                        '    pass\n'
             ),
-            (1, 'class Class3',
-                'class Class3:\n'
-                '@others\n'  # The underindented comments prevents indention
-            ),
-            (2, 'Class3.u1',
-                    '# Outer underindented comment\n'
-                    '    def u1():\n'
-                    '    # Underindented comment in u1.\n'
-                    '        pass\n'
-            ),
             (1, 'function: main',
-                       '# About main.\n'
-                       '\n'
-                       'def main():\n'
-                       '    pass\n'
+                   '# About main.\n'
+                   '\n'
+                   'def main():\n'
+                   '    pass\n'
             ),
         )
         self.new_run_test(s, expected_results)
@@ -3282,9 +3314,6 @@ class TestPython(BaseTestImporter):
             @dec_for_f2
             def f2(): pass
 
-
-            class A: pass
-            # About main.
             def main():
                 pass
 
@@ -3292,15 +3321,14 @@ class TestPython(BaseTestImporter):
                 main()
         """
 
-        # Note: new_gen_block deletes leading and trailing whitespace from all blocks.
         expected_results = (
             (0, '',  # Ignore the first headline.
-                    'import sys\n'
-                    '@others\n'
-                    "if __name__ == '__main__':\n"
-                    '    main()\n'
-                    '@language python\n'
-                    '@tabwidth -4\n'
+                'import sys\n'
+                '@others\n'
+                "if __name__ == '__main__':\n"
+                '    main()\n'
+                '@language python\n'
+                '@tabwidth -4\n'
             ),
             (1, 'function: f1',
                     'def f1():\n'
@@ -3314,13 +3342,9 @@ class TestPython(BaseTestImporter):
                     '@dec_for_f2\n'
                     'def f2(): pass\n'
             ),
-            (1, 'class A',
-                    'class A: pass\n'
-            ),
             (1, 'function: main',
-                       '# About main.\n'
-                       'def main():\n'
-                       '    pass\n'
+                    'def main():\n'
+                    '    pass\n'
             ),
         )
         self.new_run_test(s, expected_results)
@@ -3481,6 +3505,52 @@ class TestPython(BaseTestImporter):
             ),
         )
         self.new_run_test(s, expected_results)
+    #@+node:ekr.20240219133748.1: *3* TestPython.test_underindented_comment
+    def test_underindented_comment(self):
+
+        s = (
+            """
+                class Class3:
+                # Outer underindented comment
+                    def u1():
+                    # Underindented comment in u1.
+                        pass
+
+                # About main.
+
+                def main():
+                    pass
+
+                if __name__ == '__main__':
+                    main()
+            """).replace('AT', '@')
+
+        expected_results = (
+            (0, '',
+                '@others\n'
+                "if __name__ == '__main__':\n"
+                '    main()\n'
+                '@language python\n'
+                '@tabwidth -4\n'
+            ),
+            (1, 'class Class3',
+                'class Class3:\n'
+                '@others\n'
+            ),
+            (2, 'Class3.u1',
+                    '# Outer underindented comment\n'
+                    '    def u1():\n'
+                    '    # Underindented comment in u1.\n'
+                    '        pass\n'
+            ),
+            (1, 'function: main',
+                   '# About main.\n'
+                   '\n'
+                   'def main():\n'
+                   '    pass\n'
+            ),
+        )
+        self.new_run_test(s, expected_results)
     #@-others
 #@+node:ekr.20211108050827.1: ** class TestRst (BaseTestImporter)
 class TestRst(BaseTestImporter):
@@ -3496,7 +3566,7 @@ class TestRst(BaseTestImporter):
             import docutils
             assert docutils
         except Exception:  # pragma: no cover
-            self.skipTest('no docutils')
+            self.skipTest('Requires docutils')
 
         s = """
             .. toc
@@ -3596,7 +3666,7 @@ class TestRst(BaseTestImporter):
             import docutils
             assert docutils
         except Exception:  # pragma: no cover
-            self.skipTest('no docutils')
+            self.skipTest('Requires docutils')
 
         s = """
             .. toc
@@ -3633,7 +3703,7 @@ class TestRst(BaseTestImporter):
             import docutils
             assert docutils
         except Exception:  # pragma: no cover
-            self.skipTest('no docutils')
+            self.skipTest('Requires docutils')
 
         s = """
             .. toc
@@ -3732,7 +3802,7 @@ class TestRst(BaseTestImporter):
             import docutils
             assert docutils
         except Exception:  # pragma: no cover
-            self.skipTest('no docutils')
+            self.skipTest('Requires docutils')
 
         s = """
             .. toc
@@ -3764,7 +3834,7 @@ class TestRst(BaseTestImporter):
             import docutils
             assert docutils
         except Exception:  # pragma: no cover
-            self.skipTest('no docutils')
+            self.skipTest('Requires docutils')
 
         s = """
             .. toc
@@ -3797,7 +3867,7 @@ class TestRst(BaseTestImporter):
             import docutils
             assert docutils
         except Exception:  # pragma: no cover
-            self.skipTest('no docutils')
+            self.skipTest('Requires docutils')
 
         s = """
             .. toc
@@ -3834,7 +3904,7 @@ class TestRst(BaseTestImporter):
             import docutils
             assert docutils
         except Exception:  # pragma: no cover
-            self.skipTest('no docutils')
+            self.skipTest('Requires docutils')
 
         # All heading must be followed by an empty line.
         s = """\
@@ -3928,7 +3998,7 @@ class TestRust(BaseTestImporter):
     def test_rust_import_fails(self):
 
         # From ruff/crates/ruff_formatter/shared_traits.rs
-        s = textwrap.dedent(  # dedent is required.
+        s = self.prep(
             """
                 /// Used to get an object that knows how to format this object.
                 pub trait AsFormat<Context> {
