@@ -7,12 +7,11 @@
 #@+<< leoTokens.py: docstring >>
 #@+node:ekr.20240105140814.2: ** << leoTokens.py: docstring >>
 """
-leoTokens.py: A token-based beautifier for Python.
+leoTokens.py: A beautifier for Python that uses *only* tokens.
 
 For help: `python -m leo.core.leoTokens --help`
 
 Use Leo https://leo-editor.github.io/leo-editor/ to study this code!
-when studying this code.
 
 Without Leo, you will see special **sentinel comments** that create
 Leo's outline structure. These comments have the form::
@@ -24,7 +23,6 @@ Leo's outline structure. These comments have the form::
 #@+node:ekr.20240105140814.3: ** << leoTokens.py: imports & annotations >>
 from __future__ import annotations
 import argparse
-import ast
 import difflib
 import glob
 import keyword
@@ -43,8 +41,7 @@ except Exception:  # pragma: no cover
     # check_g function gives the message.
     g = None
 
-Node = ast.AST
-Settings = Optional[dict[str, Any]]
+Settings = Optional[dict[str, Union[int, bool]]]
 #@-<< leoTokens.py: imports & annotations >>
 
 debug: bool = True
@@ -264,7 +261,14 @@ class InternalBeautifierError(Exception):
 class InputToken:  # leoTokens.py.
     """A class representing a TBO input token."""
 
-    __slots__ = 'context', 'index', 'kind', 'line', 'line_number', 'value'
+    __slots__ = (
+        'context',
+        'index',
+        'kind',
+        'line',
+        'line_number',
+        'value',
+    )
 
     def __init__(
         self, kind: str, value: str, index: int, line: str, line_number: int,
@@ -521,6 +525,9 @@ class OutputToken:
     A class representing an Orange output token.
     """
 
+    __slots__ = ('index', 'kind', 'value')
+
+
     def __init__(self, kind: str, value: str):
 
         self.kind = kind
@@ -570,6 +577,8 @@ class ParseState:
                         twice if state.value == self.level.
     """
 
+    __slots__ = ('kind', 'value')
+
     def __init__(self, kind: str, value: Union[int, str]) -> None:
         self.kind = kind
         self.value = value
@@ -593,7 +602,7 @@ class ScanState:  # leoTokens.py.
 
     """
 
-    __slots__ = ['kind', 'value', 'token']
+    __slots__ = ('kind', 'token', 'value')
 
     def __init__(self, kind: str, token: InputToken) -> None:
         self.kind = kind
@@ -610,23 +619,20 @@ class TokenBasedOrange:  # Orange is the new Black.
     #@+<< TokenBasedOrange: docstring >>
     #@+node:ekr.20240119062227.1: *4* << TokenBasedOrange: docstring >>
     #@@language rest
+    #@@wrap
 
     """
     Leo's token-based beautifier, three times faster than the beautifier in leoAst.py.
 
     **Design**
 
-    The *pre_scan* method calls three *finishers*.
+    The *pre_scan* method is the heart of the algorithm. It sets context for the `:`, `=`, `**` and `.` tokens *without* using the parse tree. *pre_scan* calls three *finishers*.
 
-    Each finisher uses a list of *relevant earlier tokens* to set the context for later tokens.
+    Each finisher uses a list of *relevant earlier tokens* to set the context for one kind of (input) token. Finishers look behind (in the stream of input tokens) with essentially no cost.
 
-    Finishers embody *zero-cost unlimited look-behind*.
+    After the pre-scan, *tbo.beautify* (the main loop) calls *visitors* for each separate type of *input* token.
 
-    After the pre-scan, *tbo.beautify* (the main loop) calls *visitors* for each separate type of token.
-
-    Visitors call *code generators*. Code generators call *code generation helpers*.
-
-    These helpers form a peephole optimizer that looks behind a bounded number of *output* tokens.
+    Visitors call *code generators* to generate *output* tokens. Code generation *helpers* form a peephole optimizer that looks behind a bounded number of (output) tokens.
     """
     #@-<< TokenBasedOrange: docstring >>
     #@+<< TokenBasedOrange: __slots__ >>
@@ -960,7 +966,7 @@ class TokenBasedOrange:  # Orange is the new Black.
             self.in_doc_part = False
             self.verbatim = False
             self.decorator_seen = False
-            # Do *not clear other state, which may persist across @others.
+            # Do *not* clear other state, which may persist across @others.
                 # self.curly_brackets_level = 0
                 # self.in_arg_list = 0
                 # self.indent_level = 0
@@ -1010,7 +1016,7 @@ class TokenBasedOrange:  # Orange is the new Black.
     #@+node:ekr.20240105145241.12: *5* tbo.do_endmarker
     def do_endmarker(self) -> None:
         """Handle an endmarker token."""
-        # Ensure exactly one blank at the end of the file.
+        # Ensure exactly one blank line at the end of the file.
         while self.code_list[-1].kind in ('line-end', 'line-indent'):
             self.code_list.pop()
         self.gen_token('line-end', '\n')
