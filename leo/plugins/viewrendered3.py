@@ -946,12 +946,12 @@ from leo.core.leoApp import LoadManager as LM
 g.assertUi('qt')  # May raise g.UiTypeException, caught by the plugins manager.
 
 #@+<< Qt Imports >>
-#@+node:tom.20210517102737.1: *3* << Qt Imports >>
+#@+node:tom.20210517102737.1: *3* << Qt Imports >> (VR3)
 try:
     from leo.plugins import qt_text
     from leo.plugins import free_layout
     from leo.core.leoQt import QtCore, QtWidgets
-    from leo.core.leoQt import phonon, QtMultimedia, QtSvg
+    from leo.core.leoQt import QtMultimedia, QtSvg
     from leo.core.leoQt import KeyboardModifier, Orientation, WrapMode
     from leo.core.leoQt import QAction, QActionGroup
 except ImportError:
@@ -1260,11 +1260,11 @@ def find_exe(exename):
         local_python_appdata_dir = os.path.dirname(site.getusersitepackages())
         scripts_local_dir = os.path.join(local_python_appdata_dir, 'Scripts')
 
-    exe = shutil.which(exename, os.X_OK, scriptsdir) \
-            or shutil.which(exename, os.X_OK, scripts_local_dir) \
-            or shutil.which(exename, os.X_OK)
-
-    return exe
+    return (
+        shutil.which(exename, os.X_OK, scriptsdir)
+        or shutil.which(exename, os.X_OK, scripts_local_dir)
+        or shutil.which(exename, os.X_OK)
+    )
 #@+node:tom.20211127234312.1: ** find_dir()
 def find_dir(name, path):
     """Given a starting directory, return the full path to the named directory.
@@ -1322,7 +1322,6 @@ def configure_asciidoc():
     plantuml diagram, the diagram will be rendered).
     #@-<< asciidoc docstring >>
     """
-    # pylint: disable = import-outside-toplevel
     global AsciiDocAPI, AsciiDoc3API, ad3, ad3_file
     global asciidoc_ok, asciidoc3_ok, asciidoc_processors
     global asciidoc_dirs
@@ -1425,10 +1424,11 @@ def init():
         return False  # #1248.
     # if g.app.gui.guiName()
     if not QtWidgets or not g.app.gui.guiName().startswith('qt'):
-        if (not g.unitTesting\
-            and not g.app.batchMode\
+        if (
+            not g.unitTesting
+            and not g.app.batchMode
             and g.app.gui.guiName() in ('browser', 'curses')  # EKR.
-           ):
+        ):
             g.es_print('viewrendered3 requires Qt')
         return False
     if not has_webengineview:
@@ -1865,7 +1865,6 @@ def markup_to_editor(event):
         f.write(vr3.last_markup)
 
     cmd = [editor, 'vr3_last_markup.txt']
-    # pylint: disable = consider-using-with
     subprocess.Popen(cmd)
 
 #@+node:tom.20211103011049.1: *3* g.command('vr3-plot-2d')
@@ -2462,11 +2461,11 @@ class ViewRenderedController3(QtWidgets.QWidget):
         self.asciidoctor_suppress_footer = c.config.getBool('vr3-asciidoctor-nofooter', default=False)
         self.asciidoctor_icons = c.config.getString('vr3-asciidoctor-icons') or ''
         self.asciidoctor_imagesdir = c.config.getString('vr3-asciidoctor-imagesdir') or ''
-        self.asciidoctor_diagram = asciidoc_has_diagram and \
-                                       c.config.getBool('vr3-asciidoctor-diagram', default=False)
-
+        self.asciidoctor_diagram = (
+            asciidoc_has_diagram and
+            c.config.getBool('vr3-asciidoctor-diagram', default=False)
+        )
         self.external_editor = c.config.getString('vr3-ext-editor') or ''
-
         self.DEBUG = bool(os.environ.get("VR3_DEBUG", None))
     #@+node:TomP.20200329223820.16: *4* vr3.set_md_stylesheet
     def set_md_stylesheet(self):
@@ -2647,8 +2646,11 @@ class ViewRenderedController3(QtWidgets.QWidget):
         if use_default:
             leo_theme_path = g.app.loadManager.computeThemeFilePath()
             leo_theme_name = g.os_path_basename(leo_theme_path)
-            use_dark_theme = self.use_dark_theme or 'dark' in leo_theme_name \
-                                or leo_theme_name == LEO_THEME_NAME
+            use_dark_theme = (
+                self.use_dark_theme
+                or 'dark' in leo_theme_name
+                or leo_theme_name == LEO_THEME_NAME
+            )
             if use_dark_theme:
                 stylesheet = RST_DEFAULT_DARK_STYLESHEET
             else:
@@ -3260,7 +3262,6 @@ class ViewRenderedController3(QtWidgets.QWidget):
             asciidoc_processors = []
             #@+<< Find available processors >>
             #@+node:tom.20211122104636.1: *6* << Find available processors >>
-            # pylint: disable = undefined-variable
             if asciidoc_ok:
                 asciidoc_processors.append(AsciiDocAPI())
             if asciidoc3_ok:
@@ -3728,10 +3729,10 @@ class ViewRenderedController3(QtWidgets.QWidget):
             w = pc.ensure_text_widget()
             w.setPlainText(f'Not found: {path}')
             return
-        if not phonon and not QtMultimedia:
+        if not QtMultimedia:
             if not self.movie_warning:
                 self.movie_warning = True
-                g.es_print('No phonon and no QtMultimedia modules')
+                g.es_print('No QtMultimedia module')
             w = pc.ensure_text_widget()
             w.setPlainText('')
             return
@@ -3754,7 +3755,6 @@ class ViewRenderedController3(QtWidgets.QWidget):
         pc.embed_widget(vp, delete_callback=delete_callback)
         pc.show()
         vp = pc.vp
-        vp.load(phonon.MediaSource(path))
         vp.play()
     #@+node:TomP.20191215195433.68: *4* vr3.update_networkx
     def update_networkx(self, s, keywords):
@@ -4285,10 +4285,13 @@ class ViewRenderedController3(QtWidgets.QWidget):
             #@+node:TomP.20200112103729.5: *7* << fill_chunks >>
 
             _cleanline = line.strip()
-            _starts_with_at = not _got_language and line and \
-                              line[0] == '@' and\
-                              not _cleanline == '@' and\
-                              not _cleanline == '@c'
+            _starts_with_at = (
+                not _got_language
+                and line
+                and line[0] == '@'
+                and not _cleanline == '@'
+                and not _cleanline == '@c'
+            )
 
             if i == 0 and not _got_language:
                 # Set up the first chunk (unless the first line changes the language)
@@ -5244,7 +5247,7 @@ class StateMachine:
         (State.ASCDOC_READY_FOR_FENCE, Marker.ASCDOC_CODE_MARKER):
                     # Start a new code chunk
                     (Action.new_chunk, State.FENCED_CODE),
-        (State.FENCED_CODE, Marker.MARKER_NONE): (Action.add_line, State.FENCED_CODE),
+        # (State.FENCED_CODE, Marker.MARKER_NONE): (Action.add_line, State.FENCED_CODE),
         (State.FENCED_CODE, Marker.ASCDOC_CODE_MARKER):
                     # End fenced code chunk
                     (Action.new_chunk, State.BASE)

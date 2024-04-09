@@ -16,8 +16,6 @@ import warnings
 
 warnings.simplefilter("ignore")
 
-# pylint: disable=import-error
-
 # Third-party.
 try:
     import asttokens
@@ -30,7 +28,6 @@ try:
 except Exception:  # pragma: no cover
     black = None
 
-# pylint: disable=wrong-import-position
 from leo.core import leoGlobals as g
 
 from leo.core.leoAst import AstNotEqual
@@ -249,7 +246,7 @@ class BaseTest(unittest.TestCase):
     def prep(self, s: str) -> str:
         """
         Return the "prepped" version of s.
-        
+
         This should eliminate the need for backslashes in tests.
         """
         return textwrap.dedent(s).strip() + '\n'
@@ -2618,7 +2615,6 @@ class TestTokens(BaseTest):
         - Inject parent/child links into ast nodes.
         - Inject many-to-many links between tokens and ast nodes.
         """
-        # pylint: disable=import-error,reimported
         import ast
         import asttokens
         import token as token_module
@@ -2799,7 +2795,7 @@ class TestTokens(BaseTest):
         aList = [z for z in aList if not z[0].islower()]
             # Remove base classes.
         aList = [z for z in aList
-            if not z.startswith('_') and not z in remove]
+            if not z.startswith('_') and z not in remove]
         # Now test them.
         table = (
             TokenOrderGenerator,

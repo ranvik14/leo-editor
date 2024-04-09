@@ -82,7 +82,7 @@ try:
 except Exception:
     print('remove_duplicate_picture.py: can not import leo.core.leoGlobals as g')
 try:
-    from leo.core.leoQt import isQt5, QtCore, QtGui, QtWidgets
+    from leo.core.leoQt import QtCore, QtGui, QtWidgets
 except Exception:
     print('remove_duplicate_pictures.py: Qt required')
     print('pip install pyqt6')
@@ -155,10 +155,7 @@ def main():
     args = get_args()
     ok = RemoveDuplicates().run(**args)
     if ok:
-        if isQt5:
-            sys.exit(gApp.exec_())
-        else:
-            sys.exit(gApp.exec())
+        sys.exit(gApp.exec())
 #@+node:ekr.20220126054240.13: ** class RemoveDuplicates
 class RemoveDuplicates:
 
@@ -224,8 +221,8 @@ class RemoveDuplicates:
         # Display the picture.
         pixmap = QtGui.QPixmap(filename)
         try:
-            TransformationMode = QtCore.Qt if isQt5 else QtCore.Qt.TransformationMode
-            image = pixmap.scaledToHeight(self.window_height, TransformationMode.SmoothTransformation)  # pylint: disable=no-member
+            TransformationMode = QtCore.Qt.TransformationMode
+            image = pixmap.scaledToHeight(self.window_height, TransformationMode.SmoothTransformation)
             picture.setPixmap(image)
             picture.adjustSize()
             return frame

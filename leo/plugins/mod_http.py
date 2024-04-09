@@ -1,6 +1,7 @@
 #@+leo-ver=5-thin
 #@+node:EKR.20040517080250.1: * @file ../plugins/mod_http.py
 # pylint: disable=line-too-long
+# mypy: ignore-errors
 #@+<< docstring >>
 #@+node:ekr.20050111111238: ** << docstring >>
 #@@language rest
@@ -405,9 +406,7 @@ if asyncore:
         #@-others
 #@+node:EKR.20040517080250.20: ** class leo_interface
 class leo_interface:
-    # .path, .send_error, .send_response and .end_headers
-    # appear to be undefined.
-    # pylint: disable=no-member
+
     #@+others
     #@+node:bwmulder.20050322224921: *3* send_head & helpers
     def send_head(self):

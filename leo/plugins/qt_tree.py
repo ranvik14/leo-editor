@@ -8,7 +8,7 @@ from collections.abc import Callable
 import re
 import time
 from typing import Any, TYPE_CHECKING
-from leo.core.leoQt import isQt6, QtCore, QtGui, QtWidgets
+from leo.core.leoQt import QtCore, QtGui, QtWidgets
 from leo.core.leoQt import EndEditHint, Format, ItemFlag, KeyboardModifier
 from leo.core import leoGlobals as g
 from leo.core import leoFrame
@@ -20,7 +20,7 @@ from leo.plugins import qt_text
 if TYPE_CHECKING:  # pragma: no cover
     from leo.core.leoCommands import Commands as Cmdr
     from leo.core.leoFrame import LeoQTreeWidget
-    from leo.core.leoGui import LeoKeyEvent as Event
+    from leo.core.leoGui import LeoKeyEvent
     from leo.core.leoNodes import Position, VNode
     from leo.plugins.qt_frame import LeoQtFrame
     from leo.plugins.qt_text import QTextEditWrapper as Wrapper
@@ -227,10 +227,8 @@ class LeoQtTree(leoFrame.LeoTree):
             to the executed replacement operation, 's' is the substituted string.
             If cmd is not a replacement command returns (None, None)
             """
-            # pylint: disable=undefined-loop-variable
-
-            replacement, s = None, None
-
+            # 's' is string when 'cmd' is recognized and is None otherwise
+            s: str = None
             if cmd == 'REPLACE':
                 try:
                     s = pattern.sub(arg, text)
@@ -238,7 +236,9 @@ class LeoQtTree(leoFrame.LeoTree):
                     g.log(
                         f'Error in declutter REPLACE "{e!s}"\n'
                         f'  RULE:{pattern.pattern!r}\n'
-                        f'  REPLACE:{arg!r}\n  HEADLINE:{text!r}', color='error')
+                        f'  REPLACE:{arg!r}\n  HEADLINE:{text!r}',
+                        color='error'
+                    )
             elif cmd == 'REPLACE-HEAD':
                 s = text[: m.start()].rstrip()
             elif cmd == 'REPLACE-TAIL':
@@ -246,18 +246,17 @@ class LeoQtTree(leoFrame.LeoTree):
             elif cmd == 'REPLACE-REST':
                 s = (text[: m.start()] + text[m.end() :]).strip()
 
-            # 's' is string when 'cmd' is recognized
-            # and is None otherwise
             if isinstance(s, str):
                 # Save the operation
 
-                def replacement(item, s):
+                def string_replacement(item, s):
                     return item.setText(0, s)
 
                 # ... and apply it
-                replacement(item, s)
+                string_replacement(item, s)
+                return string_replacement, s
 
-            return replacement, s
+            return None, s
         #@+node:ekr.20171122055719.1: *7* declutter_style
         def declutter_style(arg: str, cmd: Callable) -> tuple[Callable, str]:
             """
@@ -266,15 +265,19 @@ class LeoQtTree(leoFrame.LeoTree):
             param - the saved argument of that operation.
             Returns (None, param) if 'cmd' is not a style option.
             """
-            # pylint: disable=function-redefined
             param = c.styleSheetManager.expand_css_constants(arg).split()[0]
             modifier: Callable = None
+
             if cmd == 'ICON':
-                def modifier(item: Item, param: str) -> None:
+
+                def icon_modifier(item: Item, param: str) -> None:
                     # Does not fit well this function. And we cannot
                     # wrap list 'new_icons' in a saved argument as
                     # the list is recreated before each call.
                     new_icons.append(param)
+
+                modifier = icon_modifier
+
             elif cmd == 'DOCICON':
                 param = g.os_path_join(g.os_path_dirname(c.fileName()), param)
                 def modifier(item: Item, param: str) -> None:
@@ -287,29 +290,49 @@ class LeoQtTree(leoFrame.LeoTree):
                 def modifier(item: Item, param: str) -> None:
                     item.setForeground(0, QtGui.QBrush(QtGui.QColor(param)))
             elif cmd == 'FONT':
-                def modifier(item: Item, param: str) -> None:
+
+                def font_modifier(item: Item, param: str) -> None:
                     item.setFont(0, QtGui.QFont(param))
+
+                modifier = font_modifier
+
             elif cmd == 'ITALIC':
-                def modifier(item: Item, param: str) -> None:
+
+                def italic_modifier(item: Item, param: str) -> None:
                     font = item.font(0)
                     font.setItalic(bool(int(param)))
                     item.setFont(0, font)
+
+                modifier = italic_modifier
+
             elif cmd == 'WEIGHT':
-                def modifier(item: Item, param: str) -> None:
+
+                def weight_modifier(item: Item, param: str) -> None:
                     arg = getattr(QtGui.QFont, param, 75)
                     font = item.font(0)
                     font.setWeight(arg)
                     item.setFont(0, font)
+
+                modifier = weight_modifier
+
             elif cmd == 'PX':
-                def modifier(item: Item, param: str) -> None:
+
+                def px_modifier(item: Item, param: str) -> None:
                     font = item.font(0)
                     font.setPixelSize(int(param))
                     item.setFont(0, font)
+
+                modifier = px_modifier
+
             elif cmd == 'PT':
-                def modifier(item: Item, param: str) -> None:
+
+                def pt_modifier(item: Item, param: str) -> None:
                     font = item.font(0)
                     font.setPointSize(int(param))
                     item.setFont(0, font)
+
+                modifier = pt_modifier
+
             # Apply the style update
             if modifier:
                 modifier(item, param)
@@ -556,7 +579,7 @@ class LeoQtTree(leoFrame.LeoTree):
     #@+node:ekr.20110605121601.17885: *3* qtree.Event handlers
     #@+node:ekr.20110605121601.17887: *4*  qtree.Click Box
     #@+node:ekr.20110605121601.17888: *5* qtree.onClickBoxClick
-    def onClickBoxClick(self, event: Event, p: Position = None) -> None:
+    def onClickBoxClick(self, event: LeoKeyEvent, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -564,7 +587,7 @@ class LeoQtTree(leoFrame.LeoTree):
         g.doHook("boxclick2", c=c, p=p, event=event)
         c.outerUpdate()
     #@+node:ekr.20110605121601.17889: *5* qtree.onClickBoxRightClick
-    def onClickBoxRightClick(self, event: Event, p: Position = None) -> None:
+    def onClickBoxRightClick(self, event: LeoKeyEvent, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -572,7 +595,7 @@ class LeoQtTree(leoFrame.LeoTree):
         g.doHook("boxrclick2", c=c, p=p, event=event)
         c.outerUpdate()
     #@+node:ekr.20110605121601.17890: *5* qtree.onPlusBoxRightClick
-    def onPlusBoxRightClick(self, event: Event, p: Position = None) -> None:
+    def onPlusBoxRightClick(self, event: LeoKeyEvent, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -581,7 +604,7 @@ class LeoQtTree(leoFrame.LeoTree):
     #@+node:ekr.20110605121601.17891: *4*  qtree.Icon Box
     # For Qt, there seems to be no way to trigger these events.
     #@+node:ekr.20110605121601.17892: *5* qtree.onIconBoxClick
-    def onIconBoxClick(self, event: Event, p: Position = None) -> None:
+    def onIconBoxClick(self, event: LeoKeyEvent, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -589,7 +612,7 @@ class LeoQtTree(leoFrame.LeoTree):
         g.doHook("iconclick2", c=c, p=p, event=event)
         c.outerUpdate()
     #@+node:ekr.20110605121601.17893: *5* qtree.onIconBoxRightClick
-    def onIconBoxRightClick(self, event: Event, p: Position = None) -> None:
+    def onIconBoxRightClick(self, event: LeoKeyEvent, p: Position = None) -> None:
         """Handle a right click in any outline widget."""
         if self.busy:
             return
@@ -598,7 +621,7 @@ class LeoQtTree(leoFrame.LeoTree):
         g.doHook("iconrclick2", c=c, p=p, event=event)
         c.outerUpdate()
     #@+node:ekr.20110605121601.17894: *5* qtree.onIconBoxDoubleClick
-    def onIconBoxDoubleClick(self, event: Event, p: Position = None) -> None:
+    def onIconBoxDoubleClick(self, event: LeoKeyEvent, p: Position = None) -> None:
         if self.busy:
             return
         c = self.c
@@ -634,8 +657,8 @@ class LeoQtTree(leoFrame.LeoTree):
                 if hasattr(g.app.gui, 'qtApp'):
                     mods = g.app.gui.qtApp.keyboardModifiers()
                     isCtrl = bool(mods & KeyboardModifier.ControlModifier)
-                    # We could also add support for QtConst.ShiftModifier, QtConst.AltModifier
-                    # & QtConst.MetaModifier.
+                    # We could also add support for Qt.ShiftModifier, Qt.AltModifier
+                    # & Qt.MetaModifier.
                     if isCtrl:
                         if g.doHook("iconctrlclick1", c=c, p=p, event=event) is None:
                             c.frame.tree.OnIconCtrlClick(p)  # Call the base class method.
@@ -940,13 +963,9 @@ class LeoQtTree(leoFrame.LeoTree):
         w = self.treeWidget
         itemOrTree = parent_item or w
         item = QtWidgets.QTreeWidgetItem(itemOrTree)
-        if isQt6:
-            item.setFlags(item.flags() | ItemFlag.ItemIsEditable)
-            ChildIndicatorPolicy = QtWidgets.QTreeWidgetItem.ChildIndicatorPolicy
-            item.setChildIndicatorPolicy(
-                ChildIndicatorPolicy.DontShowIndicatorWhenChildless)  # pylint: disable=no-member
-        else:
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable | item.DontShowIndicatorWhenChildless)
+        item.setFlags(item.flags() | ItemFlag.ItemIsEditable)
+        ChildIndicatorPolicy = QtWidgets.QTreeWidgetItem.ChildIndicatorPolicy
+        item.setChildIndicatorPolicy(ChildIndicatorPolicy.DontShowIndicatorWhenChildless)
         try:
             g.visit_tree_item(self.c, p, item)
         except leoPlugins.TryNext:

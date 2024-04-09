@@ -38,7 +38,7 @@ try:  # #1973
     from leo.core.leoQt import MouseButton
     from leo.plugins.nested_splitter import NestedSplitter  # NestedSplitterChoice
 except Exception:
-    QtWidgets = None  # type:ignore
+    QtWidgets = None
     MouseButton = None  # type:ignore
     NestedSplitter = None  # type:ignore
 
@@ -48,9 +48,13 @@ except Exception:
 #@+node:ekr.20220828125201.1: ** << free_layout annotations >>
 if TYPE_CHECKING:  # pragma: no cover
     from leo.core.leoCommands import Commands as Cmdr
-    from leo.core.leoGui import LeoKeyEvent as Event
+    from leo.core.leoGui import LeoKeyEvent
     from leo.core.leoNodes import Position
-    from leo.plugins.qt_text import QTextEditWrapper as Wrapper
+
+    QSplitter = QtWidgets.QSplitter
+    QWidget = QtWidgets.QWidget
+
+Wrapper = Any
 #@-<< free_layout annotations >>
 #@+others
 #@+node:tbrown.20110203111907.5521: ** free_layout:init
@@ -272,9 +276,7 @@ class FreeLayoutController:
         if d:
             for name in sorted(d.keys()):
 
-                # pylint: disable=cell-var-from-loop
-
-                def func(event: Event) -> None:
+                def func(event: LeoKeyEvent) -> None:
                     layout = d.get(name)
                     if layout:
                         c.free_layout.get_top_splitter().load_layout(c, layout)
@@ -305,7 +307,7 @@ class FreeLayoutController:
         ans.append(('Help for this menu', '_fl_help:'))
         return ans
     #@+node:tbrown.20110628083641.11732: *3* flc.ns_do_context
-    def ns_do_context(self, id_: Any, splitter: Any, index: int) -> bool:
+    def ns_do_context(self, id_: QWidget, splitter: QSplitter, index: int) -> bool:
 
         c = self.c
         if id_.startswith('_fl_embed_layout'):
@@ -410,7 +412,7 @@ class FreeLayoutController:
     def splitter_clicked(self,
         splitter: Wrapper,
         handle: Wrapper,
-        event: Event,
+        event: LeoKeyEvent,
         release: str,
         double: bool,
     ) -> None:
@@ -444,7 +446,7 @@ class FreeLayoutController:
 #@+node:ekr.20160416065221.1: ** commands: free_layout.py
 #@+node:tbrown.20140524112944.32658: *3* @g.command free-layout-context-menu
 @g.command('free-layout-context-menu')
-def free_layout_context_menu(event: Event) -> None:
+def free_layout_context_menu(event: LeoKeyEvent) -> None:
     """
     Open free layout's context menu, using the first divider of the top
     splitter for context.
@@ -455,7 +457,7 @@ def free_layout_context_menu(event: Event) -> None:
     handle.splitter_menu(handle.rect().topLeft())
 #@+node:tbrown.20130403081644.25265: *3* @g.command free-layout-restore
 @g.command('free-layout-restore')
-def free_layout_restore(event: Event) -> None:
+def free_layout_restore(event: LeoKeyEvent) -> None:
     """
     Restore layout outline had when it was loaded.
     """
@@ -463,7 +465,7 @@ def free_layout_restore(event: Event) -> None:
     c.free_layout.loadLayouts('reload', {'c': c}, reloading=True)
 #@+node:tbrown.20131111194858.29876: *3* @g.command free-layout-load
 @g.command('free-layout-load')
-def free_layout_load(event: Event) -> None:
+def free_layout_load(event: LeoKeyEvent) -> None:
     """Load layout from menu."""
     c = event.get('c')
     if not c:
@@ -473,7 +475,7 @@ def free_layout_load(event: Event) -> None:
     for k in d:
         menu.addAction(k)
     pos = c.frame.top.window().frameGeometry().center()
-    action = menu.exec_(pos)
+    action = menu.exec(pos)
     if action is None:
         return
     name = str(action.text())
@@ -485,7 +487,7 @@ def free_layout_load(event: Event) -> None:
         c.free_layout.get_top_splitter().load_layout(c, layout)
 #@+node:tbrown.20140522153032.32658: *3* @g.command free-layout-zoom
 @g.command('free-layout-zoom')
-def free_layout_zoom(event: Event) -> None:
+def free_layout_zoom(event: LeoKeyEvent) -> None:
     """(un)zoom the current pane."""
     c = event.get('c')
     c.free_layout.get_top_splitter().zoom_toggle()

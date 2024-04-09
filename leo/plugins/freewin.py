@@ -3,7 +3,7 @@
 #@@language python
 r"""
 #@+<< docstring >>
-#@+node:tom.20210603022210.1: ** << docstring >>
+#@+node:tom.20210603022210.1: ** << docstring >> (freewin.py)
 Freewin - a plugin with a basic editor pane that tracks an
 outline node.
 
@@ -242,7 +242,7 @@ Leo themes.
 #@-<< docstring >>
 """
 #@+<< imports >>
-#@+node:tom.20210527153415.1: ** << imports >>
+#@+node:tom.20210527153415.1: ** << imports >> (freewin.py)
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from os.path import exists, join as osp_join
@@ -251,23 +251,13 @@ import re
 from leo.core import leoColorizer
 from leo.plugins import qt_text
 
-# pylint: disable=ungrouped-imports
-# pylint: disable=c-extension-no-member
-try:
-    # pylint: disable=import-error
-    # this can fix an issue with Qt Web views in Ubuntu
-    from OpenGL import GL
-    assert GL  # To keep pyflakes happy.
-except Exception:
-    # but no need to stop if it doesn't work
-    pass
-
 from leo.core import leoGlobals as g
 
 qt_imports_ok = False
 try:
     from leo.core.leoQt import QtCore, QtWidgets, QtGui
     from leo.core.leoQt import KeyboardModifier
+    from leo.core.leoQt import QtWebEngineWidgets
     qt_imports_ok = True
 except ImportError as e:
     g.trace(e)
@@ -276,25 +266,8 @@ if not qt_imports_ok:
     print('Freewin plugin: Qt imports failed')
     raise ImportError('Qt Imports failed')
 
-#@+<<import  QWebView>>
-#@+node:tom.20210603000519.1: *3* <<import QWebView>>
-QWebView = None
-# Not imported above because we might have PyQt without QWebEngineWidgets
-from leo.core.leoQt import has_WebEngineWidgets  # pylint: disable=wrong-import-position
-if has_WebEngineWidgets:
-    from leo.core.leoQt import QtWebEngineWidgets  # pylint: disable=wrong-import-position
-    QWebView = QtWebEngineWidgets.QWebEngineView
-else:
-    try:
-        from leo.core.leoQt import QtWebKitWidgets
-        QWebView = QtWebKitWidgets.QWebView
-    except ImportError:
-        if not g.unitTesting:
-            print("Freewin: Can't import QtWebKitWidgets")
-    except AttributeError:
-        if not g.unitTesting:
-            print("Freewin: limited RsT rendering in effect")
-#@-<<import  QWebView>>
+QWebView = QtWebEngineWidgets.QWebEngineView
+
 #@+<<import docutils>>
 #@+node:tom.20210529002833.1: *3* <<import docutils>>
 got_docutils = False
@@ -315,7 +288,7 @@ if not got_docutils:
     print('Freewin: no docutils - rendered view is not available')
 
 #@-<<import docutils>>
-#
+
 # Fail fast, right after all imports.
 g.assertUi('qt')  # May raise g.UiTypeException, caught by the plugins manager.
 
@@ -736,8 +709,7 @@ class ZEditorWin(QtWidgets.QMainWindow):
             with open(self.editor_csspath, encoding=ENCODING) as f:
                 self.editor_style = f.read()
         else:
-            self.editor_style = EDITOR_STYLESHEET_DARK if is_dark \
-                                else EDITOR_STYLESHEET_LIGHT
+            self.editor_style = EDITOR_STYLESHEET_DARK if is_dark else EDITOR_STYLESHEET_LIGHT
 
         # If a stylesheet exists for RsT, we cache its contents.
         self.rst_stylesheet = None
@@ -745,13 +717,12 @@ class ZEditorWin(QtWidgets.QMainWindow):
             with open(self.rst_csspath, encoding=ENCODING) as f:
                 self.rst_stylesheet = f.read()
         else:
-            self.rst_stylesheet = RST_STYLESHEET_DARK if is_dark \
-                                  else RST_STYLESHEET_LIGHT
+            self.rst_stylesheet = RST_STYLESHEET_DARK if is_dark else RST_STYLESHEET_LIGHT
         #@-<<set stylesheets>>
         #@+<<set up editor>>
         #@+node:tom.20210602172856.1: *4* <<set up editor>>
         self.doc = self.editor.document()
-        self.editor.setWordWrapMode(WrapMode.WrapAtWordBoundaryOrAnywhere)  # pylint: disable=no-member
+        self.editor.setWordWrapMode(WrapMode.WrapAtWordBoundaryOrAnywhere)
 
         # Adjust editor stylesheet color to match body fg, bg
         fg, bg = get_body_colors(self.c)
@@ -788,8 +759,7 @@ class ZEditorWin(QtWidgets.QMainWindow):
         self.render_button = QPushButton("Rendered <--> Plain")
         self.render_button.clicked.connect(self.switch_and_render)
 
-        b_style = RENDER_BTN_STYLESHEET_DARK if is_dark \
-            else RENDER_BTN_STYLESHEET_LIGHT
+        b_style = RENDER_BTN_STYLESHEET_DARK if is_dark else RENDER_BTN_STYLESHEET_LIGHT
         self.render_button.setStyleSheet(b_style)
         #@-<<set up render button>>
 
@@ -938,16 +908,17 @@ class ZEditorWin(QtWidgets.QMainWindow):
             elif keyval == F7_KEY:
                 # Copy our gnx to clipboard.
                 copy2clip(self.p.v.gnx)
-            elif self.render_pane_type == NAV_VIEW \
-                    or self.render_kind == EDITOR:
+            elif self.render_pane_type == NAV_VIEW or self.render_kind == EDITOR:
                 # change host's selected node to new target
                 if keyval == F9_KEY:
                     gnx = getGnx(getLine(w))
                     found_gnx = gotoHostGnx(self.c, gnx)
                     if not found_gnx:
                         g.es(f'Could not find gnx "{gnx}"')
-            elif self.render_kind == BROWSER \
-                    and self.render_pane_type == BROWSER_VIEW:
+            elif (
+                self.render_kind == BROWSER
+                and self.render_pane_type == BROWSER_VIEW
+            ):
                 # Zoom/unzoom
                 if bare_key == '=':
                     _zf = w.zoomFactor()

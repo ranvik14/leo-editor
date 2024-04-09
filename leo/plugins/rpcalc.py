@@ -19,9 +19,8 @@ from typing import Any
 from leo.core.leoQt import QtCore, MouseButton
 from leo.core.leoQt import QtGui, FocusPolicy
 from leo.core.leoQt import QtWidgets, QAction
+from leo.core.leoQt import AlignmentFlag, AlignLeft, AlignRight
 from leo.core.leoQt import Shape, Shadow, KeyboardModifier
-from leo.core.leoQt import Qt as Qt1
-
 from leo.core.leoQt import WindowType, DialogCode
 
 import leo.core.leoGlobals as g
@@ -76,10 +75,7 @@ QVBoxLayout = QtWidgets.QVBoxLayout
 QValidator = QtGui.QValidator
 QWidget = QtWidgets.QWidget
 
-try:
-    SegmentStyle = QLCDNumber.SegmentStyle
-except AttributeError:
-    SegmentStyle = Qt1
+SegmentStyle = QLCDNumber.SegmentStyle
 
 pyqtSignal = QtCore.pyqtSignal
 
@@ -129,7 +125,7 @@ The license for the modified code is:
 
 #@+others
 #@+node:tom.20230424130102.154: **  optiondefaults
-defaultList = [\
+defaultList = [
     "# Options for the rpCalc program",
     "#",
     "# Colors for extra views:",
@@ -244,29 +240,29 @@ class AltBaseDialog(QWidget):  # type: ignore
         self.baseBoxes = {}
         hexButton = QPushButton('He&x')
         self.buttons.addButton(hexButton, 16)
-        mainLay.addWidget(hexButton, 0, 0, Qt.AlignmentFlag.AlignRight)
+        mainLay.addWidget(hexButton, 0, 0, AlignRight)
         self.baseBoxes[16] = AltBaseBox(16, self.dlgRef.calc)
         mainLay.addWidget(self.baseBoxes[16], 0, 1)
         octalButton = QPushButton('&Octal')
         self.buttons.addButton(octalButton, 8)
-        mainLay.addWidget(octalButton, 1, 0, Qt.AlignmentFlag.AlignRight)
+        mainLay.addWidget(octalButton, 1, 0, AlignRight)
         self.baseBoxes[8] = AltBaseBox(8, self.dlgRef.calc)
         mainLay.addWidget(self.baseBoxes[8], 1, 1)
         binaryButton = QPushButton('&Binary')
         self.buttons.addButton(binaryButton, 2)
-        mainLay.addWidget(binaryButton, 2, 0, Qt.AlignmentFlag.AlignRight)
+        mainLay.addWidget(binaryButton, 2, 0, AlignRight)
         self.baseBoxes[2] = AltBaseBox(2, self.dlgRef.calc)
         mainLay.addWidget(self.baseBoxes[2], 2, 1)
         decimalButton = QPushButton('&Decimal')
         self.buttons.addButton(decimalButton, 10)
-        mainLay.addWidget(decimalButton, 3, 0, Qt.AlignmentFlag.AlignRight)
+        mainLay.addWidget(decimalButton, 3, 0, AlignRight)
         self.baseBoxes[10] = AltBaseBox(10, self.dlgRef.calc)
         mainLay.addWidget(self.baseBoxes[10], 3, 1)
         for button in self.buttons.buttons():
             button.setCheckable(True)
         self.buttons.buttonClicked.connect(self.changeBase)
         self.bitsLabel = QLabel()
-        self.bitsLabel.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.bitsLabel.setAlignment(AlignmentFlag.AlignHCenter)
         self.bitsLabel.setFrameStyle(Shape.Box | Shadow.Plain)
         topLay.addSpacing(3)
         topLay.addWidget(self.bitsLabel)
@@ -302,8 +298,11 @@ class AltBaseDialog(QWidget):  # type: ignore
         self.baseBoxes[self.dlgRef.calc.base].setHighlight(False)
         self.baseBoxes[base].setHighlight(True)
         self.buttons.button(base).setChecked(True)
-        if endEntryMode and self.dlgRef.calc.base != base and \
-                self.dlgRef.calc.flag == Mode.entryMode:
+        if (
+            endEntryMode
+            and self.dlgRef.calc.base != base
+            and self.dlgRef.calc.flag == Mode.entryMode
+        ):
             self.dlgRef.calc.flag = Mode.saveMode
         self.dlgRef.calc.base = base
 
@@ -638,8 +637,10 @@ class CalcCore:
         if number == 0:
             return '0'
         if self.useTwosComplement:
-            if number >= 2 ** (self.numBits - 1) or \
-                    number < -2 ** (self.numBits - 1):
+            if (
+                number >= 2 ** (self.numBits - 1) or
+                number < -2 ** (self.numBits - 1)
+            ):
                 return 'overflow'
             if number < 0:
                 number = 2 ** self.numBits + number
@@ -878,14 +879,11 @@ class CalcCore:
                 elif cmdStr == 'LN':  # natural log
                     self.stack[0] = math.log(self.stack[0])
                 elif cmdStr == 'ASIN':  # arcsine
-                    self.stack[0] = math.asin(self.stack[0]) \
-                                    / self.angleConv()
+                    self.stack[0] = math.asin(self.stack[0]) / self.angleConv()
                 elif cmdStr == 'ACOS':  # arccosine
-                    self.stack[0] = math.acos(self.stack[0]) \
-                                    / self.angleConv()
+                    self.stack[0] = math.acos(self.stack[0]) / self.angleConv()
                 elif cmdStr == 'ATAN':  # arctangent
-                    self.stack[0] = math.atan(self.stack[0]) \
-                                    / self.angleConv()
+                    self.stack[0] = math.atan(self.stack[0]) / self.angleConv()
                 elif cmdStr == 'LOG':  # base 10 log
                     self.stack[0] = math.log10(self.stack[0])
                 else:
@@ -985,16 +983,16 @@ class CalcDlg(QWidget):  # type: ignore
         #@+<< populate lcd widget >>
         #@+node:tom.20230428234437.1: *4* << populate lcd widget >>
         for i in range(3):
-            lcdLay.addWidget(self.extraLabels[i], i, 0, Qt.AlignmentFlag.AlignLeft)
+            lcdLay.addWidget(self.extraLabels[i], i, 0, AlignLeft)
         self.extraLcds = [Lcd(1.5, 13), Lcd(1.5, 13), Lcd(1.5, 13)]
-        lcdLay.addWidget(self.extraLcds[2], 0, 1, Qt.AlignmentFlag.AlignRight)
-        lcdLay.addWidget(self.extraLcds[1], 1, 1, Qt.AlignmentFlag.AlignRight)
-        lcdLay.addWidget(self.extraLcds[0], 2, 1, Qt.AlignmentFlag.AlignRight)
+        lcdLay.addWidget(self.extraLcds[2], 0, 1, AlignRight)
+        lcdLay.addWidget(self.extraLcds[1], 1, 1, AlignRight)
+        lcdLay.addWidget(self.extraLcds[0], 2, 1, AlignRight)
         if not self.calc.option.boolData('ViewRegisters'):
             for w in self.extraLabels + self.extraLcds:
                 w.hide()
         self.lcd = Lcd(2.0, 13)
-        lcdLay.addWidget(self.lcd, 3, 0, 1, 2, Qt.AlignmentFlag.AlignRight)
+        lcdLay.addWidget(self.lcd, 3, 0, 1, 2, AlignRight)
         self.setLcdHighlight()
         self.updateLcd()
         self.updateColors()
@@ -1056,11 +1054,9 @@ class CalcDlg(QWidget):  # type: ignore
         self.addMainButton(Qt.Key.Key_0, '0', 4, 0, 0, 1)
         self.addMainButton(Qt.Key.Key_Period, '.', 4, 2)
 
-        self.mainDict[Qt.Key.Key_Return] = \
-                     self.mainDict[Qt.Key.Key_Enter]
+        self.mainDict[Qt.Key.Key_Return] = self.mainDict[Qt.Key.Key_Enter]
         # added for european keyboards:
-        self.mainDict[Qt.Key.Key_Comma] = \
-                     self.mainDict[Qt.Key.Key_Period]
+        self.mainDict[Qt.Key.Key_Comma] = self.mainDict[Qt.Key.Key_Period]
         self.cmdDict['ENT'] = self.mainDict[Qt.Key.Key_Enter]
         self.cmdDict['OPT'] = self.mainDict[0]
 
@@ -1076,7 +1072,7 @@ class CalcDlg(QWidget):  # type: ignore
         statusLay.addWidget(self.entryLabel)
         statusLay.setContentsMargins(1, 1, 1, 1)
         self.statusLabel = QLabel(statusBox)
-        self.statusLabel.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.statusLabel.setAlignment(AlignRight)
         statusLay.addWidget(self.statusLabel)
 
         if self.calc.option.boolData('ExtraViewStartup'):
@@ -1100,8 +1096,10 @@ class CalcDlg(QWidget):  # type: ignore
     def updateEntryLabel(self, subsText=''):
         """Set entry & status label text, use entryStr or subsText, options.
         """
-        numFormat = self.calc.option.boolData('ForceSciNotation') and 'sci' \
-                    or 'fix'
+        numFormat = (
+            self.calc.option.boolData('ForceSciNotation') and 'sci'
+            or 'fix'
+        )
         decPlcs = self.calc.option.intData('NumDecimalPlaces', 0, 9)
         angle = self.calc.option.strData('AngleUnit')
         self.statusLabel.setText('{0} {1}  {2}'.format(numFormat, decPlcs,
@@ -1153,7 +1151,7 @@ class CalcDlg(QWidget):  # type: ignore
         OptionDlgInt(self.optDlg, 'MaxHistLength',
                                'Saved history steps', CalcCore.minMaxHist,
                                CalcCore.maxMaxHist, True, 10)
-        if self.optDlg.exec_() == QDialog.DialogCode.Accepted:
+        if self.optDlg.exec() == QDialog.DialogCode.Accepted:
             self.calc.option.writeChanges()
             newViewReg = self.calc.option.boolData('ViewRegisters')
             if newViewReg != oldViewReg:
@@ -1175,8 +1173,10 @@ class CalcDlg(QWidget):  # type: ignore
     def setLcdHighlight(self):
         """Set lcd highlight based on option.
         """
-        opt = self.calc.option.boolData('HideLcdHighlight') and \
-              SegmentStyle.Flat or SegmentStyle.Filled
+        opt = (
+            self.calc.option.boolData('HideLcdHighlight') and SegmentStyle.Flat
+            or SegmentStyle.Filled
+        )
         self.lcd.setSegmentStyle(opt)
         for lcd in self.extraLcds:
             lcd.setSegmentStyle(opt)
@@ -1317,8 +1317,10 @@ class CalcDlg(QWidget):  # type: ignore
         """Sets display back to CalcCore string.
         """
         numDigits = int(self.calc.option.numData('NumDecimalPlaces', 0, 9)) + 9
-        if self.calc.option.boolData('ThousandsSeparator') or \
-                self.calc.option.boolData('UseEngNotation'):
+        if (
+            self.calc.option.boolData('ThousandsSeparator') or
+            self.calc.option.boolData('UseEngNotation')
+        ):
             numDigits += 2
         self.lcd.setDisplay(self.calc.xStr, numDigits)
         if self.calc.option.boolData('ViewRegisters'):
@@ -1411,14 +1413,13 @@ class CalcDlg(QWidget):  # type: ignore
                     self.altBaseView.copyValue()
                 elif letter == 'C':
                     self.altBaseView.close()
-        elif not self.entryStr and self.calc.base == 16 and \
-                 'A' <= letter <= 'F':
+        elif not self.entryStr and self.calc.base == 16 and 'A' <= letter <= 'F':
             self.issueCmd(keyEvent.text())
-        elif self.altBaseView and self.altBaseView.isVisible() and \
-                (self.calc.xStr == ' 0' or \
-                 (self.calc.stack[0] == 0.0 and self.calc.base != 10)) and \
-                self.calc.flag == Mode.entryMode and \
-                letter in ('X', 'O', 'B', 'D'):
+        elif (
+                self.altBaseView and self.altBaseView.isVisible()
+                and (self.calc.xStr == ' 0' or (self.calc.stack[0] == 0.0 and self.calc.base != 10))
+                and self.calc.flag == Mode.entryMode and letter in ('X', 'O', 'B', 'D')
+            ):
             self.altBaseView.setCodedBase(letter, True)
         elif not self.entryStr and keyEvent.key() == Qt.Key.Key_Backspace:
             button = self.cmdDict['<-']
@@ -1528,7 +1529,7 @@ class LcdBox(QFrame):  # type: ignore
         """
         if event.button() == MouseButton.RightButton:
             popup = self.parentWidget().popupMenu
-            popup.exec_(self.mapToGlobal(event.pos()))
+            popup.exec(self.mapToGlobal(event.pos()))
             popup.clearFocus()
         QFrame.mouseReleaseEvent(self, event)
     #@-others
@@ -1594,7 +1595,7 @@ class ExtraViewWidget(QTreeWidget):  # type: ignore
     #@+others
     #@+node:tom.20230424130102.95: *4* __init__
     def __init__(self, calcRef, parent=None):
-        QListView.__init__(self, parent)
+        QListView.__init__(self, parent)  # type:ignore
         self.calcRef = calcRef
         self.setRootIsDecorated(False)
 
@@ -1619,7 +1620,7 @@ class RegViewWidget(ExtraViewWidget):
         for text in ['T', 'Y', 'Z', 'X']:
             item = QTreeWidgetItem(self)
             item.setText(0, text)
-            item.setTextAlignment(0, Qt.AlignmentFlag.AlignCenter)
+            item.setTextAlignment(0, AlignmentFlag.AlignCenter)
         self.resizeColumnToContents(0)
         self.setCurrentItem(item)
         self.updateData()
@@ -1663,7 +1664,7 @@ class HistViewWidget(ExtraViewWidget):
         maxLen = self.calcRef.option.intData('MaxHistLength',
                                              self.calcRef.minMaxHist,
                                              self.calcRef.maxMaxHist)
-        for eqn, value in self.calcRef.history[-self.calcRef.histChg :]:
+        for eqn, value in self.calcRef.history[-self.calcRef.histChg:]:
             item = QTreeWidgetItem(self,
                                          [eqn, self.calcRef.formatNum(value)])
             if self.topLevelItemCount() > maxLen:
@@ -1697,7 +1698,7 @@ class MemViewWidget(ExtraViewWidget):
         for num in range(10):
             item = QTreeWidgetItem(self)
             item.setText(0, repr(num))
-            item.setTextAlignment(0, Qt.AlignmentFlag.AlignCenter)
+            item.setTextAlignment(0, AlignmentFlag.AlignCenter)
         self.resizeColumnToContents(0)
         self.setCurrentItem(self.topLevelItem(0))
         self.updateData()
@@ -1976,7 +1977,7 @@ class HelpViewer(QTextBrowser):  # type: ignore
     def contextMenuEvent(self, event):
         """Init popup menu on right click"".
         """
-        self.parentWidget().menu.exec_(event.globalPos())
+        self.parentWidget().menu.exec(event.globalPos())
     #@-others
 #@-others
 #@@language python
@@ -2141,8 +2142,10 @@ class Option:
             if val:
                 try:
                     num = float(val)
-                    if (min == None or num >= min) and \
-                       (max == None or num <= max):
+                    if (
+                        (min == None or num >= min) and
+                        (max == None or num <= max)
+                    ):
                         return num
                 except ValueError:
                     pass
@@ -2158,8 +2161,10 @@ class Option:
             if val:
                 try:
                     num = int(val)
-                    if (min == None or num >= min) and \
-                       (max == None or num <= max):
+                    if (
+                        (min == None or num >= min) and
+                        (max == None or num <= max)
+                    ):
                         return num
                 except ValueError:
                     pass
@@ -2211,8 +2216,7 @@ class Option:
                                    line.replace('#', ' ', 1).strip().
                                    split(None, 1)[:1] == [key]]
                     if hitList:
-                        fileList[fileList.index(hitList[-1])] = '{0}{1}\n'.\
-                                format(key.ljust(self.keySpaces),
+                        fileList[fileList.index(hitList[-1])] = '{0}{1}\n'.format(key.ljust(self.keySpaces),
                                        self.userDict[key])
                         self.chgList.remove(key)
                 for key in self.chgList:
@@ -2409,8 +2413,7 @@ class OptionDlgDbl(OptionDlgItem):
         """
         text = self.control.text()
         unusedPos = 0
-        if self.control.validator().validate(text, unusedPos)[0] != \
-                QValidator.Acceptable:
+        if self.control.validator().validate(text, unusedPos)[0] != QValidator.Acceptable:
             return
         num = float(text)
         if num != self.dlg.option.numData(self.key):

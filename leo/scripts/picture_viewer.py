@@ -71,8 +71,8 @@ try:
 except Exception:
     print('picture_viewer.py: can not import leo.core.leoGlobals as g')
 try:
-    from leo.core.leoQt import isQt5, isQt6, QtCore, QtGui, QtWidgets
-    from leo.core.leoQt import ButtonRole, Information
+    from leo.core.leoQt import QtCore, QtGui, QtWidgets
+    from leo.core.leoQt import AlignmentFlag, ButtonRole, Information
 except Exception:
     print('picture_viewer.py: Qt required')
     print('pip install pyqt6')
@@ -203,10 +203,7 @@ def main():
     args = get_args()
     ok = Slides().run(**args)
     if ok:
-        if isQt5:
-            sys.exit(gApp.exec_())
-        else:
-            sys.exit(gApp.exec())
+        sys.exit(gApp.exec())
 #@+node:ekr.20211021202356.1: ** class Slides(QWidget)
 class Slides(QtWidgets.QWidget):  # type:ignore
 
@@ -255,8 +252,8 @@ class Slides(QtWidgets.QWidget):  # type:ignore
                 self.reset_scroll()
             # Create the pixmap.
             pixmap = QtGui.QPixmap(file_name)
-            TransformationMode = QtCore.Qt if isQt5 else QtCore.Qt.TransformationMode
-            transform = TransformationMode.SmoothTransformation  # pylint: disable=no-member
+            TransformationMode = QtCore.Qt.TransformationMode
+            transform = TransformationMode.SmoothTransformation
             # Scale appropriately. Do *not* change this!
             image1 = pixmap.scaledToHeight(int(self.height() * self.scale), transform)
             image2 = pixmap.scaledToWidth(int(self.width() * self.scale), transform)
@@ -316,7 +313,7 @@ class Slides(QtWidgets.QWidget):  # type:ignore
 
         dialog.keyPressEvent = dialog_keypress_event
         dialog.raise_()
-        result = dialog.exec() if isQt6 else dialog.exec_()
+        result = dialog.exec()
         if result == 0:
             # Move the file to the trash.
             send2trash(file_name)
@@ -420,8 +417,8 @@ class Slides(QtWidgets.QWidget):  # type:ignore
             w.showNormal()
         else:
             w.full_screen = True
-            WindowState = QtCore.Qt if isQt5 else QtCore.Qt.WindowState
-            w.setWindowState(WindowState.WindowFullScreen)  # pylint: disable=no-member
+            WindowState = QtCore.Qt.WindowState
+            w.setWindowState(WindowState.WindowFullScreen)
             w.picture.setGeometry(0, 0, w.width(), w.height())
             w.picture.adjustSize()
     #@+node:ekr.20211021200821.18: *4* Slides.zoom_in & zoom_out
@@ -466,12 +463,12 @@ class Slides(QtWidgets.QWidget):  # type:ignore
         file_name = self.files_list[self.slide_number]
         if file_name in self.db:
             try:
-                self.scale, self.dx, self.dy = self.db [file_name]
+                self.scale, self.dx, self.dy = self.db[file_name]
                 self.dx = int(self.dx)
                 self.dy = int(self.dy)
             except TypeError:
                 g.trace('TypeError', file_name)
-                self.scale = self.db [file_name]  # type:ignore
+                self.scale = self.db[file_name]  # type:ignore
                 self.dx = self.dy = 0
         else:
             self.scale = 1.0
@@ -490,7 +487,7 @@ class Slides(QtWidgets.QWidget):  # type:ignore
                     f"save_data: {g.caller():<20} {self.slide_number} scale: {self.scale:9.8} "
                     f"x: {self.dx} y: {self.dy}")
             file_name = self.files_list[self.slide_number]
-            self.db [file_name] = [self.scale, int(self.dx), int(self.dy)]
+            self.db[file_name] = [self.scale, int(self.dx), int(self.dy)]
     #@+node:ekr.20230219044202.1: *3* Slides: event handlers
     def closeEvent(self, event):
         """Override QWidget.closeEvent."""
@@ -509,7 +506,7 @@ class Slides(QtWidgets.QWidget):  # type:ignore
         if not s:
             return
         d = {
-            '\x1b':  self.quit,  # ESC.
+            '\x1b': self.quit,  # ESC.
             '\b': self.prev_slide,
             '\r': self.next_slide,
             '\n': self.next_slide,
@@ -548,10 +545,10 @@ class Slides(QtWidgets.QWidget):  # type:ignore
             w.scroll_lockout = True  # Lock out scrollContentsBy.
             if 1:  # The scale won't make much difference.
                 hbar.setValue(dx)
-                vbar.setValue(-dy) # tbpassin: use -dy
+                vbar.setValue(-dy)  # tbpassin: use -dy
             else:
                 hbar.setValue(int(self.scale * dx))
-                vbar.setValue(-int(self.scale * dy)) # tbpassin: use -dy
+                vbar.setValue(-int(self.scale * dy))  # tbpassin: use -dy
         finally:
             w.scroll_lockout = False
     #@+node:ekr.20230224054937.1: *4* Slides.reset_scroll (not used)
@@ -609,16 +606,14 @@ class Slides(QtWidgets.QWidget):  # type:ignore
         w.scroll_area = area = QtWidgets.QScrollArea()
         w.scroll_area.scrollContentsBy = self.scrollContentsBy
         area.setWidget(self.picture)
-        AlignmentFlag = QtCore.Qt if isQt5 else QtCore.Qt.AlignmentFlag
-        area.setAlignment(AlignmentFlag.AlignHCenter | AlignmentFlag.AlignVCenter)  # pylint: disable=no-member
-
+        area.setAlignment(AlignmentFlag.AlignHCenter | AlignmentFlag.AlignVCenter)
         # Remember the viewport:
         w.view_port = area.viewport()
 
         # Disable scrollbars.
-        ScrollBarPolicy = QtCore.Qt if isQt5 else QtCore.Qt.ScrollBarPolicy
-        area.setHorizontalScrollBarPolicy(ScrollBarPolicy.ScrollBarAlwaysOff)  # pylint: disable=no-member
-        area.setVerticalScrollBarPolicy(ScrollBarPolicy.ScrollBarAlwaysOff)  # pylint: disable=no-member
+        ScrollBarPolicy = QtCore.Qt.ScrollBarPolicy
+        area.setHorizontalScrollBarPolicy(ScrollBarPolicy.ScrollBarAlwaysOff)
+        area.setVerticalScrollBarPolicy(ScrollBarPolicy.ScrollBarAlwaysOff)
 
         # Init the layout.
         layout = QtWidgets.QVBoxLayout()

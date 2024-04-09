@@ -83,10 +83,10 @@ from collections.abc import Callable
 import fnmatch
 import itertools
 import re
-from typing import Any, Iterable, Iterator, Union
+from typing import Any, Iterable, Iterator, TypeAlias, Union
 from typing import TYPE_CHECKING
 from leo.core import leoGlobals as g
-from leo.core.leoQt import QtCore, QtConst, QtWidgets
+from leo.core.leoQt import Qt, QtCore, QtWidgets
 from leo.core.leoQt import KeyboardModifier
 from leo.plugins import threadutil
 from leo.plugins import qt_quicksearch_sub as qt_quicksearch
@@ -98,14 +98,16 @@ g.assertUi('qt')  # May raise g.UiTypeException, caught by the plugins manager.
 #@+node:ekr.20220828094201.1: ** << quicksearch annotations >>
 if TYPE_CHECKING:  # pragma: no cover
     from leo.core.leoCommands import Commands as Cmdr
-    from leo.core.leoGui import LeoKeyEvent as Event
     from leo.core.leoNodes import Position
-    from leo.plugins.qt_text import QTextEditWrapper as Wrapper
+    from leo.core.leoGui import LeoKeyEvent
+    QEvent: TypeAlias = QtCore.QEvent
     Match = re.Match
     Match_Iter = Iterator[re.Match[str]]
     Match_List = list[tuple[Position, Match_Iter]]
+    QWidget = QtWidgets.QWidget
+    QListWidget = QtWidgets.QListWidget
+    QListWidgetItem = Any  # Mysterious
     RegexFlag = Union[int, re.RegexFlag]  # re.RegexFlag does not define 0
-    Widget = Any
 #@-<< quicksearch annotations >>
 #@+others
 #@+node:ekr.20190210123045.1: ** top level
@@ -129,16 +131,16 @@ def install_qt_quicksearch_tab(c: Cmdr) -> None:
     wdg = LeoQuickSearchWidget(c, mode="nav")
     c.frame.log.createTab("Nav", widget=wdg)
 
-    def focus_quicksearch_entry(event: Event) -> None:
+    def focus_quicksearch_entry(event: QEvent) -> None:
         c.frame.log.selectTab('Nav')
         wdg.ui.lineEdit.selectAll()
         wdg.ui.lineEdit.setFocus()
 
-    def focus_to_nav(event: Event) -> None:
+    def focus_to_nav(event: QEvent) -> None:
         c.frame.log.selectTab('Nav')
         wdg.ui.listWidget.setFocus()
 
-    def find_selected(event: Event) -> None:
+    def find_selected(event: QEvent) -> None:
         text = c.frame.body.wrapper.getSelectedText()
         if text.strip():
             wdg.ui.lineEdit.setText(text)
@@ -147,15 +149,15 @@ def install_qt_quicksearch_tab(c: Cmdr) -> None:
         else:
             focus_quicksearch_entry(event)
 
-    def nodehistory(event: Event) -> None:
+    def nodehistory(event: QEvent) -> None:
         c.frame.log.selectTab('Nav')
         wdg.scon.doNodeHistory()
 
-    def show_dirty(event: Event) -> None:
+    def show_dirty(event: QEvent) -> None:
         c.frame.log.selectTab('Nav')
         wdg.scon.doChanged()
 
-    def timeline(event: Event) -> None:
+    def timeline(event: QEvent) -> None:
         c.frame.log.selectTab('Nav')
         wdg.scon.doTimeline()
 
@@ -168,19 +170,19 @@ def install_qt_quicksearch_tab(c: Cmdr) -> None:
     c.k.registerCommand('history', nodehistory)
 
     @g.command('marked-list')
-    def showmarks(event: Event) -> None:
+    def showmarks(event: LeoKeyEvent) -> None:
         """ List marked nodes in nav tab """
         wdg.scon.doShowMarked()
 
     @g.command('go-anywhere')
-    def find_popout_f(event: Event) -> None:
+    def find_popout_f(event: LeoKeyEvent) -> None:
         c = event['c']
         w = LeoQuickSearchWidget(c, mode="popout", parent=c.frame.top)
         topgeo = c.frame.top.geometry()
         wid = topgeo.width()
         w.setGeometry(wid / 2, 0, wid / 2, 500)
         w.show()
-        w.setFocus(QtConst.OtherFocusReason)
+        w.setFocus(Qt.OtherFocusReason)
         c._popout = w
 
     c.frame.nav = wdg
@@ -219,7 +221,7 @@ def onCreate(tag: str, keys: Any) -> None:
     install_qt_quicksearch_tab(c)
 
 #@+node:tbrown.20111011152601.48461: *3* show_unittest_failures
-def show_unittest_failures(event: Event) -> None:
+def show_unittest_failures(event: LeoKeyEvent) -> None:
     c = event.get('c')
     fails = c.db.get('unittest/cur/fail')
     nav = c.frame.nav
@@ -249,14 +251,14 @@ class QuickSearchEventFilter(QtCore.QObject):  # type:ignore
 
     #@+others
     #@+node:ekr.20111015194452.15718: *3* quick_ev.ctor
-    def __init__(self, c: Cmdr, w: Wrapper, lineedit: Any) -> None:
+    def __init__(self, c: Cmdr, w: QListWidget, lineedit: Any) -> None:
 
         super().__init__()
         self.c = c
         self.listWidget = w
         self.lineEdit = lineedit
     #@+node:ekr.20111015194452.15719: *3* quick_ev.eventFilter
-    def eventFilter(self, obj: Any, event: Event) -> bool:
+    def eventFilter(self, obj: Any, event: QEvent) -> bool:
 
         eventType = event.type()
         ev = QtCore.QEvent
@@ -267,13 +269,13 @@ class QuickSearchEventFilter(QtCore.QObject):  # type:ignore
             lw = self.listWidget
             k = event.key()
             moved = False
-            if k == QtConst.Key_Up:
+            if k == Qt.Key_Up:
                 lw.setCurrentRow(lw.currentRow() - 1)
                 moved = True
-            if k == QtConst.Key_Down:
+            if k == Qt.Key_Down:
                 lw.setCurrentRow(lw.currentRow() + 1)
                 moved = True
-            if k == QtConst.Key_Return:
+            if k == Qt.Key_Return:
                 lw.setCurrentRow(lw.currentRow() + 1)
                 moved = True
             if moved:
@@ -288,13 +290,13 @@ class LeoQuickSearchWidget(QtWidgets.QWidget):  # type:ignore
 
     #@+others
     #@+node:ekr.20111015194452.15695: *3* quick_w.ctor
-    def __init__(self, c: Cmdr, mode: str = "nav", parent: Position = None) -> None:
+    def __init__(self, c: Cmdr, mode: str = "nav", parent: QWidget = None) -> None:
 
         super().__init__(parent)
-        self.ui = qt_quicksearch.Ui_LeoQuickSearchWidget()
+        self.ui: Any = qt_quicksearch.Ui_LeoQuickSearchWidget()
         self.ui.setupUi(self)
         self.frozen = False  # True: disable live updates.
-        w = self.ui.listWidget
+        w: QListWidget = self.ui.listWidget
         u = self.ui
         cc = QuickSearchController(c, w, u)
         self.scon = cc
@@ -352,10 +354,10 @@ class QuickSearchController:
 
     #@+others
     #@+node:ekr.20111015194452.15685: *3* QuickSearchController.__init__
-    def __init__(self, c: Cmdr, listWidget: Widget, ui: Any) -> None:
+    def __init__(self, c: Cmdr, listWidget: QListWidget, ui: Any) -> None:
         self.c = c
-        self.lw: Widget = listWidget  # A QListWidget.
-        w = listWidget
+        self.lw: QListWidgetItem = listWidget
+        w: QListWidgetItem = listWidget
         self.its: dict[int, Callable] = {}  # Keys are id(w),values are tuples (p,pos)
         self.worker = threadutil.UnitWorker()
         self.widgetUI = ui
@@ -411,6 +413,7 @@ class QuickSearchController:
     #@+node:ekr.20111015194452.15689: *3* addBodyMatches
     def addBodyMatches(self, positions: Match_List) -> int:
         lineMatchHits = 0
+        it: QListWidgetItem
         for p in positions:
             it = QtWidgets.QListWidgetItem(p[0].h, self.lw)
             f = it.font()
@@ -429,6 +432,7 @@ class QuickSearchController:
     #@+node:jlunz.20151027092130.1: *3* addParentMatches
     def addParentMatches(self, parent_list: dict[str, Match_List]) -> int:
         lineMatchHits = 0
+        it: QListWidgetItem
         for parent_key, parent_value in parent_list.items():
             if isinstance(parent_key, str):
                 v = self.c.fileCommands.gnxDict.get(parent_key)
@@ -458,14 +462,15 @@ class QuickSearchController:
         return lineMatchHits
 
     #@+node:ekr.20111015194452.15690: *3* addGeneric
-    def addGeneric(self, text: Any, f: Any) -> None:
+    def addGeneric(self, text: Any, f: Any) -> QListWidgetItem:
         """ Add generic callback """
-        it = QtWidgets.QListWidgetItem(text, self.lw)
+        it: QListWidgetItem = QtWidgets.QListWidgetItem(text, self.lw)
         self.its[id(it)] = f
         return it
     #@+node:ekr.20111015194452.15688: *3* addHeadlineMatches
     def addHeadlineMatches(self, poslist: Match_List) -> None:
 
+        it: QListWidgetItem
         for p in poslist:
             it = QtWidgets.QListWidgetItem(p[0].h, self.lw)
             f = it.font()
@@ -742,7 +747,7 @@ class QuickSearchController:
                     w.seeInsertPoint()
                 self.lw.setFocus()
     #@+node:tbrown.20111018130925.3642: *4* onActivated
-    def onActivated(self, event: Event) -> None:
+    def onActivated(self, event: QEvent) -> None:
 
         c = self.c
         c.bodyWantsFocusNow()

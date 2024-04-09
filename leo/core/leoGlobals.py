@@ -56,9 +56,8 @@ StringIO = io.StringIO
 #@+node:ekr.20220824084642.1: ** << leoGlobals annotations >>
 if TYPE_CHECKING:  # pragma: no cover
     from leo.core.leoCommands import Commands as Cmdr
-    from leo.core.leoGui import LeoGui
+    from leo.core.leoGui import LeoGui, LeoKeyEvent
     from leo.core.leoNodes import Position, VNode
-    Event = Any
 #@-<< leoGlobals annotations >>
 in_bridge = False  # True: leoApp object loads a null Gui.
 in_vs_code = False  # #2098.
@@ -437,7 +436,6 @@ class BindingInfo:
                 val = getattr(self, ivar)
                 if val not in (None, 'none', 'None', ''):
                     if ivar == 'func':
-                        # pylint: disable=no-member
                         val = val.__name__
                     s = f"{ivar}: {val!r}"
                     result.append(s)
@@ -808,14 +806,11 @@ class KeyStroke:
             "space": " ",
             "underscore": "_",
         }
-        #
-        # pylint: disable=undefined-loop-variable
-            # Looks like a pylint bug.
         if s in (None, 'none', 'None'):
             return 'None'
         if s.lower() in translate_d:
             s = translate_d.get(s.lower())
-            return self.strip_shift(s)  # type:ignore
+            return self.strip_shift(s)
         if len(s) > 1 and s.find(' ') > -1:
             # #917: not a pure, but should be ignored.
             return ''
@@ -1007,7 +1002,6 @@ class KeyStroke:
     #@+node:ekr.20180417100834.1: *4* ks.toInsertableChar
     def toInsertableChar(self) -> str:
         """Convert self to an (insertable) char."""
-        # pylint: disable=len-as-condition
         s = self.s
         if not s or self.find_mods(s):
             return ''
@@ -1968,7 +1962,6 @@ class TestLeoGlobals(unittest.TestCase):
     #@+node:ekr.20200219071958.1: *4* TestLeoGlobals.test_comment_delims_from_extension
     def test_comment_delims_from_extension(self) -> None:
 
-        # pylint: disable=import-self
         from leo.core import leoGlobals as leo_g
         from leo.core import leoApp
         leo_g.app = leoApp.LeoApp()
@@ -1978,7 +1971,6 @@ class TestLeoGlobals(unittest.TestCase):
     #@+node:ekr.20200219072957.1: *4* TestLeoGlobals.test_is_sentinel
     def test_is_sentinel(self) -> None:
 
-        # pylint: disable=import-self
         from leo.core import leoGlobals as leo_g
         # Python. Test regular and blackened sentinels.
         py_delims = leo_g.comment_delims_from_extension('.py')
@@ -2397,7 +2389,7 @@ def clearStats() -> None:
     g.app.statsDict = {}
 #@+node:ekr.20031218072017.3135: *4* g.printStats
 @command('show-stats')
-def printStats(event: Event = None, name: str = None) -> None:
+def printStats(event: LeoKeyEvent = None, name: str = None) -> None:
     """
     Print all gathered statistics.
 
@@ -2452,9 +2444,6 @@ def printDiffTime(message: str, start: float) -> float:
 def timeSince(start: float) -> str:
     return f"{time.time()-start:5.2f} sec."
 #@+node:ekr.20031218072017.1380: ** g.Directives
-# Weird pylint bug, activated by TestLeoGlobals class.
-# Disabling this will be safe, because pyflakes will still warn about true redefinitions
-# pylint: disable=function-redefined
 #@+node:EKR.20040504150046.4: *3* g.comment_delims_from_extension
 def comment_delims_from_extension(filename: str) -> tuple[str, str, str]:
     """
@@ -4855,6 +4844,25 @@ def unCamel(s: str) -> list[str]:
         result.append(''.join(word))
     return result
 #@+node:ekr.20031218072017.1498: *3* g.Unicode
+#@+node:ekr.20240325175438.1: *4* g.bytesToStr
+def bytesToStr(b: bytes, reportErrors: bool = False) -> str:
+    """Convert bytes to unicode."""
+    assert isinstance(b, bytes), g.callers()
+    tag = 'g.bytesToStr'
+    encoding = 'utf-8'
+    try:
+        s = b.decode(encoding, 'strict')
+    except(UnicodeDecodeError, UnicodeError):  # noqa
+        # https://wiki.python.org/moin/UnicodeDecodeError
+        s = b.decode(encoding, 'replace')
+        if reportErrors:
+            g.error(f"{tag}: unicode error. encoding: {encoding!r}, s:\n{s!r}")
+            g.trace(g.callers())
+    except Exception:
+        g.es_exception()
+        g.error(f"{tag}: unexpected error! encoding: {encoding!r}, s:\n{s!r}")
+        g.trace(g.callers())
+    return s
 #@+node:ekr.20190505052756.1: *4* g.checkUnicode
 checkUnicode_dict: dict[str, bool] = {}
 
@@ -4974,6 +4982,19 @@ def stripBOM(s_bytes: bytes) -> tuple[str, bytes]:
             if bom == s_bytes[: len(bom)]:
                 return e, s_bytes[len(bom) :]
     return None, s_bytes
+#@+node:ekr.20240325175449.1: *4* g.strToBytes
+def strToBytes(s: str, reportErrors: bool = False) -> bytes:
+    """Convert unicode string to an encoded string."""
+    assert isinstance(s, str), g.callers()
+    encoding = 'utf-8'
+    try:
+        b = s.encode(encoding, "strict")
+    except UnicodeError:
+        b = s.encode(encoding, "replace")
+        if reportErrors:
+            g.error(f"Error converting {s} from unicode to {encoding}")
+    # Tracing these calls directly yields thousands of calls.
+    return b
 #@+node:ekr.20050208093800: *4* g.toEncodedString
 def toEncodedString(s: str, encoding: str = 'utf-8', reportErrors: bool = False) -> bytes:
     """Convert unicode string to an encoded string."""
@@ -5498,6 +5519,30 @@ def internalError(*args: Any) -> None:
     g.es_print(*args)
     g.es_print('Called from', ', '.join(callers[:-1]))
     g.es_print('Please report this error to Leo\'s developers', color='red')
+#@+node:ekr.20240325161046.1: *3* g.isUniqueClass
+# Keys are strings: g.callers. Values are lists of obj.__class__.__name__.
+is_unique_class_dict: dict[str, list[str]] = {}
+
+def isUniqueClass(obj: Any, list_or_class: Any, *, n: int = 2) -> None:
+    """Print a message (once) if obj is not an instance of list_or_class."""
+    try:
+        if isinstance(obj, list_or_class):
+            return
+    except Exception as e:
+        print(
+            f"\ng.isUniqueClass: {g.callers()}\n"
+            f"Bad arg 2: {list_or_class!r}\n{e!r}\n"
+        )
+        return
+    key = g.callers(n)
+    value_s = obj.__class__.__name__
+    values: list[str] = is_unique_class_dict.get(key, [])
+    if value_s not in values:
+        print(f"{key}: Fail: isinstance({value_s}, {list_or_class})")
+        values.append(value_s)
+        is_unique_class_dict[key] = values
+
+is_unique_class = isUniqueClass
 #@+node:ekr.20150127060254.5: *3* g.log_to_file
 def log_to_file(s: str, fn: str = None) -> None:
     """Write a message to ~/test/leo_log.txt."""
@@ -5633,6 +5678,42 @@ def trace(*args: Any, **keys: Any) -> None:
     if name.endswith(".pyc"):
         name = name[:-1]
     g.pr(name, *args)
+#@+node:ekr.20240325064618.1: *3* g.traceUnique & traceUniqueClass
+# Keys are strings: g.callers. Values are lists of str(value).
+trace_unique_dict: dict[str, list[str]] = {}
+
+def traceUnique(value: Any, *, n: int = 2, pad: int = 30) -> None:
+    """Print unique values associated with g.callers(n)."""
+    if pad is None:
+        pad = 30
+    key = g.callers(n)
+    value_s = str(value)
+    values: list[str] = trace_unique_dict.get(key, [])
+    if value_s not in values:
+        pad_s = ' ' * max(0, pad - len(key))
+        key_s = pad_s + key  # right justify.
+        print(f"{key_s} {value_s}")
+        values.append(value_s)
+        trace_unique_dict[key] = values
+
+trace_unique = traceUnique
+
+# Keys are strings: g.callers. Values are lists of obj.__class__.__name__.
+trace_unique_class_dict: dict[str, list[str]] = {}
+
+def traceUniqueClass(obj: Any, *, n: int = 2, pad: int = 30) -> None:
+    """Print unique class names associated with g.callers(n)."""
+    key = g.callers(n)
+    value_s = obj.__class__.__name__
+    values: list[str] = trace_unique_class_dict.get(key, [])
+    if value_s not in values:
+        pad_s = ' ' * max(0, pad - len(key))
+        key_s = pad_s + key  # Right justify.
+        print(f"{key_s} {value_s}")
+        values.append(value_s)
+        trace_unique_class_dict[key] = values
+
+trace_unique_class = traceUniqueClass
 #@+node:ekr.20080220111323: *3* g.translateArgs
 console_encoding = None
 
@@ -5666,8 +5747,6 @@ def translateArgs(args: Iterable[Any], d: dict[str, Any]) -> str:
 #@+node:ekr.20060810095921: *3* g.translateString & tr
 def translateString(s: str) -> str:
     """Return the translated text of s."""
-    # pylint: disable=undefined-loop-variable
-    # looks like a pylint bug
     upper = app and getattr(app, 'translateToUpperCase', None)
     if not isinstance(s, str):
         s = str(s, 'utf-8')
@@ -5761,7 +5840,7 @@ def CheckVersionToInt(s: str) -> int:
         return 0
 #@+node:ekr.20111103205308.9657: *3* g.cls
 @command('cls')
-def cls(event: Event = None) -> None:
+def cls(event: LeoKeyEvent = None) -> None:
     """Clear the screen."""
     if sys.platform.lower().startswith('win'):
         # Leo 6.7.5: Two calls seem to be required!
@@ -5841,7 +5920,6 @@ def input_(message: str = '', c: Cmdr = None) -> str:
     if app.gui.isNullGui:
         return ''
     # Prompt for input from the console, assuming there is one.
-    # pylint: disable=no-member
     from leo.core.leoQt import QtCore
     QtCore.pyqtRemoveInputHook()
     return input(message)
@@ -6136,13 +6214,11 @@ def os_startfile(fname: str) -> None:
             stderr2log(g, ree, fname)
             ree.close()
     #@-others
-    # pylint: disable=used-before-assignment
     if fname.find('"') > -1:
         quoted_fname = f"'{fname}'"
     else:
         quoted_fname = f'"{fname}"'
     if sys.platform.startswith('win'):
-        # pylint: disable=no-member
         os.startfile(quoted_fname)  # Exists only on Windows.
     elif sys.platform == 'darwin':
         # From Marc-Antoine Parent.

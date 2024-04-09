@@ -268,7 +268,7 @@ class BaseColorizer:
         `key`: key for the zoom_dict.
         """
         c = self.c
-        default_size: str = c.config.defaultBodyFontSize
+        default_size = str(c.config.defaultBodyFontSize)
         # Compute i_size.
         i_size: int
         if key in self.zoom_dict:
@@ -611,9 +611,9 @@ class BaseColorizer:
         self.configureTags()
         self.init()
     #@+node:ekr.20190327053604.1: *4* BaseColorizer.report_changes
-    prev_use_pygments = None
-    prev_use_styles = None
-    prev_style = None
+    prev_use_pygments: bool = None
+    prev_use_styles: bool = None
+    prev_style: str = None
 
     def report_changes(self) -> None:
         """Report changes to pygments settings"""
@@ -625,7 +625,7 @@ class BaseColorizer:
         if trace:
             g.es_print('\nreport changes...')
 
-        def show(setting: str, val: str) -> None:
+        def show(setting: str, val: Any) -> None:
             if trace:
                 g.es_print(f"{setting:35}: {val}")
 
@@ -2815,9 +2815,9 @@ if QtGui:
             if not c.config.getBool('use-pygments', default=False):
                 return
             # Init pygments ivars.
-            self._brushes = {}
+            self._brushes: dict = {}
             self._document = document
-            self._formats = {}
+            self._formats: dict = {}
             self.colorizer.style_name = 'default'
             # Style gallery: https://help.farbox.com/pygments.html
             # Dark styles: fruity, monokai, native, vim
@@ -2944,7 +2944,7 @@ if Qsci:
     class NullScintillaLexer(Qsci.QsciLexerCustom):  # type:ignore
         """A do-nothing colorizer for Scintilla."""
 
-        def __init__(self, c: Cmdr, parent: Position = None) -> None:
+        def __init__(self, c: Cmdr, parent: QtWidgets.QWidget = None) -> None:
             super().__init__(parent)  # Init the pase class
             self.leo_c = c
             self.configure_lexer()
@@ -2962,8 +2962,6 @@ if Qsci:
             """Configure the QScintilla lexer."""
             # c = self.leo_c
             lexer = self
-            # To do: use c.config setting.
-            # pylint: disable=no-member
             font = QtGui.QFont("DejaVu Sans Mono", 14)
             lexer.setFont(font)
 #@+node:ekr.20190319151826.1: ** class PygmentsColorizer(BaseColorizer)
@@ -2986,6 +2984,7 @@ class PygmentsColorizer(BaseColorizer):
             )
         # State unique to this class...
         self.color_enabled = self.enabled
+        self.getDefaultFormat: Any
         self.old_v = None
         # Monkey-patch g.isValidLanguage.
         g.isValidLanguage = self.pygments_isValidLanguage
@@ -3039,6 +3038,7 @@ class PygmentsColorizer(BaseColorizer):
         # Do basic inits.
         super().reloadSettings()
         # Bind methods.
+
         if self.use_pygments_styles:
             self.getDefaultFormat = QtGui.QTextCharFormat
             self.getFormat = self.getPygmentsFormat
@@ -3150,7 +3150,6 @@ class PygmentsColorizer(BaseColorizer):
             lexer = lexers.get_lexer_by_name(lexer_name)
         except Exception:
             # One of the lexer's will not exist.
-            # pylint: disable=no-member
             if trace and language not in self.unknown_languages:
                 self.unknown_languages.append(language)
                 g.trace(f"\nno pygments lexer for {language!r}. Using python 3 lexer\n")
@@ -3306,11 +3305,13 @@ class QScintillaColorizer(BaseColorizer):
             lexer.setStringsOverNewlineAllowed(False)
         table: list[tuple[str, str]] = []
         aList = c.config.getData('qt-scintilla-styles')
+        color: Any
+        style: Any
         if aList:
-            aList = [s.split(',') for s in aList]
+            aList = [s.split(',') for s in aList]  # type:ignore
             for z in aList:
                 if len(z) == 2:
-                    color, style = z
+                    color, style = z  # type:ignore
                     table.append((color.strip(), style.strip()),)
                 else:
                     g.trace(f"entry: {z}")
@@ -3372,7 +3373,6 @@ class QScintillaColorizer(BaseColorizer):
             class_name = 'QsciLexer' + language_name
             lexer_class = getattr(Qsci, class_name, None)
             if lexer_class:
-                # pylint: disable=not-callable
                 lexer = lexer_class(parent=parent)
                 self.configure_lexer(lexer)
                 d[language_name.lower()] = lexer

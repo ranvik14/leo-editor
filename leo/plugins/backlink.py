@@ -81,7 +81,7 @@ where the extra information is the name of the linked node's parent.
 
 from leo.core import leoGlobals as g
 try:  # #2343
-    from leo.core.leoQt import isQt6, QtGui, QtWidgets, uic
+    from leo.core.leoQt import QtGui, QtWidgets, uic
 except Exception:
     QtGui = QtWidgets = None
 #@+others
@@ -415,7 +415,7 @@ class backlinkController:
         )
         if url is None or not url.strip():
             return
-        if '://' not in url:  # pylint: disable=unsupported-membership-test
+        if '://' not in url:
             url = 'unl://' + url
             g.es("Assuming unl:// url, use file:// explicitly for files")
         self.initBacklink(c.p.v)
@@ -653,7 +653,6 @@ class backlinkController:
             if dests:
                 self.ui.enableDelete(True)
                 self.showMessage('Click a link to follow it', optional=True)
-                # pylint: disable=cell-var-from-loop
                 for i in dests:
 
                     if i[1] is None:  # destination node is deleted
@@ -779,10 +778,7 @@ if QtWidgets:
             ui = self.UI
             fg = QtGui.QColor(color)
             pal = QtGui.QPalette(ui.label.palette())
-            if isQt6:
-                pal.setColor(pal.ColorRole.Window, fg)  # #2197
-            else:
-                pal.setColor(QtGui.QPalette.WindowText, fg)
+            pal.setColor(pal.ColorRole.Window, fg)  # #2197
             ui.label.setPalette(pal)
             ui.label.setText(msg)
         #@-others

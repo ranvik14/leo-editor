@@ -44,7 +44,7 @@ except Exception:
     raise
 from leo.external import npyscreen
 import leo.external.npyscreen.utilNotify as utilNotify
-from leo.external.npyscreen.wgwidget import(  # type:ignore
+from leo.external.npyscreen.wgwidget import (  # type:ignore
     EXITED_DOWN, EXITED_ESCAPE, EXITED_MOUSE, EXITED_UP)
 try:
     from tkinter import Tk
@@ -345,7 +345,7 @@ class LeoTreeData(npyscreen.TreeData):
             content = p.h
         else:
             content = self.content
-        return len(content)
+        return len(content)  # type:ignore
 
     def __repr__(self) -> str:
         if native:
@@ -1570,9 +1570,6 @@ class LeoCursesGui(leoGui.LeoGui):
 
         if 1:  # Call our own version of curses.initscr().
             import _curses
-            # This crashes on Python 3.12.
-                # setupterm(term=_os.environ.get("TERM", "unknown"),
-                    # fd=_sys.__stdout__.fileno())
             stdscr = _curses.initscr()
             for key, value in _curses.__dict__.items():
                 if key[0:4] == 'ACS_' or key in ('LINES', 'COLS'):
@@ -1809,7 +1806,8 @@ class LeoCursesGui(leoGui.LeoGui):
             shortcut=shortcut,
             w=w,
         )
-        k.masterKeyHandler(event)
+        # mypy can't know that KeyEvent is compatible with LeoKeyEvent.
+        k.masterKeyHandler(event)  # type:ignore
         g.app.gui.show_label(c)
         c.outerUpdate()
     #@+node:ekr.20171128041920.1: *4* CGui.Focus
@@ -2781,7 +2779,6 @@ class LeoBody(npyscreen.MultiLineEditable):
         trace_widgets = False
         self._my_widgets = []
         height = self.height // self.__class__._contained_widget_height
-        # g.trace(self.__class__.__name__, height)
         for h in range(height):
             self._my_widgets.append(
                 self._contained_widgets(
@@ -3165,8 +3162,9 @@ class LeoMiniBuffer(npyscreen.Textfield):
             k.w = self.leo_wrapper
             k.arg = val
             g.app.gui.curses_gui_arg = val
-            k.masterKeyHandler(
-                event=KeyEvent(c, char='\n', event='', shortcut='\n', w=None))
+            event = KeyEvent(c, char='\n', event='', shortcut='\n', w=None)
+            # mypy can't know that KeyEvent is compatible with LeoKeyEvent.
+            k.masterKeyHandler(event)  # type:ignore
             g.app.gui.curses_gui_arg = None
             k.clearState()
         elif commandName == 'repeat-complex-command':

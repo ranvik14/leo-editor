@@ -71,7 +71,8 @@ import time
 from typing import Any, Iterable, Optional, Union
 from typing import TYPE_CHECKING
 from leo.core import leoGlobals as g
-from leo.core.leoQt import isQt6, QtConst, QtCore, QtGui, QtWidgets, uic
+from leo.core.leoQt import Qt, QtCore, QtGui, QtWidgets, uic
+from leo.core.leoQt import Checked, Unchecked
 
 if TYPE_CHECKING:  # pragma: no cover
     from leo.core.leoCommands import Commands as Cmdr
@@ -84,10 +85,6 @@ if TYPE_CHECKING:  # pragma: no cover
 # Fail fast, right after all imports.
 g.assertUi('qt')  # May raise g.UiTypeException, caught by the plugins manager.
 #@-<< todo imports & annotations >>
-
-# Aliases: these should be in leoQt5.py or leoQt6.py.
-Checked = QtConst.CheckState.Checked if isQt6 else QtConst.Checked
-Unchecked = QtConst.CheckState.Unchecked if isQt6 else QtConst.Unchecked
 
 NO_TIME = datetime.date(3000, 1, 1)
 
@@ -113,7 +110,7 @@ def onCreate(tag: str, key: dict) -> None:
 #@+node:tbrown.20090630144958.5318: ** popup_entry (todo.py)
 def popup_entry(c: Cmdr, p: Position, menu: Menu) -> None:
 
-    if hasattr(c, 'cleo'):  # #2856.
+    if getattr(c, 'cleo', None):  # #2856.
         c.cleo.addPopupMenu(c, p, menu)
 #@+node:tbrown.20090119215428.8: ** class todoQtUI(QWidget)
 if g.app.gui.guiName() == "qt":
@@ -208,8 +205,10 @@ if g.app.gui.guiName() == "qt":
 
             offsets = self.owner.c.config.getData('todo_due_date_offsets')
             if not offsets:
-                offsets = '+7 +0 +1 +2 +3 +4 +5 +6 +10 +14 +21 +28 +42 +60 +90 +120 +150 ' \
-                          '>7 <7 <14 >14 <28 >28'.split()
+                offsets = (
+                    '+7 +0 +1 +2 +3 +4 +5 +6 +10 +14 +21 +28 +42 +60 +90 +120 +150 '
+                    '>7 <7 <14 >14 <28 >28'
+                ).split()
             self.date_offset_default = int(offsets[0].strip('>').replace('<', '-'))
             offsets = sorted(set(offsets), key=lambda x: (x[0], int(x[1:].strip('>').replace('<', '-'))))
             u.dueDateOffset.addItems(offsets)
@@ -529,7 +528,7 @@ class todoController:
 
             self.redrawLevels += 1
             try:
-                ans = fn(self, *args, **kargs)  # pylint: disable=not-callable
+                ans = fn(self, *args, **kargs)
             finally:
                 self.redrawLevels -= 1
                 if self.redrawLevels == 0:
@@ -544,7 +543,6 @@ class todoController:
 
         # pylint: disable=no-self-argument
         def project_changer_callback(self, *args: Any, **kargs: Any) -> Any:  # type:ignore
-            # pylint: disable=not-callable
             ans = fn(self, *args, **kargs)
             self.update_project()
             return ans
@@ -1136,7 +1134,7 @@ class todoController:
         self.showDist()
         dat: dict = {}
         for end in 'from', 'to':
-            if QtConst:
+            if Qt:
                 x0, ok = QtWidgets.QInputDialog.getText(
                     None, 'Reclassify priority', '%s priorities (1-9,19)' % end)
                 if not ok:
@@ -1271,7 +1269,6 @@ class todoController:
         self.ui.setDueTime(self.getat(v, 'duetime'))
         self.ui.setNextWorkDate(self.getat(v, 'nextworkdate'))
         self.ui.setNextWorkTime(self.getat(v, 'nextworktime'))
-        # pylint: disable=maybe-no-member
         created = self.getat(v, 'created')
         if created and isinstance(created, datetime.datetime) and created.year >= 1900:
             self.ui.UI.createdTxt.setText(created.strftime("%d %b %y"))

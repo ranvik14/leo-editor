@@ -215,9 +215,9 @@ it to edit the bookmark node itself, and delete the body text (UNL) there.
 from collections import namedtuple
 import hashlib
 from leo.core import leoGlobals as g
-from leo.core.leoQt import isQt6, QtCore, QtWidgets
+from leo.core.leoQt import QtCore, QtWidgets
 from leo.core.leoQt import ControlType, KeyboardModifier, MouseButton, Orientation, Policy, QAction
-#
+
 # Fail fast, right after all imports.
 g.assertUi('qt')  # May raise g.UiTypeException, caught by the plugins manager.
 #@-<< imports >>
@@ -771,7 +771,6 @@ class BookMarkDisplay:
                 lambda e: cmd_bookmark_organizer(event={'c': bm.v.context})),
         ]
         for action in actions:
-            # pylint: disable=cell-var-from-loop
             act = QAction(action[0], menu)
             act.triggered.connect(lambda checked, bm=bm, f=action[1]: f(bm))
             menu.addAction(act)
@@ -785,9 +784,9 @@ class BookMarkDisplay:
         act.triggered.connect(follow)
         menu.addAction(act)
 
-        point = event.position().toPoint() if isQt6 else event.pos()  # Qt6 documentation is wrong.
+        point = event.position().toPoint()  # Qt6 documentation is wrong.
         global_point = but.mapToGlobal(point)
-        menu.exec_(global_point)
+        menu.exec(global_point)
     #@+node:tbnorth.20160830110146.1: *3* context_menu
     def context_menu(self, event, container=None):
         """context_menu
@@ -804,16 +803,13 @@ class BookMarkDisplay:
             ),
         ]
         for action in actions:
-            # pylint: disable=cell-var-from-loop
-            # pylint: disable=undefined-variable
-            # weird: bm clearly *is* defined.
             act = QAction(action[0], menu)
             act.triggered.connect(lambda checked, bm=bm, f=action[1]: f(bm))
             menu.addAction(act)
 
-        point = event.position().toPoint() if isQt6 else event.pos()  # Qt6 documentation is wrong.
+        point = event.position().toPoint()  # Qt6 documentation is wrong.
         global_point = menu.mapToGlobal(point)
-        menu.exec_(global_point)
+        menu.exec(global_point)
     #@+node:tbrown.20110712100955.18925: *3* color
     def color(self, text, dark=False):
         """make a consistent light background color for text"""
@@ -950,11 +946,12 @@ class BookMarkDisplay:
         while todo:
             links = todo.pop(0) if todo else []
             top = QtWidgets.QWidget()
-            # pylint: disable=undefined-loop-variable
-            # pylint bug, fix released: http://www.logilab.org/ticket/89092
-            # pylint: disable=undefined-variable
-            top.mouseReleaseEvent = (lambda event, links=links, row_parent=row_parent:
-                self.background_clicked(event, links, row_parent))
+
+            def top_mouseReleaseEvent(event, links=links, row_parent=row_parent) -> None:
+                self.background_clicked(event, links, row_parent)
+
+            top.mouseReleaseEvent = top_mouseReleaseEvent  # type:ignore
+
             top.setMinimumSize(10, 10)  # so there's something to click when empty
             size_policy = QtWidgets.QSizePolicy(Policy.Expanding, Policy.Expanding)
             size_policy.setHorizontalStretch(1)
@@ -980,11 +977,10 @@ class BookMarkDisplay:
                 if bm.url:
                     but.setToolTip(bm.url)
 
-                # pylint: disable=undefined-variable
-                # 'but' *is* defined.
-                but.mouseReleaseEvent = (lambda event, bm=bm, but=but:
-                    self.button_clicked(event, bm, but))
+                def button_mouseReleaseEvent(event, bm=bm, but=but) -> None:
+                    self.button_clicked(event, bm, but)
 
+                but.mouseReleaseEvent = button_mouseReleaseEvent  # type:ignore
                 layout.addWidget(but)
 
                 showing = False
@@ -1042,7 +1038,7 @@ class BookMarkDisplay:
                 def mouseReleaseHandler2(event, bm=bm, but=but):
                     self.button_clicked(event, bm, but, up=True)
 
-                but.mouseReleaseEvent = mouseReleaseHandler2
+                but.mouseReleaseEvent = mouseReleaseHandler2  # type:ignore
                 next_row.addWidget(but)
                 # rotate to start of layout, FlowLayout() has no insertWidget()
                 next_row.itemList[:] = next_row.itemList[-1:] + next_row.itemList[:-1]

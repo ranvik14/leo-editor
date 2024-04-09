@@ -262,11 +262,7 @@ if encOK:
 
     def get_AES():
         if hasattr(AES, 'MODE_EAX'):
-            # pylint: disable=no-member
-            # #1265: When in doubt, use MODE_EAX.
-            # https://pycryptodome.readthedocs.io/en/latest/src/cipher/aes.html
             return AES.new(__ENCKEY[0], AES.MODE_EAX)
-        # pylint: disable=no-value-for-parameter
         return AES.new(__ENCKEY[0])
 
     def sn_decode(s):
@@ -327,14 +323,14 @@ class TextEditSearch(QtWidgets.QWidget):  # type:ignore
         super().__init__(*args, **kwargs)
         self.textedit = QtWidgets.QTextEdit(*args, **kwargs)
         # need to call focusin/out set on parent by FocusingPlaintextEdit / mknote
-        self.textedit.focusInEvent = self._call_old_first(
+        self.textedit.focusInEvent = self._call_old_first(  # type:ignore
             self.textedit.focusInEvent, self.focusin)
-        self.textedit.focusOutEvent = self._call_old_first(
+        self.textedit.focusOutEvent = self._call_old_first(  # type:ignore
             self.textedit.focusOutEvent, self.focusout)
         self.searchbox = QLineEdit()
-        self.searchbox.focusInEvent = self._call_old_first(
+        self.searchbox.focusInEvent = self._call_old_first(  # type:ignore
             self.searchbox.focusInEvent, self.focusin)
-        self.searchbox.focusOutEvent = self._call_old_first(
+        self.searchbox.focusOutEvent = self._call_old_first(  # type:ignore
             self.searchbox.focusOutEvent, self.focusout)
 
         # invoke find when return pressed
@@ -637,8 +633,6 @@ class Tabula(QtWidgets.QMainWindow):  # type:ignore
             return n
         n = mknote(self.c, p, parent=self.mdi)
         sw = self.mdi.addSubWindow(n)
-        # pylint: disable=maybe-no-member
-        # Qt.WA_DeleteOnClose does exist.
         try:
             sw.setAttribute(Qt.WA_DeleteOnClose, False)
         except AttributeError:

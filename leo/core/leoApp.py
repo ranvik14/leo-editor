@@ -23,19 +23,21 @@ StringIO = io.StringIO
 #@+<< leoApp annotations >>
 #@+node:ekr.20220819191617.1: ** << leoApp annotations >>
 if TYPE_CHECKING:  # pragma: no cover
+    from subprocess import Popen
+    from types import Module
     from leo.core.leoBackground import BackgroundProcessManager
     from leo.core.leoCache import GlobalCacher
     from leo.core.leoCommands import Commands as Cmdr
     from leo.core.leoConfig import GlobalConfigManager
     from leo.core.leoExternalFiles import ExternalFilesController
-    from leo.core.leoGui import LeoKeyEvent as Event
-    from leo.core.leoGui import LeoGui
+    from leo.core.leoGui import LeoKeyEvent, LeoFrame, LeoGui
     from leo.core.leoIPython import InternalIPKernel
     from leo.core.leoNodes import NodeIndices, Position
     from leo.core.leoPlugins import LeoPluginsController
     from leo.core.leoSessions import SessionManager
+    from leo.plugins.qt_events import LossageData
+    from leo.plugins.qt_idle_time import IdleTime
     from leo.plugins.qt_text import QTextEditWrapper as Wrapper
-    Widget = Any
 #@-<< leoApp annotations >>
 #@+others
 #@+node:ekr.20150509193629.1: ** cmd (decorator)
@@ -139,8 +141,8 @@ class LeoApp:
         self.debug_dict: dict[str, Any] = {}  # For general use.
         self.disable_redraw = False  # True: disable all redraws.
         self.disableSave = False  # May be set by plugins.
-        self.idle_timers: list[Any] = []  # A list of IdleTime instances, so they persist.
-        self.log_listener: Any = None  # The external process created by the 'listen-for-log' command.
+        self.idle_timers: list[IdleTime] = []  # A list of IdleTime instances, so they persist.
+        self.log_listener: Optional[Popen] = None  # The external process created by the 'listen-for-log' command.
         self.positions = 0  # The number of positions generated.
         self.scanErrors = 0  # The number of errors seen by g.scanError.
         self.statsDict: dict[str, Any] = {}  # dict used by g.stat, g.clear_stats, g.print_stats.
@@ -171,11 +173,11 @@ class LeoApp:
         self.globalKillBuffer: list[str] = []  # The global kill buffer.
         self.globalRegisters: dict[str, str] = {}  # The global register list.
         self.leoID: str = None  # The id part of gnx's.
-        self.lossage: list[Any] = []  # List of last 100 keystrokes.
+        self.lossage: list[LossageData] = []  # List of last 100 keystrokes.
         self.paste_c: Cmdr = None  # The commander that pasted the last outline.
         self.spellDict: dict = None  # The singleton PyEnchant spell dict.
         self.numberOfUntitledWindows = 0  # Number of opened untitled windows.
-        self.windowList: list[Any] = []  # Global list of all frames.
+        self.windowList: list[LeoFrame] = []  # Global list of all frames.
         self.realMenuNameDict: dict[str, str] = {}  # Translations of menu names.
         #@-<< LeoApp: global data >>
         #@+<< LeoApp: global controller/manager objects >>
@@ -235,7 +237,7 @@ class LeoApp:
         #@-<< LeoApp: global status vars >>
         #@+<< LeoApp: the global log >>
         #@+node:ekr.20161028040141.1: *5* << LeoApp: the global log >>
-        self.log: Widget = None  # The LeoFrame containing the present log.
+        self.log: LeoFrame = None  # The LeoFrame containing the present log.
         self.logInited = False  # False: all log message go to logWaiting list.
         self.logIsLocked = False  # True: no changes to log are allowed.
         self.logWaiting: list[tuple] = []  # List of tuples (s, color, newline) waiting to go to a log.
@@ -978,7 +980,8 @@ class LeoApp:
             message = (
                 f"Can not load the requested gui: {argName}\n"
                 '*** Leo could not be started ***\n\n'
-                "Please verify you've installed the required dependencies:\n"
+                'Please verify you have installed the required dependencies:\n'
+                'pip install -r requirements.txt\n'
                 'https://leo-editor.github.io/leo-editor/installing.html\n'
             )
             try:
@@ -1176,7 +1179,7 @@ class LeoApp:
                     pass
                 g.error('can not create', tag, 'in', theDir)
     #@+node:ekr.20031218072017.1847: *4* app.setLog, lockLog, unlocklog
-    def setLog(self, log: Any) -> None:
+    def setLog(self, log: LeoFrame) -> None:
         """set the frame to which log messages will go"""
         if not self.logIsLocked:
             self.log = log
@@ -1234,7 +1237,7 @@ class LeoApp:
         return self.log and self.log.c
     #@+node:ekr.20171127111053.1: *3* app.Closing
     #@+node:ekr.20031218072017.2609: *4* app.closeLeoWindow
-    def closeLeoWindow(self, frame: Widget, new_c: Cmdr = None, finish_quit: bool = True) -> bool:
+    def closeLeoWindow(self, frame: LeoFrame, new_c: Cmdr = None, finish_quit: bool = True) -> bool:
         """
         Attempt to close a Leo window.
 
@@ -1285,7 +1288,7 @@ class LeoApp:
             g.app.externalFilesController.shut_down()
             g.app.externalFilesController = None
     #@+node:ekr.20031218072017.2615: *4* app.destroyWindow
-    def destroyWindow(self, frame: Widget) -> None:
+    def destroyWindow(self, frame: LeoFrame) -> None:
         """Destroy all ivars in a Leo frame."""
         if 'shutdown' in g.app.debug:
             g.pr(f"destroyWindow:  {frame.c.shortFileName()}")
@@ -1348,7 +1351,7 @@ class LeoApp:
     #@+node:ekr.20031218072017.2617: *4* app.onQuit
     @cmd('exit-leo')
     @cmd('quit-leo')
-    def onQuit(self, event: Event = None) -> None:
+    def onQuit(self, event: LeoKeyEvent = None) -> None:
         """Exit Leo, prompting to save unsaved outlines first."""
         if 'shutdown' in g.app.debug:
             g.trace()
@@ -1458,7 +1461,7 @@ class LeoApp:
     #@+node:ekr.20170429152049.1: *3* app.listenToLog
     @cmd('listen-to-log')
     @cmd('log-listen')
-    def listenToLog(self, event: Event = None) -> None:
+    def listenToLog(self, event: LeoKeyEvent = None) -> None:
         """
         A socket listener, listening on localhost. See:
         https://docs.python.org/2/howto/logging-cookbook.html#sending-and-receiving-logging-events-across-a-network
@@ -2435,7 +2438,7 @@ class LoadManager:
                         g.warning(f"can not import leo.plugins.importers.{module_name}")
                         g.printObj(filenames)
     #@+node:ekr.20140723140445.18076: *7* LM.parse_importer_dict
-    def parse_importer_dict(self, sfn: str, m: Any) -> None:
+    def parse_importer_dict(self, sfn: str, m: Module) -> None:
         """
         Set entries in g.app.classDispatchDict, g.app.atAutoDict and
         g.app.atAutoNames using entries in m.importer_dict.
@@ -2495,7 +2498,7 @@ class LoadManager:
             g.trace('LM.atAutoWritersDict')
             g.printDict(g.app.atAutoWritersDict)
     #@+node:ekr.20140728040812.17991: *7* LM.parse_writer_dict
-    def parse_writer_dict(self, sfn: str, m: Any) -> None:
+    def parse_writer_dict(self, sfn: str, m: Module) -> None:
         """
         Set entries in g.app.writersDispatchDict and g.app.atAutoWritersDict
         using entries in m.writers_dict.
@@ -2894,11 +2897,11 @@ class LoadManager:
                 g.es_print = self.write
                 g.pr = self.write
 
-            def flush(self, *args: Any, **keys: Any) -> None:
+            def flush(self, *args: list, **keys: dict) -> None:
                 pass
             #@+others
             #@+node:ekr.20160718102306.1: *7* LeoStdOut.write
-            def write(self, *args: Any, **keys: Any) -> None:
+            def write(self, *args: list, **keys: dict) -> None:
                 """Put all non-keyword args to the log pane, as in g.es."""
                 #
                 # Tracing will lead to unbounded recursion unless
@@ -3254,7 +3257,7 @@ class LoadManager:
         c.frame.setTitle(title)
         c.clearChanged()
     #@+node:ekr.20120223062418.10410: *5* LM.openZipFile
-    def openZipFile(self, fn: str) -> Any:
+    def openZipFile(self, fn: str) -> Optional[StringIO]:
         """
         Open a zipped file for reading.
         Return a StringIO file if successful.
@@ -3335,8 +3338,8 @@ class RecentFilesManager:
     def __init__(self) -> None:
 
         self.edit_headline = 'Recent files. Do not change this headline!'
-        self.groupedMenus: list[Any] = []  # Set in rf.createRecentFilesMenuItems.
-        self.recentFiles: list[Any] = []  # List of g.Bunches describing .leoRecentFiles.txt files.
+        self.groupedMenus: list[str] = []
+        self.recentFiles: list[str] = []
         self.recentFilesMenuName = 'Recent Files'  # May be changed later.
         self.recentFileMessageWritten = False  # To suppress all but the first message.
         self.write_recent_files_as_needed = False  # Will be set later.
@@ -3425,18 +3428,17 @@ class RecentFilesManager:
         rf_always = c.config.getBool("recent-files-group-always")
         groupedEntries = rf_group or rf_always
         if groupedEntries:  # if so, make dict of groups
-            dirCount: dict[str, Any] = {}
+            dirCount: dict[str, dict[str, Optional[list[str]]]] = {}
             for fileName in rf.getRecentFiles()[:n]:
                 dirName, baseName = g.os_path_split(fileName)
                 if baseName not in dirCount:
                     dirCount[baseName] = {'dirs': [], 'entry': None}
                 dirCount[baseName]['dirs'].append(dirName)
         for name in rf.getRecentFiles()[:n]:
-            # pylint: disable=cell-var-from-loop
             if name.strip() == "":
                 continue  # happens with empty list/new file
 
-            def recentFilesCallback(event: Event = None, c: Cmdr = c, name: str = name) -> None:
+            def recentFilesCallback(event: LeoKeyEvent = None, c: Cmdr = c, name: str = name) -> None:
                 c.openRecentFile(fn=name)
 
             if groupedEntries:
@@ -3696,14 +3698,14 @@ class RecentFilesManager:
 #@+node:ekr.20150514125218.1: ** Top-level-commands
 #@+node:ekr.20150514125218.2: *3* ctrl-click-at-cursor
 @g.command('ctrl-click-at-cursor')
-def ctrlClickAtCursor(event: Event) -> None:
+def ctrlClickAtCursor(event: LeoKeyEvent) -> None:
     """Simulate a control-click at the cursor."""
     c = event.get('c')
     if c:
         g.openUrlOnClick(event)
 #@+node:ekr.20180213045148.1: *3* demangle-recent-files
 @g.command('demangle-recent-files')
-def demangle_recent_files_command(event: Event) -> None:
+def demangle_recent_files_command(event: LeoKeyEvent) -> None:
     """
     Path demangling potentially alters the paths in the recent files list
     according to find/replace patterns in the @data path-demangle setting.
@@ -3723,28 +3725,28 @@ def demangle_recent_files_command(event: Event) -> None:
             g.es_print('No patterns in @data path-demangle')
 #@+node:ekr.20150514125218.3: *3* enable/disable/toggle-idle-time-events
 @g.command('disable-idle-time-events')
-def disable_idle_time_events(event: Event) -> None:
+def disable_idle_time_events(event: LeoKeyEvent) -> None:
     """Disable default idle-time event handling."""
     g.app.idle_time_hooks_enabled = False
 
 @g.command('enable-idle-time-events')
-def enable_idle_time_events(event: Event) -> None:
+def enable_idle_time_events(event: LeoKeyEvent) -> None:
     """Enable default idle-time event handling."""
     g.app.idle_time_hooks_enabled = True
 
 @g.command('toggle-idle-time-events')
-def toggle_idle_time_events(event: Event) -> None:
+def toggle_idle_time_events(event: LeoKeyEvent) -> None:
     """Toggle default idle-time event handling."""
     g.app.idle_time_hooks_enabled = not g.app.idle_time_hooks_enabled
 #@+node:ekr.20150514125218.4: *3* join-leo-irc
 @g.command('join-leo-irc')
-def join_leo_irc(event: Event = None) -> None:
+def join_leo_irc(event: LeoKeyEvent = None) -> None:
     """Open the web page to Leo's irc channel on freenode.net."""
     import webbrowser
     webbrowser.open("http://webchat.freenode.net/?channels=%23leo&uio=d4")
 #@+node:ekr.20150514125218.5: *3* open-url
 @g.command('open-url')
-def openUrl(event: Event = None) -> None:
+def openUrl(event: LeoKeyEvent = None) -> None:
     """
     Open the url in the headline or body text of the selected node.
 
@@ -3756,7 +3758,7 @@ def openUrl(event: Event = None) -> None:
         g.openUrl(c.p)
 #@+node:ekr.20150514125218.6: *3* open-url-under-cursor
 @g.command('open-url-under-cursor')
-def openUrlUnderCursor(event: Event = None) -> Any:
+def openUrlUnderCursor(event: LeoKeyEvent = None) -> Optional[str]:
     """Open the url under the cursor."""
     return g.openUrlOnClick(event)
 #@-others
