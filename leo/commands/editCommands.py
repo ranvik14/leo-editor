@@ -435,7 +435,10 @@ class EditCommandsClass(BaseEditCommandsClass):
     @cmd('dump-caches')
     def dumpCaches(self, event: LeoKeyEvent = None) -> None:  # pragma: no cover
         """Dump, all of Leo's file caches."""
-        g.app.global_cacher.dump()
+        if hasattr(g.app.global_cacher, 'dump'):
+            g.app.global_cacher.dump()
+        else:
+            g.printObj(g.app.global_cacher)
     #@+node:ekr.20150514063305.118: *3* ec.doNothing
     @cmd('do-nothing')
     def doNothing(self, event: LeoKeyEvent) -> None:
@@ -1400,7 +1403,7 @@ class EditCommandsClass(BaseEditCommandsClass):
         c, p = self.c, self.c.p
         iconDir = g.finalize_join(g.app.loadDir, "..", "Icons")
         os.chdir(iconDir)
-        paths = g.app.gui.runOpenFileDialog(c,
+        paths = g.app.gui.runOpenFilesDialog(c,
             title='Get Icons',
             filetypes=[
                 ('All files', '*'),
@@ -1408,7 +1411,8 @@ class EditCommandsClass(BaseEditCommandsClass):
                 ('Bitmap', '*.bmp'),
                 ('Icon', '*.ico'),
             ],
-            defaultextension=None, multiple=True)
+            defaultextension=None,
+        )
         if not paths:
             return
         aList: list[Any] = []

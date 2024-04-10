@@ -12,11 +12,12 @@ import string
 import sys
 import textwrap
 import time
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING, Union
 import zipfile
 import platform
 from leo.core import leoGlobals as g
 from leo.core import leoExternalFiles
+from leo.core.leoCache import GlobalCacher
 from leo.core.leoQt import QCloseEvent
 StringIO = io.StringIO
 #@-<< leoApp imports >>
@@ -25,8 +26,8 @@ StringIO = io.StringIO
 if TYPE_CHECKING:  # pragma: no cover
     from subprocess import Popen
     from types import Module
+    from leo.commands.spellCommands import SqlitePickleShare
     from leo.core.leoBackground import BackgroundProcessManager
-    from leo.core.leoCache import GlobalCacher
     from leo.core.leoCommands import Commands as Cmdr
     from leo.core.leoConfig import GlobalConfigManager
     from leo.core.leoExternalFiles import ExternalFilesController
@@ -57,7 +58,7 @@ class IdleTimeManager:
     def __init__(self) -> None:
         """Ctor for IdleTimeManager class."""
         self.callback_list: list[Callable] = []
-        self.timer = None
+        self.timer: IdleTime = None
     #@+others
     #@+node:ekr.20161026125611.1: *3* itm.add_callback
     def add_callback(self, callback: Callable) -> None:
@@ -121,7 +122,7 @@ class LeoApp:
         self.failFast = False  # True: Use the failfast option in unit tests.
         self.gui: LeoGui = None  # The gui class.
         self.guiArgName: str = None  # The gui name given in --gui option.
-        self.ipython_inited = False  # True if leoIpython.py imports succeeded.
+        self.ipython_inited: bool = False  # True if leoIpython.py imports succeeded.
         self.isTheme = False  # True: load files as theme files (ignore myLeoSettings.leo).
         self.listen_to_log_flag = False  # True: execute listen-to-log command.
         self.loaded_session = False  # Set by startup logic to True if no files specified on the command line.
@@ -129,8 +130,8 @@ class LeoApp:
         self.start_fullscreen = False  # For qt_frame plugin.
         self.start_maximized = False  # For qt_frame plugin.
         self.start_minimized = False  # For qt_frame plugin.
-        self.trace_binding: bool = None  # The name of a binding to trace, or None.
-        self.trace_setting: bool = None  # The name of a setting to trace, or None.
+        self.trace_binding: Optional[str] = None  # The name of a binding to trace, or None.
+        self.trace_setting: Optional[str] = None  # The name of a setting to trace, or None.
         self.translateToUpperCase = False  # Never set to True.
         self.useIpython = False  # True: add support for IPython.
         self.use_splash_screen = True  # True: put up a splash screen.
@@ -175,7 +176,7 @@ class LeoApp:
         self.leoID: str = None  # The id part of gnx's.
         self.lossage: list[LossageData] = []  # List of last 100 keystrokes.
         self.paste_c: Cmdr = None  # The commander that pasted the last outline.
-        self.spellDict: dict = None  # The singleton PyEnchant spell dict.
+        self.spellDict: Optional[dict] = None  # 2024/04/09: A plain dict.
         self.numberOfUntitledWindows = 0  # Number of opened untitled windows.
         self.windowList: list[LeoFrame] = []  # Global list of all frames.
         self.realMenuNameDict: dict[str, str] = {}  # Translations of menu names.
@@ -185,9 +186,9 @@ class LeoApp:
         # Singleton applications objects...
         self.backgroundProcessManager: BackgroundProcessManager = None  # A BackgroundProcessManager.
         self.config: GlobalConfigManager = None  # g.app.config.
-        self.db: GlobalCacher = None  # A global db, managed by g.app.global_cacher.
+        self.db: Union[dict, SqlitePickleShare] = None  # A global db, managed by g.app.global_cacher.
         self.externalFilesController: ExternalFilesController = None
-        self.global_cacher: GlobalCacher = None
+        self.global_cacher: Union[dict, GlobalCacher] = None
         self.idleTimeManager: IdleTimeManager = None
         self.ipk: InternalIPKernel = None  # A python kernel.
         self.loadManager: LoadManager = None
@@ -1309,7 +1310,8 @@ class LeoApp:
         if not g.app.killed:
             g.doHook("end1")
             if g.app.global_cacher:  # #1766.
-                g.app.global_cacher.commit_and_close()
+                if isinstance(g.app.global_cacher, GlobalCacher):
+                    g.app.global_cacher.commit_and_close()
         if g.app.ipk:
             g.app.ipk.cleanup_consoles()
         g.app.destroyAllOpenWithFiles()

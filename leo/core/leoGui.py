@@ -12,7 +12,7 @@ Plugins may define their own gui classes by setting g.app.gui.
 #@+node:ekr.20220414080546.1: ** << leoGui imports & annotations >>
 from __future__ import annotations
 from collections.abc import Callable
-from typing import Any, Optional, Union, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 from leo.core import leoGlobals as g
 from leo.core import leoFrame
 
@@ -153,7 +153,7 @@ class LeoGui:
 
     def runPropertiesDialog(self,
         title: str = 'Properties',
-        data: str = None,
+        data: Any = None,
         callback: Callable = None,
         buttons: list[str] = None,
     ) -> Any:
@@ -163,15 +163,33 @@ class LeoGui:
     def runOpenFileDialog(self,
         c: Cmdr,
         title: str,
-        filetypes: list[str],
-        defaultextension: str,
-        multiple: bool = False,
+        *,
+        filetypes: list[tuple[str, str]],
+        defaultextension: str = '',
         startpath: str = None,
-    ) -> Union[list[str], str]:  # Return type depends on the evil multiple keyword.
+    ) -> str:
         """Create and run an open file dialog ."""
         raise NotImplementedError
 
-    def runSaveFileDialog(self, c: Cmdr, title: str, filetypes: list[str], defaultextension: str) -> str:
+    def runOpenFilesDialog(self,
+        c: Cmdr,
+        title: str,
+        *,
+        filetypes: list[tuple[str, str]],
+        defaultextension: str = '',
+        startpath: str = None,
+    ) -> list[str]:
+        """Create and run an open files dialog ."""
+        raise NotImplementedError
+
+    def runSaveFileDialog(
+        self,
+        c: Cmdr,
+        title: str,
+        *,
+        filetypes: list[tuple[str, str]],
+        defaultextension: str,
+    ) -> str:
         """Create and run a save file dialog ."""
         raise NotImplementedError
     #@+node:ekr.20031218072017.3732: *4* LeoGui.panels
@@ -360,10 +378,10 @@ class NullGui(LeoGui):
         self.script = None
     #@+node:ekr.20031218072017.3744: *3* NullGui.dialogs
     def runAboutLeoDialog(self, c: Cmdr, version: str, theCopyright: str, url: str, email: str) -> str:
-        return self.simulateDialog("aboutLeoDialog", None)
+        return None
 
     def runAskOkDialog(self, c: Cmdr, title: str, message: str = None, text: str = "Ok") -> str:
-        return self.simulateDialog("okDialog", "Ok")
+        return 'Ok'
 
     def runAskOkCancelNumberDialog(
         self,
@@ -373,7 +391,7 @@ class NullGui(LeoGui):
         cancelButtonText: str = None,
         okButtonText: str = None,
     ) -> str:
-        return self.simulateDialog("numberDialog", 'no')
+        return 'no'
 
     def runAskOkCancelStringDialog(
         self,
@@ -385,24 +403,38 @@ class NullGui(LeoGui):
         default: str = "",
         wide: bool = False,
     ) -> str:
-        return self.simulateDialog("stringDialog", '')
+        return ''
 
     def runCompareDialog(self, c: Cmdr) -> str:
-        return self.simulateDialog("compareDialog", '')
+        return ''
 
-    def runOpenFileDialog(
+    def runOpenFileDialog(self, c: Cmdr, title: str, *,
+        filetypes: list[tuple[str, str]] = None,
+        defaultextension: str = '',
+        startpath: str = None,
+    ) -> str:
+        return ''
+
+    def runSaveFileDialog(self,
+        c: Cmdr,
+        title: str,
+        *,
+        filetypes: list[tuple[str, str]] = None,
+        defaultextension: str = '',
+    ) -> str:
+        return ''
+
+    def runOpenFilesDialog(
         self,
         c: Cmdr,
         title: str,
-        filetypes: list[str],
-        defaultextension: str,
-        multiple: bool = False,
+        *,
+        filetypes: list[tuple[str, str]] = None,
+        defaultextension: str = '',
         startpath: str = None,
-    ) -> Union[list[str], str]:  # Return type depends on the evil multiple keyword.
-        return self.simulateDialog("openFileDialog", None)
+    ) -> list[str]:
+        return []
 
-    def runSaveFileDialog(self, c: Cmdr, title: str, filetypes: list[str], defaultextension: str) -> str:
-        return self.simulateDialog("saveFileDialog", None)
 
     def runAskYesNoDialog(
         self,
@@ -412,7 +444,7 @@ class NullGui(LeoGui):
         yes_all: bool = False,
         no_all: bool = False,
     ) -> str:
-        return self.simulateDialog("yesNoDialog", "no")
+        return 'no'
 
     def runAskYesNoCancelDialog(
         self,
@@ -425,10 +457,7 @@ class NullGui(LeoGui):
         defaultButton: str = "Yes",
         cancelMessage: str = None,
     ) -> str:
-        return self.simulateDialog("yesNoCancelDialog", "cancel")
-
-    def simulateDialog(self, key: str, defaultVal: str) -> str:
-        return defaultVal
+        return 'cancel'
     #@+node:ekr.20170613101737.1: *3* NullGui.clipboard & focus
     def get_focus(self, *args: str, **kwargs: str) -> Widget:
         return self.focusWidget

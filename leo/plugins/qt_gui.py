@@ -234,7 +234,7 @@ class LeoQtGui(leoGui.LeoGui):
         finally:
             c.in_qt_dialog = False
     #@+node:ekr.20110605121601.18489: *4* qt_gui.makeFilter
-    def makeFilter(self, filetypes: list[str]) -> str:
+    def makeFilter(self, filetypes: list[tuple[str, str]]) -> str:
         """Return the Qt-style dialog filter from filetypes list."""
         # Careful: the second %s is *not* replaced.
         filters = ['%s (%s)' % (z) for z in filetypes]
@@ -662,16 +662,16 @@ class LeoQtGui(leoGui.LeoGui):
         dialog = QtWidgets.QFileDialog()
         self.attachLeoIcon(dialog)
         return dialog.getExistingDirectory(None, title, startdir)
-    #@+node:ekr.20110605121601.18500: *4* qt_gui.runOpenFileDialog
+    #@+node:ekr.20110605121601.18500: *4* qt_gui.runOpenFileDialog (changed)
     def runOpenFileDialog(
         self,
         c: Cmdr,
         title: str,
-        filetypes: list[str],
+        *,
+        filetypes: list[tuple[str, str]],
         defaultextension: str = '',
-        multiple: bool = False,
         startpath: str = None,
-    ) -> Union[list[str], str]:  # Return type depends on the evil multiple keyword.
+    ) -> str:
         """
         Create and run an Qt open file dialog.
         """
@@ -687,28 +687,64 @@ class LeoQtGui(leoGui.LeoGui):
         filter_ = self.makeFilter(filetypes)
         dialog = QtWidgets.QFileDialog()
         self.attachLeoIcon(dialog)
-        func = dialog.getOpenFileNames if multiple else dialog.getOpenFileName
-        val: Any  # A necessary hack.
+        dialog_val: tuple[str, Any]
+        val: str
         if c:
             try:
                 c.in_qt_dialog = True
-                val = func(parent=None, caption=title, directory=startpath, filter=filter_)
+                dialog_val = dialog.getOpenFileName(parent=None, caption=title, directory=startpath, filter=filter_)
             finally:
                 c.in_qt_dialog = False
         else:
-            val = func(parent=None, caption=title, directory=startpath, filter=filter_)
+            dialog_val = dialog.getOpenFileName(parent=None, caption=title, directory=startpath, filter=filter_)
         # This is a *PyQt* change, not a Qt change.
-        val, junk_selected_filter = val
-        if multiple:
-            files = [g.os_path_normslashes(s) for s in val]
-            if c and files:
-                c.last_dir = g.os_path_dirname(files[-1])
-            # A consequence of the evil "multiple" kwarg.
-            return files
+        val, junk_selected_filter = dialog_val
         s = g.os_path_normslashes(val)
         if c and s:
             c.last_dir = g.os_path_dirname(s)
         return s
+    #@+node:ekr.20240409063707.1: *4* qt_gui.runOpenFilesDialog (new)
+    def runOpenFilesDialog(
+        self,
+        c: Cmdr,
+        title: str,
+        *,
+        filetypes: list[tuple[str, str]],
+        defaultextension: str = '',
+        startpath: str = None,
+    ) -> list[str]:
+        """
+        Create and run an Qt open file dialog.
+        """
+        if g.unitTesting:
+            return []
+
+        # 2018/03/14: Bug fixes:
+        # - Use init_dialog_folder only if a path is not given
+        # - *Never* Use os.curdir by default!
+        if not startpath:
+            # Returns c.last_dir or os.curdir
+            startpath = g.init_dialog_folder(c, c.p, use_at_path=True)
+        filter_ = self.makeFilter(filetypes)
+        dialog = QtWidgets.QFileDialog()
+        self.attachLeoIcon(dialog)
+        dialog_val: tuple[list[str], Any]
+        val = list[str]
+        if c:
+            try:
+                c.in_qt_dialog = True
+                dialog_val = dialog.getOpenFileNames(parent=None, caption=title, directory=startpath, filter=filter_)
+            finally:
+                c.in_qt_dialog = False
+
+        else:
+            dialog_val = dialog.getOpenFileNames(parent=None, caption=title, directory=startpath, filter=filter_)
+        # This is a *PyQt* change, not a Qt change.
+        val, _ = dialog_val  # type:ignore
+        files = [g.os_path_normslashes(s) for s in val]
+        if c and files:
+            c.last_dir = g.os_path_dirname(files[-1])
+        return files
     #@+node:ekr.20110605121601.18501: *4* qt_gui.runPropertiesDialog
     def runPropertiesDialog(
         self,
@@ -721,9 +757,12 @@ class LeoQtGui(leoGui.LeoGui):
         if not g.unitTesting:
             g.warning('Properties menu not supported for Qt gui')
         return 'Cancel', {}
-    #@+node:ekr.20110605121601.18502: *4* qt_gui.runSaveFileDialog (changed)
+    #@+node:ekr.20110605121601.18502: *4* qt_gui.runSaveFileDialog
     def runSaveFileDialog(self,
-        c: Cmdr, title: str = 'Save', filetypes: list[str] = None, defaultextension: str = '',
+        c: Cmdr,
+        title: str = 'Save',
+        filetypes: list[tuple[str, str]] = None,
+        defaultextension: str = '',
     ) -> str:
         """Create and run an Qt save file dialog ."""
         if g.unitTesting:

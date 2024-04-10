@@ -488,6 +488,8 @@ class LeoPluginsController:
         """
         global optional_modules
 
+        moduleName: str
+
         trace = verbose or 'plugins' in g.app.debug
 
         def report(message: str) -> None:

@@ -701,25 +701,23 @@ def diff_leo_files_helper(event: LeoKeyEvent, title: str, visible: bool) -> None
     c = event and event.get('c')
     if not c:
         return
-    types = [
+    filetypes = [
         ("Leo files", "*.leo *.leojs *.db"),
         ("All files", "*"),
     ]
-    paths = g.app.gui.runOpenFileDialog(c,
+    paths = g.app.gui.runOpenFilesDialog(c,
         title=title,
-        filetypes=types,
+        filetypes=filetypes,
         defaultextension=".leo",
-        multiple=True,
     )
     if not paths:
         return
     if len(paths) == 1:
         # Prompt for another file.
-        paths2 = g.app.gui.runOpenFileDialog(c,
+        paths2 = g.app.gui.runOpensFileDialog(c,
             title=title,
-            filetypes=types,
+            filetypes=filetypes,
             defaultextension=".leo",
-            multiple=True,
         )
         if not paths2:
             return
